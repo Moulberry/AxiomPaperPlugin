@@ -1,8 +1,7 @@
 name: $name
 version: $version
-main: io.papermc.paperweight.testplugin.TestPlugin
+main: com.moulberry.axiom.AxiomPaper
 description: $description
-load: STARTUP
 authors:
-  - Author
+  - Moulberry
 api-version: "$apiVersion"
