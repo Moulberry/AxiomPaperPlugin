@@ -15,6 +15,7 @@ import io.papermc.paper.network.ChannelInitializeListenerHolder;
 import io.papermc.paper.network.ConnectionEvent;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import net.kyori.adventure.key.Key;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.Connection;
 import net.minecraft.network.ConnectionProtocol;
@@ -45,6 +46,13 @@ import java.util.List;
 import java.util.Map;
 
 public class AxiomPaper extends JavaPlugin implements Listener {
+
+    public static final long MIN_POSITION_LONG = BlockPos.asLong(-33554432, -2048, -33554432);
+    static {
+        if (MIN_POSITION_LONG != 0b1000000000000000000000000010000000000000000000000000100000000000L) {
+            throw new Error("BlockPos representation changed!");
+        }
+    }
 
     @Override
     public void onEnable() {

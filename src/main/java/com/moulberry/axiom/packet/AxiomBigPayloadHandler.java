@@ -13,7 +13,7 @@ import java.util.List;
 
 public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
 
-    private static final ResourceLocation SET_BLOCK_BUFFER = new ResourceLocation("axiom", "set_block_buffer");
+    private static final ResourceLocation SET_BUFFER = new ResourceLocation("axiom", "set_buffer");
     private final int payloadId;
     private final Connection connection;
     private final SetBlockBufferPacketListener listener;
@@ -35,7 +35,7 @@ public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
 
                 if (packetId == payloadId) {
                     ResourceLocation identifier = buf.readResourceLocation();
-                    if (identifier.equals(SET_BLOCK_BUFFER)) {
+                    if (identifier.equals(SET_BUFFER)) {
                         ServerPlayer player = connection.getPlayer();
                         if (player != null) {
                             listener.onReceive(player, buf);

@@ -1,21 +1,29 @@
 package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.buffer.BiomeBuffer;
 import com.moulberry.axiom.buffer.BlockBuffer;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.ChunkStatus;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
@@ -29,7 +37,7 @@ import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Map;
+import java.util.*;
 
 public class SetBlockBufferPacketListener {
 
@@ -52,19 +60,26 @@ public class SetBlockBufferPacketListener {
     }
 
     public void onReceive(ServerPlayer player, FriendlyByteBuf friendlyByteBuf) {
+        MinecraftServer server = player.getServer();
+        if (server == null) return;
+
         ResourceKey<Level> worldKey = friendlyByteBuf.readResourceKey(Registries.DIMENSION);
-        BlockBuffer buffer = new BlockBuffer();
 
-        while (true) {
-            long index = friendlyByteBuf.readLong();
-            if (index == Long.MAX_VALUE) break;
-
-            PalettedContainer<BlockState> palettedContainer = buffer.getOrCreateSection(index);
-            palettedContainer.read(friendlyByteBuf);
+        byte type = friendlyByteBuf.readByte();
+        if (type == 0) {
+            BlockBuffer buffer = BlockBuffer.load(friendlyByteBuf);
+            applyBlockBuffer(server, buffer, worldKey);
+        } else if (type == 1) {
+            BiomeBuffer buffer = BiomeBuffer.load(friendlyByteBuf);
+            applyBiomeBuffer(server, buffer, worldKey);
+        } else {
+            throw new RuntimeException("Unknown buffer type: " + type);
         }
+    }
 
-        player.getServer().execute(() -> {
-            ServerLevel world = player.getServer().getLevel(worldKey);
+    private void applyBlockBuffer(MinecraftServer server, BlockBuffer buffer, ResourceKey<Level> worldKey) {
+        server.execute(() -> {
+            ServerLevel world = server.getLevel(worldKey);
             if (world == null) return;
 
             BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
@@ -179,6 +194,54 @@ public class SetBlockBufferPacketListener {
                     world.getChunkSource().getLightEngine().updateSectionStatus(SectionPos.of(cx, cy, cz), nowHasOnlyAir);
                 }
             }
+        });
+    }
+
+
+    private void applyBiomeBuffer(MinecraftServer server, BiomeBuffer biomeBuffer, ResourceKey<Level> worldKey) {
+        server.execute(() -> {
+            ServerLevel world = server.getLevel(worldKey);
+            if (world == null) return;
+
+            Set<LevelChunk> changedChunks = new HashSet<>();
+
+            int minSection = world.getMinSection();
+            int maxSection = world.getMaxSection();
+
+            Optional<Registry<Biome>> registryOptional = world.registryAccess().registry(Registries.BIOME);
+            if (registryOptional.isEmpty()) return;
+
+            Registry<Biome> registry = registryOptional.get();
+
+            biomeBuffer.forEachEntry((x, y, z, biome) -> {
+                int cy = y >> 2;
+                if (cy < minSection || cy >= maxSection) {
+                    return;
+                }
+
+                var chunk = (LevelChunk) world.getChunk(x >> 2, z >> 2, ChunkStatus.FULL, false);
+                if (chunk == null) return;
+
+                var section = chunk.getSection(cy - minSection);
+                PalettedContainer<Holder<Biome>> container = (PalettedContainer<Holder<Biome>>) section.getBiomes();
+
+                var holder = registry.getHolder(biome);
+                if (holder.isPresent()) {
+                    container.set(x & 3, y & 3, z & 3, holder.get());
+                    changedChunks.add(chunk);
+                }
+            });
+
+            var chunkMap = world.getChunkSource().chunkMap;
+            HashMap<ServerPlayer, List<LevelChunk>> map = new HashMap<>();
+            for (LevelChunk chunk : changedChunks) {
+                chunk.setUnsaved(true);
+                ChunkPos chunkPos = chunk.getPos();
+                for (ServerPlayer serverPlayer2 : chunkMap.getPlayers(chunkPos, false)) {
+                    map.computeIfAbsent(serverPlayer2, serverPlayer -> new ArrayList<>()).add(chunk);
+                }
+            }
+            map.forEach((serverPlayer, list) -> serverPlayer.connection.send(ClientboundChunksBiomesPacket.forChunks(list)));
         });
     }
 
