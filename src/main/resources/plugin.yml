@@ -5,3 +5,8 @@ description: $description
 authors:
   - Moulberry
 api-version: "$apiVersion"
+permissions:
+  axiom.*:
+    description: Allows use of all Axiom features
+    default: op
+

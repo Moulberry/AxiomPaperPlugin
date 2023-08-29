@@ -64,6 +64,12 @@ public class SetBlockBufferPacketListener {
         if (server == null) return;
 
         ResourceKey<Level> worldKey = friendlyByteBuf.readResourceKey(Registries.DIMENSION);
+        friendlyByteBuf.readUUID(); // Discard, we don't need to associate buffers
+        boolean continuation = friendlyByteBuf.readBoolean();
+
+        if (!continuation) {
+            friendlyByteBuf.readNbt(); // Discard sourceInfo
+        }
 
         byte type = friendlyByteBuf.readByte();
         if (type == 0) {

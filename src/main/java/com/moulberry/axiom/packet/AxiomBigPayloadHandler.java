@@ -37,7 +37,7 @@ public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
                     ResourceLocation identifier = buf.readResourceLocation();
                     if (identifier.equals(SET_BUFFER)) {
                         ServerPlayer player = connection.getPlayer();
-                        if (player != null) {
+                        if (player != null && player.getBukkitEntity().hasPermission("axiom.*")) {
                             listener.onReceive(player, buf);
                             return;
                         }

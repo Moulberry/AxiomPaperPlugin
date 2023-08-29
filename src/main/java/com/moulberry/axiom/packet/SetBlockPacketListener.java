@@ -48,6 +48,10 @@ public class SetBlockPacketListener implements PluginMessageListener {
 
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player bukkitPlayer, @NotNull byte[] message) {
+        if (!bukkitPlayer.hasPermission("axiom.*")) {
+            return;
+        }
+
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         BlockPos blockPos = friendlyByteBuf.readBlockPos();
         BlockState blockState = friendlyByteBuf.readById(Block.BLOCK_STATE_REGISTRY);
