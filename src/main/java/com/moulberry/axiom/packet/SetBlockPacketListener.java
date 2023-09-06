@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
@@ -15,6 +16,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.lighting.LightEngine;
+import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
@@ -52,6 +54,12 @@ public class SetBlockPacketListener implements PluginMessageListener {
             return;
         }
 
+        // Check if player is allowed to modify this world
+        AxiomModifyWorldEvent modifyWorldEvent = new AxiomModifyWorldEvent(bukkitPlayer, bukkitPlayer.getWorld());
+        Bukkit.getPluginManager().callEvent(modifyWorldEvent);
+        if (modifyWorldEvent.isCancelled()) return;
+
+        // Read packet
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         BlockPos blockPos = friendlyByteBuf.readBlockPos();
         BlockState blockState = friendlyByteBuf.readById(Block.BLOCK_STATE_REGISTRY);
@@ -60,6 +68,7 @@ public class SetBlockPacketListener implements PluginMessageListener {
 
         ServerPlayer player = ((CraftPlayer)bukkitPlayer).getHandle();
 
+        // Update blocks
         if (updateNeighbors) {
             player.level().setBlock(blockPos, blockState, 3);
         } else {

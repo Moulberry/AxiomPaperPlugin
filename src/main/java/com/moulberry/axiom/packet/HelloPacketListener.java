@@ -3,11 +3,13 @@ package com.moulberry.axiom.packet;
 import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.View;
+import com.moulberry.axiom.event.AxiomHandshakeEvent;
 import com.moulberry.axiom.persistence.ItemStackDataType;
 import com.moulberry.axiom.persistence.UUIDDataType;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.network.FriendlyByteBuf;
+import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.craftbukkit.v1_20_R1.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
@@ -46,13 +48,20 @@ public class HelloPacketListener implements PluginMessageListener {
             return;
         }
 
+        // Call handshake event
+        AxiomHandshakeEvent handshakeEvent = new AxiomHandshakeEvent(player);
+        Bukkit.getPluginManager().callEvent(handshakeEvent);
+        if (handshakeEvent.isCancelled()) {
+            return;
+        }
+
         activeAxiomPlayers.add(player.getUniqueId());
 
         // Enable
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
         buf.writeBoolean(true);
         buf.writeByte(0); // todo: world properties
-        buf.writeInt(0x100000); // Max Buffer Size
+        buf.writeInt(handshakeEvent.getMaxBufferSize()); // Max Buffer Size
         buf.writeBoolean(false); // No source info
         buf.writeBoolean(false); // No source settings
         buf.writeVarInt(5); // Maximum Reach

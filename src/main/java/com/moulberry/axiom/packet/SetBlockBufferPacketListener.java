@@ -4,6 +4,7 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.buffer.BiomeBuffer;
 import com.moulberry.axiom.buffer.BlockBuffer;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
+import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
@@ -31,6 +32,10 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.lighting.LightEngine;
+import org.bukkit.Bukkit;
+import org.bukkit.NamespacedKey;
+import org.bukkit.World;
+import org.bukkit.craftbukkit.v1_20_R1.CraftWorld;
 import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
@@ -66,6 +71,16 @@ public class SetBlockBufferPacketListener {
         if (server == null) return;
 
         ResourceKey<Level> worldKey = friendlyByteBuf.readResourceKey(Registries.DIMENSION);
+        NamespacedKey namespacedKey = new NamespacedKey(worldKey.location().getNamespace(), worldKey.location().getPath());
+        World world = Bukkit.getWorld(namespacedKey);
+        if (world != null) {
+            AxiomModifyWorldEvent modifyWorldEvent = new AxiomModifyWorldEvent(player.getBukkitEntity(), world);
+            Bukkit.getPluginManager().callEvent(modifyWorldEvent);
+            if (modifyWorldEvent.isCancelled()) return;
+        } else {
+            return;
+        }
+
         friendlyByteBuf.readUUID(); // Discard, we don't need to associate buffers
         boolean continuation = friendlyByteBuf.readBoolean();
 
