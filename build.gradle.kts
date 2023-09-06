@@ -7,8 +7,8 @@ plugins {
     id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
-group = "com.moulberry.com.moulberry.axiom"
-version = "1.0.0-SNAPSHOT"
+group = "com.moulberry.axiom"
+version = "1.1.0"
 description = "Serverside component for Axiom on Paper"
 
 java {
@@ -24,6 +24,9 @@ repositories {
 dependencies {
     paperweight.paperDevBundle("1.20.1-R0.1-SNAPSHOT")
     implementation("xyz.jpenilla:reflection-remapper:0.1.0-SNAPSHOT")
+
+    // Zstd Compression Library
+    implementation("com.github.luben:zstd-jni:1.5.5-4")
 }
 
 tasks {

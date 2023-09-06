@@ -1,9 +1,11 @@
 package com.moulberry.axiom.buffer;
 
+import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
+import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.block.Block;
@@ -18,8 +20,7 @@ public class BlockBuffer {
     private final Long2ObjectMap<PalettedContainer<BlockState>> values;
 
     private PalettedContainer<BlockState> last = null;
-    private long lastId = AxiomPaper.MIN_POSITION_LONG;
-    private int count;
+    private long lastId = AxiomConstants.MIN_POSITION_LONG;
 
     public BlockBuffer() {
         this.values = new Long2ObjectOpenHashMap<>();
@@ -29,17 +30,13 @@ public class BlockBuffer {
         this.values = values;
     }
 
-    public int getCount() {
-        return this.count;
-    }
-
     public void save(FriendlyByteBuf friendlyByteBuf) {
         for (Long2ObjectMap.Entry<PalettedContainer<BlockState>> entry : this.entrySet()) {
             friendlyByteBuf.writeLong(entry.getLongKey());
             entry.getValue().write(friendlyByteBuf);
         }
 
-        friendlyByteBuf.writeLong(AxiomPaper.MIN_POSITION_LONG);
+        friendlyByteBuf.writeLong(AxiomConstants.MIN_POSITION_LONG);
     }
 
     public static BlockBuffer load(FriendlyByteBuf friendlyByteBuf) {
@@ -47,7 +44,7 @@ public class BlockBuffer {
 
         while (true) {
             long index = friendlyByteBuf.readLong();
-            if (index == AxiomPaper.MIN_POSITION_LONG) break;
+            if (index == AxiomConstants.MIN_POSITION_LONG) break;
 
             PalettedContainer<BlockState> palettedContainer = buffer.getOrCreateSection(index);
             palettedContainer.read(friendlyByteBuf);
@@ -58,7 +55,7 @@ public class BlockBuffer {
 
     public void clear() {
         this.last = null;
-        this.lastId = AxiomPaper.MIN_POSITION_LONG;
+        this.lastId = AxiomConstants.MIN_POSITION_LONG;
         this.values.clear();
     }
 
@@ -79,23 +76,11 @@ public class BlockBuffer {
     public void set(int x, int y, int z, BlockState state) {
         var container = this.getOrCreateSectionForCoord(x, y, z);
         var old = container.getAndSet(x & 0xF, y & 0xF, z & 0xF, state);
-
-        if (old == EMPTY_STATE) {
-            if (state != EMPTY_STATE) this.count += 1;
-        } else if (state == EMPTY_STATE) {
-            this.count -= 1;
-        }
     }
 
     public void set(int cx, int cy, int cz, int lx, int ly, int lz, BlockState state) {
         var container = this.getOrCreateSection(BlockPos.asLong(cx, cy, cz));
         var old = container.getAndSet(lx, ly, lz, state);
-
-        if (old == EMPTY_STATE) {
-            if (state != EMPTY_STATE) this.count += 1;
-        } else if (state == EMPTY_STATE) {
-            this.count -= 1;
-        }
     }
 
     public BlockState remove(int x, int y, int z) {

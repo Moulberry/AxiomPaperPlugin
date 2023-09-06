@@ -111,25 +111,23 @@ public class SetBlockPacketListener implements PluginMessageListener {
                         if (blockEntity != null) {
                             chunk.addAndRegisterBlockEntity(blockEntity);
                         }
+                    } else if (blockEntity.getType().isValid(blockState)) {
+                        // Block entity is here and the type is correct
+                        // Just update the state and ticker and move on
+                        blockEntity.setBlockState(blockState);
+
+                        try {
+                            this.updateBlockEntityTicker.invoke(chunk, blockEntity);
+                        } catch (IllegalAccessException | InvocationTargetException e) {
+                            throw new RuntimeException(e);
+                        }
                     } else {
-                        if (blockEntity.getType().isValid(blockState)) {
-                            // Block entity is here and the type is correct
-                            // Just update the state and ticker and move on
-                            blockEntity.setBlockState(blockState);
+                        // Block entity type isn't correct, we need to recreate it
+                        chunk.removeBlockEntity(blockPos);
 
-                            try {
-                                this.updateBlockEntityTicker.invoke(chunk, blockEntity);
-                            } catch (IllegalAccessException | InvocationTargetException e) {
-                                throw new RuntimeException(e);
-                            }
-                        } else {
-                            // Block entity type isn't correct, we need to recreate it
-                            chunk.removeBlockEntity(blockPos);
-
-                            blockEntity = ((EntityBlock)block).newBlockEntity(blockPos, blockState);
-                            if (blockEntity != null) {
-                                chunk.addAndRegisterBlockEntity(blockEntity);
-                            }
+                        blockEntity = ((EntityBlock)block).newBlockEntity(blockPos, blockState);
+                        if (blockEntity != null) {
+                            chunk.addAndRegisterBlockEntity(blockEntity);
                         }
                     }
                 } else if (old.hasBlockEntity()) {
