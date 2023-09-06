@@ -66,9 +66,9 @@ public class SetBlockBufferPacketListener {
         }
     }
 
-    public void onReceive(ServerPlayer player, FriendlyByteBuf friendlyByteBuf) {
+    public boolean onReceive(ServerPlayer player, FriendlyByteBuf friendlyByteBuf) {
         MinecraftServer server = player.getServer();
-        if (server == null) return;
+        if (server == null) return false;
 
         ResourceKey<Level> worldKey = friendlyByteBuf.readResourceKey(Registries.DIMENSION);
         friendlyByteBuf.readUUID(); // Discard, we don't need to associate buffers
@@ -88,6 +88,8 @@ public class SetBlockBufferPacketListener {
         } else {
             throw new RuntimeException("Unknown buffer type: " + type);
         }
+
+        return true;
     }
 
     private void applyBlockBuffer(ServerPlayer player, MinecraftServer server, BlockBuffer buffer, ResourceKey<Level> worldKey) {
