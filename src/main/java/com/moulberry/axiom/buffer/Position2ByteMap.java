@@ -1,5 +1,6 @@
 package com.moulberry.axiom.buffer;
 
+import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -20,7 +21,7 @@ public class Position2ByteMap {
     private final LongFunction<byte[]> defaultFunction;
     private final Long2ObjectMap<byte[]> map = new Long2ObjectOpenHashMap<>();
 
-    private long lastChunkPos = AxiomPaper.MIN_POSITION_LONG;
+    private long lastChunkPos = AxiomConstants.MIN_POSITION_LONG;
     private byte[] lastChunk = null;
 
     public Position2ByteMap() {
@@ -47,7 +48,7 @@ public class Position2ByteMap {
             friendlyByteBuf.writeLong(entry.getLongKey());
             friendlyByteBuf.writeBytes(entry.getValue());
         }
-        friendlyByteBuf.writeLong(AxiomPaper.MIN_POSITION_LONG);
+        friendlyByteBuf.writeLong(AxiomConstants.MIN_POSITION_LONG);
     }
 
     public static Position2ByteMap load(FriendlyByteBuf friendlyByteBuf) {
@@ -55,7 +56,7 @@ public class Position2ByteMap {
 
         while (true) {
             long pos = friendlyByteBuf.readLong();
-            if (pos == AxiomPaper.MIN_POSITION_LONG) break;
+            if (pos == AxiomConstants.MIN_POSITION_LONG) break;
 
             byte[] bytes = new byte[16*16*16];
             friendlyByteBuf.readBytes(bytes);
@@ -67,7 +68,7 @@ public class Position2ByteMap {
 
     public void clear() {
         this.map.clear();
-        this.lastChunkPos = AxiomPaper.MIN_POSITION_LONG;
+        this.lastChunkPos = AxiomConstants.MIN_POSITION_LONG;
         this.lastChunk = null;
     }
 
