@@ -17,8 +17,11 @@ java {
 }
 
 repositories {
+    mavenCentral()
     maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
     maven("https://jitpack.io")
+    maven("https://maven.enginehub.org/repo/")
+    maven("https://repo.papermc.io/repository/maven-public/")
 }
 
 dependencies {
@@ -27,6 +30,14 @@ dependencies {
 
     // Zstd Compression Library
     implementation("com.github.luben:zstd-jni:1.5.5-4")
+
+    // WorldGuard support
+    compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.1.0-SNAPSHOT")
+
+    // PlotSquared support
+    implementation(platform("com.intellectualsites.bom:bom-newest:1.37"))
+    compileOnly("com.intellectualsites.plotsquared:plotsquared-core")
+    compileOnly("com.intellectualsites.plotsquared:plotsquared-bukkit") { isTransitive = false }
 }
 
 tasks {
