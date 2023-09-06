@@ -71,16 +71,6 @@ public class SetBlockBufferPacketListener {
         if (server == null) return;
 
         ResourceKey<Level> worldKey = friendlyByteBuf.readResourceKey(Registries.DIMENSION);
-        NamespacedKey namespacedKey = new NamespacedKey(worldKey.location().getNamespace(), worldKey.location().getPath());
-        World world = Bukkit.getWorld(namespacedKey);
-        if (world != null) {
-            AxiomModifyWorldEvent modifyWorldEvent = new AxiomModifyWorldEvent(player.getBukkitEntity(), world);
-            Bukkit.getPluginManager().callEvent(modifyWorldEvent);
-            if (modifyWorldEvent.isCancelled()) return;
-        } else {
-            return;
-        }
-
         friendlyByteBuf.readUUID(); // Discard, we don't need to associate buffers
         boolean continuation = friendlyByteBuf.readBoolean();
 
@@ -91,7 +81,7 @@ public class SetBlockBufferPacketListener {
         byte type = friendlyByteBuf.readByte();
         if (type == 0) {
             BlockBuffer buffer = BlockBuffer.load(friendlyByteBuf);
-            applyBlockBuffer(server, buffer, worldKey);
+            applyBlockBuffer(player, server, buffer, worldKey);
         } else if (type == 1) {
             BiomeBuffer buffer = BiomeBuffer.load(friendlyByteBuf);
             applyBiomeBuffer(server, buffer, worldKey);
@@ -100,11 +90,17 @@ public class SetBlockBufferPacketListener {
         }
     }
 
-    private void applyBlockBuffer(MinecraftServer server, BlockBuffer buffer, ResourceKey<Level> worldKey) {
+    private void applyBlockBuffer(ServerPlayer player, MinecraftServer server, BlockBuffer buffer, ResourceKey<Level> worldKey) {
         server.execute(() -> {
             ServerLevel world = server.getLevel(worldKey);
             if (world == null) return;
 
+            // Call AxiomModifyWorldEvent event
+            AxiomModifyWorldEvent modifyWorldEvent = new AxiomModifyWorldEvent(player.getBukkitEntity(), world.getWorld());
+            Bukkit.getPluginManager().callEvent(modifyWorldEvent);
+            if (modifyWorldEvent.isCancelled()) return;
+
+            // Allowed, apply buffer
             BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
 
             var lightEngine = world.getChunkSource().getLightEngine();
