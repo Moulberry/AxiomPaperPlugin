@@ -3,8 +3,10 @@ package com.moulberry.axiom.packet;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.buffer.BiomeBuffer;
 import com.moulberry.axiom.buffer.BlockBuffer;
+import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
@@ -125,6 +127,8 @@ public class SetBlockBufferPacketListener {
                     }
                 }
 
+                Short2ObjectMap<CompressedBlockEntity> blockEntityChunkMap = buffer.getBlockEntityChunkMap(entry.getLongKey());
+
                 sectionStates.acquire();
                 try {
                     for (int x = 0; x < 16; x++) {
@@ -159,26 +163,41 @@ public class SetBlockBufferPacketListener {
                                         }
                                     }
 
-                                    boolean oldHasBlockEntity = old.hasBlockEntity();
-                                    if (old.is(block)) {
-                                        if (blockState.hasBlockEntity()) {
-                                            BlockEntity blockEntity = chunk.getBlockEntity(blockPos, LevelChunk.EntityCreationType.CHECK);
-                                            if (blockEntity == null) {
-                                                blockEntity = ((EntityBlock)block).newBlockEntity(blockPos, blockState);
-                                                if (blockEntity != null) {
-                                                    chunk.addAndRegisterBlockEntity(blockEntity);
-                                                }
-                                            } else {
-                                                blockEntity.setBlockState(blockState);
+                                    if (blockState.hasBlockEntity()) {
+                                        BlockEntity blockEntity = chunk.getBlockEntity(blockPos, LevelChunk.EntityCreationType.CHECK);
 
-                                                try {
-                                                    this.updateBlockEntityTicker.invoke(chunk, blockEntity);
-                                                } catch (IllegalAccessException | InvocationTargetException e) {
-                                                    throw new RuntimeException(e);
-                                                }
+                                        if (blockEntity == null) {
+                                            // There isn't a block entity here, create it!
+                                            blockEntity = ((EntityBlock)block).newBlockEntity(blockPos, blockState);
+                                            if (blockEntity != null) {
+                                                chunk.addAndRegisterBlockEntity(blockEntity);
+                                            }
+                                        } else if (blockEntity.getType().isValid(blockState)) {
+                                            // Block entity is here and the type is correct
+                                            blockEntity.setBlockState(blockState);
+
+                                            try {
+                                                this.updateBlockEntityTicker.invoke(chunk, blockEntity);
+                                            } catch (IllegalAccessException | InvocationTargetException e) {
+                                                throw new RuntimeException(e);
+                                            }
+                                        } else {
+                                            // Block entity type isn't correct, we need to recreate it
+                                            chunk.removeBlockEntity(blockPos);
+
+                                            blockEntity = ((EntityBlock)block).newBlockEntity(blockPos, blockState);
+                                            if (blockEntity != null) {
+                                                chunk.addAndRegisterBlockEntity(blockEntity);
                                             }
                                         }
-                                    } else if (oldHasBlockEntity) {
+                                        if (blockEntity != null && blockEntityChunkMap != null) {
+                                            int key = x | (y << 4) | (z << 8);
+                                            CompressedBlockEntity savedBlockEntity = blockEntityChunkMap.get((short) key);
+                                            if (savedBlockEntity != null) {
+                                                blockEntity.load(savedBlockEntity.decompress());
+                                            }
+                                        }
+                                    } else if (old.hasBlockEntity()) {
                                         chunk.removeBlockEntity(blockPos);
                                     }
 

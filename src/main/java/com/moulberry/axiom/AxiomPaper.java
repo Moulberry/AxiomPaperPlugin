@@ -18,11 +18,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.plugin.messaging.Messenger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
-import java.util.HashSet;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class AxiomPaper extends JavaPlugin implements Listener {
 
@@ -30,20 +30,23 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     public void onEnable() {
         Bukkit.getPluginManager().registerEvents(this, this);
 
-        Bukkit.getMessenger().registerOutgoingPluginChannel(this, "axiom:enable");
-        Bukkit.getMessenger().registerOutgoingPluginChannel(this, "axiom:initialize_hotbars");
-        Bukkit.getMessenger().registerOutgoingPluginChannel(this, "axiom:set_editor_views");
+        Messenger msg = Bukkit.getMessenger();
 
-        HashSet<UUID> activeAxiomPlayers = new HashSet<>();
+        msg.registerOutgoingPluginChannel(this, "axiom:enable");
+        msg.registerOutgoingPluginChannel(this, "axiom:initialize_hotbars");
+        msg.registerOutgoingPluginChannel(this, "axiom:set_editor_views");
 
-        Bukkit.getMessenger().registerIncomingPluginChannel(this, "axiom:hello", new HelloPacketListener(this, activeAxiomPlayers));
-        Bukkit.getMessenger().registerIncomingPluginChannel(this, "axiom:set_gamemode", new SetGamemodePacketListener());
-        Bukkit.getMessenger().registerIncomingPluginChannel(this, "axiom:set_fly_speed", new SetFlySpeedPacketListener());
-        Bukkit.getMessenger().registerIncomingPluginChannel(this, "axiom:set_block", new SetBlockPacketListener(this));
-        Bukkit.getMessenger().registerIncomingPluginChannel(this, "axiom:set_hotbar_slot", new SetHotbarSlotPacketListener());
-        Bukkit.getMessenger().registerIncomingPluginChannel(this, "axiom:switch_active_hotbar", new SwitchActiveHotbarPacketListener());
-        Bukkit.getMessenger().registerIncomingPluginChannel(this, "axiom:teleport", new TeleportPacketListener());
-        Bukkit.getMessenger().registerIncomingPluginChannel(this, "axiom:set_editor_views", new SetEditorViewsPacketListener());
+        final Set<UUID> activeAxiomPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+        msg.registerIncomingPluginChannel(this, "axiom:hello", new HelloPacketListener(this, activeAxiomPlayers));
+        msg.registerIncomingPluginChannel(this, "axiom:set_gamemode", new SetGamemodePacketListener());
+        msg.registerIncomingPluginChannel(this, "axiom:set_fly_speed", new SetFlySpeedPacketListener());
+        msg.registerIncomingPluginChannel(this, "axiom:set_block", new SetBlockPacketListener(this));
+        msg.registerIncomingPluginChannel(this, "axiom:set_hotbar_slot", new SetHotbarSlotPacketListener());
+        msg.registerIncomingPluginChannel(this, "axiom:switch_active_hotbar", new SwitchActiveHotbarPacketListener());
+        msg.registerIncomingPluginChannel(this, "axiom:teleport", new TeleportPacketListener());
+        msg.registerIncomingPluginChannel(this, "axiom:set_editor_views", new SetEditorViewsPacketListener());
+        msg.registerIncomingPluginChannel(this, "axiom:request_block_entity", new RequestBlockEntityPacketListener(this));
 
         SetBlockBufferPacketListener setBlockBufferPacketListener = new SetBlockBufferPacketListener(this);
 
