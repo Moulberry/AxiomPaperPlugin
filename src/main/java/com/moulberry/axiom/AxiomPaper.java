@@ -1,5 +1,6 @@
 package com.moulberry.axiom;
 
+import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.packet.*;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -29,12 +30,14 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     @Override
     public void onEnable() {
         Bukkit.getPluginManager().registerEvents(this, this);
+        CompressedBlockEntity.initialize(this);
 
         Messenger msg = Bukkit.getMessenger();
 
         msg.registerOutgoingPluginChannel(this, "axiom:enable");
         msg.registerOutgoingPluginChannel(this, "axiom:initialize_hotbars");
         msg.registerOutgoingPluginChannel(this, "axiom:set_editor_views");
+        msg.registerOutgoingPluginChannel(this, "axiom:block_entities");
 
         final Set<UUID> activeAxiomPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
