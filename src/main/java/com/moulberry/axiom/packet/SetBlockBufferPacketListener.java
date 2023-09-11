@@ -6,6 +6,7 @@ import com.moulberry.axiom.buffer.BlockBuffer;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import com.moulberry.axiom.integration.RegionProtection;
+import com.moulberry.axiom.integration.SectionProtection;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.world.World;
@@ -38,6 +39,7 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -135,9 +137,14 @@ public class SetBlockBufferPacketListener {
                     continue;
                 }
 
-                if (!regionProtection.canBuildInSection(cx, cy, cz)) {
-                    continue;
-                }
+                SectionProtection sectionProtection = regionProtection.getSection(cx, cy, cz);
+//                switch (sectionProtection.getSectionState()) {
+//                    case ALLOW -> sectionProtection = null;
+//                    case DENY -> {
+//                        continue;
+//                    }
+//                    case CHECK -> {}
+//                }
 
                 LevelChunk chunk = world.getChunk(cx, cz);
                 chunk.setUnsaved(true);
@@ -170,9 +177,19 @@ public class SetBlockBufferPacketListener {
                                 BlockState blockState = container.get(x, y, z);
                                 if (blockState == emptyState) continue;
 
+                                switch (sectionProtection.getSectionState()) {
+                                    case ALLOW -> {}
+                                    case DENY -> blockState = Blocks.REDSTONE_BLOCK.defaultBlockState();
+                                    case CHECK -> blockState = Blocks.DIAMOND_BLOCK.defaultBlockState();
+                                }
+
                                 int bx = cx*16 + x;
                                 int by = cy*16 + y;
                                 int bz = cz*16 + z;
+
+//                                if (!regionProtection.canBuild(bx, by, bz)) {
+//                                    continue;
+//                                }
 
                                 blockPos.set(bx, by, bz);
 
