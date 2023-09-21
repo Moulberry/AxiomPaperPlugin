@@ -3,6 +3,7 @@ package com.moulberry.axiom.world_properties;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.util.Unit;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 
@@ -105,6 +106,23 @@ public abstract class WorldPropertyDataType<T> {
         public Block deserialize(byte[] bytes) {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(bytes));
             return buf.readById(BuiltInRegistries.BLOCK);
+        }
+    };
+
+    public static WorldPropertyDataType<Unit> EMPTY = new WorldPropertyDataType<>() {
+        @Override
+        public int getTypeId() {
+            return 5;
+        }
+
+        @Override
+        public byte[] serialize(Unit value) {
+            return new byte[0];
+        }
+
+        @Override
+        public Unit deserialize(byte[] bytes) {
+            return Unit.INSTANCE;
         }
     };
 

@@ -1,6 +1,5 @@
 package com.moulberry.axiom.packet;
 
-import com.moulberry.axiom.event.AxiomFlySpeedChangeEvent;
 import com.moulberry.axiom.event.AxiomTimeChangeEvent;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.registries.Registries;
@@ -11,7 +10,6 @@ import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.v1_20_R1.CraftWorld;
-import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
@@ -25,7 +23,7 @@ public class SetTimePacketListener implements PluginMessageListener {
         }
 
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
-        ResourceKey<Level> key = friendlyByteBuf.readResourceKey(Registries.DIMENSION); // Ignore
+        ResourceKey<Level> key = friendlyByteBuf.readResourceKey(Registries.DIMENSION);
         Integer time = friendlyByteBuf.readNullable(FriendlyByteBuf::readInt);
         Boolean freezeTime = friendlyByteBuf.readNullable(FriendlyByteBuf::readBoolean);
 

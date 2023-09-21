@@ -1,22 +1,13 @@
 package com.moulberry.axiom.world_properties;
 
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Unit;
 
 public interface WorldPropertyWidgetType<T> {
 
     WorldPropertyDataType<T> dataType();
     void write(FriendlyByteBuf friendlyByteBuf);
-
-    static WorldPropertyWidgetType<?> read(FriendlyByteBuf friendlyByteBuf) {
-        int type = friendlyByteBuf.readVarInt();
-        return switch (type) {
-            case 0 -> CHECKBOX;
-            case 1 -> new Slider(friendlyByteBuf.readInt(), friendlyByteBuf.readInt());
-            case 2 -> TEXTBOX;
-            case 3 -> TIME;
-            default -> throw new RuntimeException("Unknown widget type: " + type);
-        };
-    }
 
     WorldPropertyWidgetType<Boolean> CHECKBOX = new WorldPropertyWidgetType<>() {
         @Override
@@ -65,6 +56,19 @@ public interface WorldPropertyWidgetType<T> {
         @Override
         public void write(FriendlyByteBuf friendlyByteBuf) {
             friendlyByteBuf.writeVarInt(3);
+        }
+    };
+
+
+    WorldPropertyWidgetType<Unit> BUTTON = new WorldPropertyWidgetType<>() {
+        @Override
+        public WorldPropertyDataType<Unit> dataType() {
+            return WorldPropertyDataType.EMPTY;
+        }
+
+        @Override
+        public void write(FriendlyByteBuf friendlyByteBuf) {
+            friendlyByteBuf.writeVarInt(4);
         }
     };
 

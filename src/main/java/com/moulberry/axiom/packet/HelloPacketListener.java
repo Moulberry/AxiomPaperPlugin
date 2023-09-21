@@ -60,7 +60,6 @@ public class HelloPacketListener implements PluginMessageListener {
         // Enable
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
         buf.writeBoolean(true);
-        buf.writeByte(0); // todo: world properties
         buf.writeInt(handshakeEvent.getMaxBufferSize()); // Max Buffer Size
         buf.writeBoolean(false); // No source info
         buf.writeBoolean(false); // No source settings

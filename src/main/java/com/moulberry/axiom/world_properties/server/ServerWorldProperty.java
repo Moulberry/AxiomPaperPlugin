@@ -1,11 +1,14 @@
 package com.moulberry.axiom.world_properties.server;
 
+import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.world_properties.WorldPropertyCategory;
 import com.moulberry.axiom.world_properties.WorldPropertyDataType;
 import com.moulberry.axiom.world_properties.WorldPropertyWidgetType;
+import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.ServerPlayer;
+import org.bukkit.World;
+import org.bukkit.entity.Player;
 
 import java.util.function.Predicate;
 
@@ -36,20 +39,35 @@ public class ServerWorldProperty<T> {
         return this.widget.dataType();
     }
 
-    public void update(ServerLevel serverLevel, byte[] data) {
+    public void update(World world, byte[] data) {
         this.value = this.widget.dataType().deserialize(data);
         if (this.handler.test(this.value)) {
-//            AxiomClientboundSetWorldProperty packet = new AxiomClientboundSetWorldProperty(this.id,
-//                this.widget.dataType().getTypeId(), this.widget.dataType().serialize(this.value));
-
-//            for (ServerPlayer player : serverLevel.players()) {
-//                if (player.hasPermissions(2)) packet.send(player);
-//            }
+            this.sync(world);
         }
     }
 
-    public void setValue(T value) {
+    public void setValueWithoutSyncing(T value) {
         this.value = value;
+    }
+
+    public void setValue(World world, T value) {
+        this.value = value;
+        this.sync(world);
+    }
+
+    public void sync(World world) {
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+
+        buf.writeResourceLocation(this.id);
+        buf.writeVarInt(this.widget.dataType().getTypeId());
+        buf.writeByteArray(this.widget.dataType().serialize(this.value));
+
+        byte[] message = buf.accessByteBufWithCorrectSize();
+        for (Player player : world.getPlayers()) {
+            if (AxiomPaper.PLUGIN.activeAxiomPlayers.contains(player.getUniqueId())) {
+                player.sendPluginMessage(AxiomPaper.PLUGIN, "axiom:set_world_property", message);
+            }
+        }
     }
 
     public void write(FriendlyByteBuf friendlyByteBuf) {

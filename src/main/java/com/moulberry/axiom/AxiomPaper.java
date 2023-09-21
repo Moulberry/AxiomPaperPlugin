@@ -1,8 +1,13 @@
 package com.moulberry.axiom;
 
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
+import com.moulberry.axiom.event.AxiomCreateWorldPropertiesEvent;
+import com.moulberry.axiom.event.AxiomTimeChangeEvent;
 import com.moulberry.axiom.packet.*;
+import com.moulberry.axiom.world_properties.WorldPropertyCategory;
+import com.moulberry.axiom.world_properties.WorldPropertyWidgetType;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
+import com.moulberry.axiom.world_properties.server.ServerWorldProperty;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.papermc.paper.event.player.PlayerFailMoveEvent;
@@ -15,6 +20,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.game.ServerboundCustomPayloadPacket;
+import net.minecraft.resources.ResourceLocation;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -24,15 +30,23 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.Messenger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class AxiomPaper extends JavaPlugin implements Listener {
 
+    public static AxiomPaper PLUGIN; // tsk tsk tsk
+
+    public final Set<UUID> activeAxiomPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
+
     @Override
     public void onEnable() {
+        PLUGIN = this;
+
         Bukkit.getPluginManager().registerEvents(this, this);
+        // Bukkit.getPluginManager().registerEvents(new WorldPropertiesExample(), this);
         CompressedBlockEntity.initialize(this);
 
         Messenger msg = Bukkit.getMessenger();
@@ -42,13 +56,14 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerOutgoingPluginChannel(this, "axiom:set_editor_views");
         msg.registerOutgoingPluginChannel(this, "axiom:block_entities");
         msg.registerOutgoingPluginChannel(this, "axiom:register_world_properties");
-
-        final Set<UUID> activeAxiomPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
+        msg.registerOutgoingPluginChannel(this, "axiom:set_world_property");
+        msg.registerOutgoingPluginChannel(this, "axiom:ack_world_properties");
 
         msg.registerIncomingPluginChannel(this, "axiom:hello", new HelloPacketListener(this, activeAxiomPlayers));
         msg.registerIncomingPluginChannel(this, "axiom:set_gamemode", new SetGamemodePacketListener());
         msg.registerIncomingPluginChannel(this, "axiom:set_fly_speed", new SetFlySpeedPacketListener());
         msg.registerIncomingPluginChannel(this, "axiom:set_world_time", new SetTimePacketListener());
+        msg.registerIncomingPluginChannel(this, "axiom:set_world_property", new SetWorldPropertyListener());
         msg.registerIncomingPluginChannel(this, "axiom:set_block", new SetBlockPacketListener(this));
         msg.registerIncomingPluginChannel(this, "axiom:set_hotbar_slot", new SetHotbarSlotPacketListener());
         msg.registerIncomingPluginChannel(this, "axiom:switch_active_hotbar", new SwitchActiveHotbarPacketListener());
@@ -99,6 +114,18 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         }, 20, 20);
     }
 
+    private final WeakHashMap<World, ServerWorldPropertiesRegistry> worldProperties = new WeakHashMap<>();
+
+    public @Nullable ServerWorldPropertiesRegistry getWorldProperties(World world) {
+        if (worldProperties.containsKey(world)) {
+            return worldProperties.get(world);
+        } else {
+            ServerWorldPropertiesRegistry properties = createWorldProperties(world);
+            worldProperties.put(world, properties);
+            return properties;
+        }
+    }
+
     @EventHandler
     public void onFailMove(PlayerFailMoveEvent event) {
         if (event.getPlayer().hasPermission("axiom.*") &&
@@ -107,15 +134,17 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         }
     }
 
-    private final WeakHashMap<World, ServerWorldPropertiesRegistry> worldProperties = new WeakHashMap<>();
-
     @EventHandler
     public void onChangedWorld(PlayerChangedWorldEvent event) {
-        System.out.println("Changed world!");
-
         World world = event.getPlayer().getWorld();
-        ServerWorldPropertiesRegistry properties = worldProperties.computeIfAbsent(world, k -> new ServerWorldPropertiesRegistry());
-        properties.registerFor(this, event.getPlayer());
+
+        ServerWorldPropertiesRegistry properties = getWorldProperties(world);
+
+        if (properties == null) {
+            event.getPlayer().sendPluginMessage(this, "axiom:register_world_properties", new byte[]{0});
+        } else {
+            properties.registerFor(this, event.getPlayer());
+        }
     }
 
     @EventHandler
@@ -123,9 +152,25 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         Player player = event.getPlayer();
         Bukkit.getScheduler().scheduleSyncDelayedTask(this, () -> {
             World world = player.getWorld();
-            ServerWorldPropertiesRegistry properties = worldProperties.computeIfAbsent(world, k -> new ServerWorldPropertiesRegistry());
-            properties.registerFor(this, player);
+
+            ServerWorldPropertiesRegistry properties = getWorldProperties(world);
+
+            if (properties == null) {
+                player.sendPluginMessage(this, "axiom:register_world_properties", new byte[]{0});
+            } else {
+                properties.registerFor(this, player);
+            }
         }, 20); // Why does this need to be delayed?
+    }
+
+    private ServerWorldPropertiesRegistry createWorldProperties(World world) {
+        ServerWorldPropertiesRegistry registry = new ServerWorldPropertiesRegistry();
+
+        AxiomCreateWorldPropertiesEvent createEvent = new AxiomCreateWorldPropertiesEvent(world, registry);
+        Bukkit.getPluginManager().callEvent(createEvent);
+        if (createEvent.isCancelled()) return null;
+
+        return registry;
     }
 
 }
