@@ -2,6 +2,7 @@ package com.moulberry.axiom;
 
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.packet.*;
+import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.papermc.paper.event.player.PlayerFailMoveEvent;
@@ -18,6 +19,8 @@ import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.Messenger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -38,12 +41,14 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerOutgoingPluginChannel(this, "axiom:initialize_hotbars");
         msg.registerOutgoingPluginChannel(this, "axiom:set_editor_views");
         msg.registerOutgoingPluginChannel(this, "axiom:block_entities");
+        msg.registerOutgoingPluginChannel(this, "axiom:register_world_properties");
 
         final Set<UUID> activeAxiomPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
 
         msg.registerIncomingPluginChannel(this, "axiom:hello", new HelloPacketListener(this, activeAxiomPlayers));
         msg.registerIncomingPluginChannel(this, "axiom:set_gamemode", new SetGamemodePacketListener());
         msg.registerIncomingPluginChannel(this, "axiom:set_fly_speed", new SetFlySpeedPacketListener());
+        msg.registerIncomingPluginChannel(this, "axiom:set_time", new SetTimePacketListener());
         msg.registerIncomingPluginChannel(this, "axiom:set_block", new SetBlockPacketListener(this));
         msg.registerIncomingPluginChannel(this, "axiom:set_hotbar_slot", new SetHotbarSlotPacketListener());
         msg.registerIncomingPluginChannel(this, "axiom:switch_active_hotbar", new SwitchActiveHotbarPacketListener());
@@ -97,9 +102,30 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     @EventHandler
     public void onFailMove(PlayerFailMoveEvent event) {
         if (event.getPlayer().hasPermission("axiom.*") &&
-                event.getFailReason() == PlayerFailMoveEvent.FailReason.MOVED_TOO_QUICKLY) {
+            event.getFailReason() == PlayerFailMoveEvent.FailReason.MOVED_TOO_QUICKLY) {
             event.setAllowed(true);
         }
+    }
+
+    private final WeakHashMap<World, ServerWorldPropertiesRegistry> worldProperties = new WeakHashMap<>();
+
+    @EventHandler
+    public void onChangedWorld(PlayerChangedWorldEvent event) {
+        System.out.println("Changed world!");
+
+        World world = event.getPlayer().getWorld();
+        ServerWorldPropertiesRegistry properties = worldProperties.computeIfAbsent(world, k -> new ServerWorldPropertiesRegistry());
+        properties.registerFor(this, event.getPlayer());
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        Bukkit.getScheduler().scheduleSyncDelayedTask(this, () -> {
+            World world = player.getWorld();
+            ServerWorldPropertiesRegistry properties = worldProperties.computeIfAbsent(world, k -> new ServerWorldPropertiesRegistry());
+            properties.registerFor(this, player);
+        }, 20); // Why does this need to be delayed?
     }
 
 }

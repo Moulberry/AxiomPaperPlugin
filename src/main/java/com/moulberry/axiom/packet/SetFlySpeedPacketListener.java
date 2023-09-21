@@ -20,7 +20,6 @@ public class SetFlySpeedPacketListener implements PluginMessageListener {
             return;
         }
 
-
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         float flySpeed = friendlyByteBuf.readFloat();
 
