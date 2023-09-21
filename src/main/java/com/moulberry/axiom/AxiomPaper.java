@@ -48,7 +48,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerIncomingPluginChannel(this, "axiom:hello", new HelloPacketListener(this, activeAxiomPlayers));
         msg.registerIncomingPluginChannel(this, "axiom:set_gamemode", new SetGamemodePacketListener());
         msg.registerIncomingPluginChannel(this, "axiom:set_fly_speed", new SetFlySpeedPacketListener());
-        msg.registerIncomingPluginChannel(this, "axiom:set_time", new SetTimePacketListener());
+        msg.registerIncomingPluginChannel(this, "axiom:set_world_time", new SetTimePacketListener());
         msg.registerIncomingPluginChannel(this, "axiom:set_block", new SetBlockPacketListener(this));
         msg.registerIncomingPluginChannel(this, "axiom:set_hotbar_slot", new SetHotbarSlotPacketListener());
         msg.registerIncomingPluginChannel(this, "axiom:switch_active_hotbar", new SwitchActiveHotbarPacketListener());
