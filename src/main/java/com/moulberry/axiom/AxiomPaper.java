@@ -172,7 +172,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             if (properties != null) {
                 ServerWorldProperty<?> property = properties.getById(new ResourceLocation("axiom:pause_weather"));
                 if (property != null) {
-                    ((ServerWorldProperty<Boolean>)property).setValue(event.getWorld(), Boolean.valueOf(event.getValue()));
+                    ((ServerWorldProperty<Boolean>)property).setValue(event.getWorld(), !Boolean.parseBoolean(event.getValue()));
                 }
             }
         }

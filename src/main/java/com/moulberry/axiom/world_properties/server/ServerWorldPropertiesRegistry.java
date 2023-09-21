@@ -7,6 +7,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.GameRules;
+import org.bukkit.GameRule;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.v1_20_R1.CraftWorld;
 import org.bukkit.entity.Player;
@@ -58,7 +59,6 @@ public class ServerWorldPropertiesRegistry {
 
     public void registerDefault(World world) {
         ServerLevel serverLevel = ((CraftWorld)world).getHandle();
-        GameRules gameRules = serverLevel.getGameRules();
 
         // Time
         WorldPropertyCategory timeCategory = new WorldPropertyCategory("axiom.editorui.window.world_properties.time", true);
@@ -76,8 +76,8 @@ public class ServerWorldPropertiesRegistry {
 
         ServerWorldProperty<Boolean> pauseWeather = new ServerWorldProperty<>(new ResourceLocation("axiom:pause_weather"),
             "axiom.editorui.window.world_properties.pause_weather",
-            true, WorldPropertyWidgetType.CHECKBOX, !gameRules.getRule(GameRules.RULE_WEATHER_CYCLE).get(), bool -> {
-            gameRules.getRule(GameRules.RULE_WEATHER_CYCLE).set(!bool, serverLevel);
+            true, WorldPropertyWidgetType.CHECKBOX, !world.getGameRuleValue(GameRule.DO_WEATHER_CYCLE), bool -> {
+            world.setGameRule(GameRule.DO_WEATHER_CYCLE, !bool);
             return false;
         });
 

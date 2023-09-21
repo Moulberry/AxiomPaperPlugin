@@ -50,10 +50,8 @@ public class ServerWorldProperty<T> {
     }
 
     public void setValue(World world, T value) {
-        if (!value.equals(this.value)) {
-            this.value = value;
-            this.sync(world);
-        }
+        this.value = value;
+        this.sync(world);
     }
 
     public void sync(World world) {
