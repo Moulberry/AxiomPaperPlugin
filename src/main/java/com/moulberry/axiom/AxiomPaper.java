@@ -11,6 +11,7 @@ import com.moulberry.axiom.world_properties.server.ServerWorldProperty;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.papermc.paper.event.player.PlayerFailMoveEvent;
+import io.papermc.paper.event.world.WorldGameRuleChangeEvent;
 import io.papermc.paper.network.ChannelInitializeListener;
 import io.papermc.paper.network.ChannelInitializeListenerHolder;
 import net.kyori.adventure.key.Key;
@@ -21,6 +22,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.game.ServerboundCustomPayloadPacket;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.GameRules;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -163,8 +165,21 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         }, 20); // Why does this need to be delayed?
     }
 
+    @EventHandler
+    public void onGameRuleChanged(WorldGameRuleChangeEvent event) {
+        if (event.getGameRule() == GameRule.DO_WEATHER_CYCLE) {
+            ServerWorldPropertiesRegistry properties = getWorldProperties(event.getWorld());
+            if (properties != null) {
+                ServerWorldProperty<?> property = properties.getById(new ResourceLocation("axiom:pause_weather"));
+                if (property != null) {
+                    ((ServerWorldProperty<Boolean>)property).setValue(event.getWorld(), Boolean.valueOf(event.getValue()));
+                }
+            }
+        }
+    }
+
     private ServerWorldPropertiesRegistry createWorldProperties(World world) {
-        ServerWorldPropertiesRegistry registry = new ServerWorldPropertiesRegistry();
+        ServerWorldPropertiesRegistry registry = new ServerWorldPropertiesRegistry(world);
 
         AxiomCreateWorldPropertiesEvent createEvent = new AxiomCreateWorldPropertiesEvent(world, registry);
         Bukkit.getPluginManager().callEvent(createEvent);

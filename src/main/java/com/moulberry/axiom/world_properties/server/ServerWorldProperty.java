@@ -1,7 +1,6 @@
 package com.moulberry.axiom.world_properties.server;
 
 import com.moulberry.axiom.AxiomPaper;
-import com.moulberry.axiom.world_properties.WorldPropertyCategory;
 import com.moulberry.axiom.world_properties.WorldPropertyDataType;
 import com.moulberry.axiom.world_properties.WorldPropertyWidgetType;
 import io.netty.buffer.Unpooled;
@@ -51,8 +50,10 @@ public class ServerWorldProperty<T> {
     }
 
     public void setValue(World world, T value) {
-        this.value = value;
-        this.sync(world);
+        if (!value.equals(this.value)) {
+            this.value = value;
+            this.sync(world);
+        }
     }
 
     public void sync(World world) {

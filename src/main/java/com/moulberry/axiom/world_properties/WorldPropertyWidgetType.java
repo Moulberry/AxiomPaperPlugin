@@ -4,6 +4,8 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Unit;
 
+import java.util.List;
+
 public interface WorldPropertyWidgetType<T> {
 
     WorldPropertyDataType<T> dataType();
@@ -71,5 +73,18 @@ public interface WorldPropertyWidgetType<T> {
             friendlyByteBuf.writeVarInt(4);
         }
     };
+
+    record ButtonArray(List<String> otherButtons) implements WorldPropertyWidgetType<Integer> {
+        @Override
+        public WorldPropertyDataType<Integer> dataType() {
+            return WorldPropertyDataType.INTEGER;
+        }
+
+        @Override
+        public void write(FriendlyByteBuf friendlyByteBuf) {
+            friendlyByteBuf.writeVarInt(5);
+            friendlyByteBuf.writeCollection(this.otherButtons, FriendlyByteBuf::writeUtf);
+        }
+    }
 
 }

@@ -6,6 +6,9 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.GameRules;
+import org.bukkit.World;
+import org.bukkit.craftbukkit.v1_20_R1.CraftWorld;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
@@ -19,8 +22,8 @@ public class ServerWorldPropertiesRegistry {
     private final LinkedHashMap<WorldPropertyCategory, List<ServerWorldProperty<?>>> propertyList = new LinkedHashMap<>();
     private final Map<ResourceLocation, ServerWorldProperty<?>> propertyMap = new HashMap<>();
 
-    public ServerWorldPropertiesRegistry() {
-        this.registerDefault();
+    public ServerWorldPropertiesRegistry(World world) {
+        this.registerDefault(world);
     }
 
     public ServerWorldProperty<?> getById(ResourceLocation resourceLocation) {
@@ -53,7 +56,10 @@ public class ServerWorldPropertiesRegistry {
             buf.accessByteBufWithCorrectSize());
     }
 
-    public void registerDefault() {
+    public void registerDefault(World world) {
+        ServerLevel serverLevel = ((CraftWorld)world).getHandle();
+        GameRules gameRules = serverLevel.getGameRules();
+
         // Time
         WorldPropertyCategory timeCategory = new WorldPropertyCategory("axiom.editorui.window.world_properties.time", true);
 
@@ -63,6 +69,34 @@ public class ServerWorldPropertiesRegistry {
         );
 
         this.addCategory(timeCategory, List.of(time));
+
+        // Weather
+        WorldPropertyCategory weatherCategory = new WorldPropertyCategory("axiom.editorui.window.world_properties.weather",
+            true);
+
+        ServerWorldProperty<Boolean> pauseWeather = new ServerWorldProperty<>(new ResourceLocation("axiom:pause_weather"),
+            "axiom.editorui.window.world_properties.pause_weather",
+            true, WorldPropertyWidgetType.CHECKBOX, !gameRules.getRule(GameRules.RULE_WEATHER_CYCLE).get(), bool -> {
+            gameRules.getRule(GameRules.RULE_WEATHER_CYCLE).set(!bool, serverLevel);
+            return false;
+        });
+
+        ServerWorldProperty<Integer> weatherType = new ServerWorldProperty<>(new ResourceLocation("axiom:weather_type"),
+            "axiom.editorui.window.world_properties.clear_weather",
+            true, new WorldPropertyWidgetType.ButtonArray(
+            List.of("axiom.editorui.window.world_properties.rain_weather", "axiom.editorui.window.world_properties.thunder_weather")
+        ), 0, index -> {
+            if (index == 0) {
+                serverLevel.setWeatherParameters(ServerLevel.RAIN_DELAY.sample(serverLevel.random), 0, false, false);
+            } else if (index == 1) {
+                serverLevel.setWeatherParameters(0, ServerLevel.RAIN_DURATION.sample(serverLevel.random), true, false);
+            } else if (index == 2) {
+                serverLevel.setWeatherParameters(0, ServerLevel.THUNDER_DURATION.sample(serverLevel.random), true, true);
+            }
+            return false;
+        });
+
+        this.addCategory(weatherCategory, List.of(pauseWeather, weatherType));
     }
 
 }
