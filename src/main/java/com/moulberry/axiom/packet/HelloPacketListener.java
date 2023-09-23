@@ -6,11 +6,13 @@ import com.moulberry.axiom.View;
 import com.moulberry.axiom.event.AxiomHandshakeEvent;
 import com.moulberry.axiom.persistence.ItemStackDataType;
 import com.moulberry.axiom.persistence.UUIDDataType;
+import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.network.FriendlyByteBuf;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
+import org.bukkit.World;
 import org.bukkit.craftbukkit.v1_20_R1.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -100,6 +102,16 @@ public class HelloPacketListener implements PluginMessageListener {
             }
 
             player.sendPluginMessage(this.plugin, "axiom:set_editor_views", buf.accessByteBufWithCorrectSize());
+        }
+
+        // Register world properties
+        World world = player.getWorld();
+        ServerWorldPropertiesRegistry properties = plugin.getWorldProperties(world);
+
+        if (properties == null) {
+            player.sendPluginMessage(plugin, "axiom:register_world_properties", new byte[]{0});
+        } else {
+            properties.registerFor(plugin, player);
         }
     }
 

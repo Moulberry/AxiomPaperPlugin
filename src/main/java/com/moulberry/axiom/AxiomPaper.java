@@ -150,22 +150,6 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     }
 
     @EventHandler
-    public void onJoin(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
-        Bukkit.getScheduler().scheduleSyncDelayedTask(this, () -> {
-            World world = player.getWorld();
-
-            ServerWorldPropertiesRegistry properties = getWorldProperties(world);
-
-            if (properties == null) {
-                player.sendPluginMessage(this, "axiom:register_world_properties", new byte[]{0});
-            } else {
-                properties.registerFor(this, player);
-            }
-        }, 20); // Why does this need to be delayed?
-    }
-
-    @EventHandler
     public void onGameRuleChanged(WorldGameRuleChangeEvent event) {
         if (event.getGameRule() == GameRule.DO_WEATHER_CYCLE) {
             ServerWorldPropertiesRegistry properties = getWorldProperties(event.getWorld());
