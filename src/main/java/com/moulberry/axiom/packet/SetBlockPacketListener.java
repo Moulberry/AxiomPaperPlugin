@@ -142,7 +142,7 @@ public class SetBlockPacketListener implements PluginMessageListener {
                     }
                 }
 
-                BlockState old = section.setBlockState(x, y, z, blockState, false);
+                BlockState old = section.setBlockState(x, y, z, blockState, true);
                 if (blockState != old) {
                     Block block = blockState.getBlock();
                     motionBlocking.update(x, by, z, blockState);
