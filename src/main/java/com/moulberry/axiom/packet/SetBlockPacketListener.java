@@ -187,7 +187,10 @@ public class SetBlockPacketListener implements PluginMessageListener {
                         chunk.removeBlockEntity(blockPos);
                     }
 
+                    // Mark block changed
                     level.getChunkSource().blockChanged(blockPos);
+
+                    // Update Light
                     if (LightEngine.hasDifferentLightProperties(chunk, blockPos, old, blockState)) {
                         chunk.getSkyLightSources().update(chunk, x, by, z);
                         level.getChunkSource().getLightEngine().checkBlock(blockPos);

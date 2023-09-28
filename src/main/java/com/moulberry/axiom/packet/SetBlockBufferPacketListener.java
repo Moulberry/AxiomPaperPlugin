@@ -245,8 +245,10 @@ public class SetBlockBufferPacketListener {
                                     chunk.removeBlockEntity(blockPos);
                                 }
 
+                                // Mark block changed
                                 world.getChunkSource().blockChanged(blockPos); // todo: maybe simply resend chunk instead of this?
 
+                                // Update Light
                                 if (LightEngine.hasDifferentLightProperties(chunk, blockPos, old, blockState)) {
                                     chunk.getSkyLightSources().update(chunk, x, by, z);
                                     lightEngine.checkBlock(blockPos);
