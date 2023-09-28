@@ -4,11 +4,14 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.ai.village.poi.PoiType;
+import net.minecraft.world.entity.ai.village.poi.PoiTypes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
@@ -33,6 +36,8 @@ import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.logging.Level;
 
 public class SetBlockPacketListener implements PluginMessageListener {
@@ -184,7 +189,16 @@ public class SetBlockPacketListener implements PluginMessageListener {
 
                     level.getChunkSource().blockChanged(blockPos);
                     if (LightEngine.hasDifferentLightProperties(chunk, blockPos, old, blockState)) {
+                        chunk.getSkyLightSources().update(chunk, x, by, z);
                         level.getChunkSource().getLightEngine().checkBlock(blockPos);
+                    }
+
+                    // Update Poi
+                    Optional<Holder<PoiType>> newPoi = PoiTypes.forState(blockState);
+                    Optional<Holder<PoiType>> oldPoi = PoiTypes.forState(old);
+                    if (!Objects.equals(oldPoi, newPoi)) {
+                        if (oldPoi.isPresent()) level.getPoiManager().remove(blockPos);
+                        if (newPoi.isPresent()) level.getPoiManager().add(blockPos, newPoi.get());
                     }
                 }
 

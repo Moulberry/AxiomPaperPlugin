@@ -35,6 +35,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.ai.village.poi.PoiType;
+import net.minecraft.world.entity.ai.village.poi.PoiTypes;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
@@ -246,7 +248,16 @@ public class SetBlockBufferPacketListener {
                                 world.getChunkSource().blockChanged(blockPos); // todo: maybe simply resend chunk instead of this?
 
                                 if (LightEngine.hasDifferentLightProperties(chunk, blockPos, old, blockState)) {
+                                    chunk.getSkyLightSources().update(chunk, x, by, z);
                                     lightEngine.checkBlock(blockPos);
+                                }
+
+                                // Update Poi
+                                Optional<Holder<PoiType>> newPoi = PoiTypes.forState(blockState);
+                                Optional<Holder<PoiType>> oldPoi = PoiTypes.forState(old);
+                                if (!Objects.equals(oldPoi, newPoi)) {
+                                    if (oldPoi.isPresent()) world.getPoiManager().remove(blockPos);
+                                    if (newPoi.isPresent()) world.getPoiManager().add(blockPos, newPoi.get());
                                 }
                             }
                         }
