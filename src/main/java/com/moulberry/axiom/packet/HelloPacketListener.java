@@ -46,8 +46,10 @@ public class HelloPacketListener implements PluginMessageListener {
         int dataVersion = friendlyByteBuf.readVarInt();
         friendlyByteBuf.readNbt(); // Discard
 
-        if (dataVersion != SharedConstants.getCurrentVersion().getDataVersion().getVersion()) {
-            player.kick(Component.text("Axiom: Incompatible data version detected, are you using ViaVersion?"));
+        int serverDataVersion = SharedConstants.getCurrentVersion().getDataVersion().getVersion();
+        if (dataVersion != serverDataVersion) {
+            player.kick(Component.text("Axiom: Incompatible data version detected (client " + dataVersion +
+                ", server " + serverDataVersion  + "), are you using ViaVersion?"));
             return;
         }
 
