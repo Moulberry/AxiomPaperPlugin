@@ -24,8 +24,8 @@ import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.phys.BlockHitResult;
 import org.bukkit.Bukkit;
 import org.bukkit.block.BlockFace;
-import org.bukkit.craftbukkit.v1_20_R2.block.CraftBlock;
-import org.bukkit.craftbukkit.v1_20_R2.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_20_R1.block.CraftBlock;
+import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -38,7 +38,6 @@ import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.logging.Level;
 
 public class SetBlockPacketListener implements PluginMessageListener {
 
