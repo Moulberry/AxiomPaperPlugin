@@ -127,9 +127,12 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onFailMove(PlayerFailMoveEvent event) {
-        if (event.getPlayer().hasPermission("axiom.*") &&
-            event.getFailReason() == PlayerFailMoveEvent.FailReason.MOVED_TOO_QUICKLY) {
-            event.setAllowed(true);
+        if (event.getPlayer().hasPermission("axiom.*")) {
+            if (event.getFailReason() == PlayerFailMoveEvent.FailReason.MOVED_TOO_QUICKLY) {
+                event.setAllowed(true); // Support for arcball camera
+            } else if (event.getPlayer().isFlying()) {
+                event.setAllowed(true); // Support for noclip
+            }
         }
     }
 
