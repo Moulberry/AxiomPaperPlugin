@@ -2,10 +2,7 @@ package com.moulberry.axiom;
 
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.event.AxiomCreateWorldPropertiesEvent;
-import com.moulberry.axiom.event.AxiomTimeChangeEvent;
 import com.moulberry.axiom.packet.*;
-import com.moulberry.axiom.world_properties.WorldPropertyCategory;
-import com.moulberry.axiom.world_properties.WorldPropertyWidgetType;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import com.moulberry.axiom.world_properties.server.ServerWorldProperty;
 import io.netty.buffer.Unpooled;
@@ -20,15 +17,13 @@ import net.minecraft.network.ConnectionProtocol;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
-import net.minecraft.network.protocol.game.ServerboundCustomPayloadPacket;
+import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.GameRules;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.Messenger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -56,7 +51,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerOutgoingPluginChannel(this, "axiom:enable");
         msg.registerOutgoingPluginChannel(this, "axiom:initialize_hotbars");
         msg.registerOutgoingPluginChannel(this, "axiom:set_editor_views");
-        msg.registerOutgoingPluginChannel(this, "axiom:block_entities");
+        msg.registerOutgoingPluginChannel(this, "axiom:response_chunk_data");
         msg.registerOutgoingPluginChannel(this, "axiom:register_world_properties");
         msg.registerOutgoingPluginChannel(this, "axiom:set_world_property");
         msg.registerOutgoingPluginChannel(this, "axiom:ack_world_properties");
@@ -71,7 +66,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerIncomingPluginChannel(this, "axiom:switch_active_hotbar", new SwitchActiveHotbarPacketListener());
         msg.registerIncomingPluginChannel(this, "axiom:teleport", new TeleportPacketListener());
         msg.registerIncomingPluginChannel(this, "axiom:set_editor_views", new SetEditorViewsPacketListener());
-        msg.registerIncomingPluginChannel(this, "axiom:request_block_entity", new RequestBlockEntityPacketListener(this));
+        msg.registerIncomingPluginChannel(this, "axiom:request_chunk_data", new RequestChunkDataPacketListener(this));
 
         SetBlockBufferPacketListener setBlockBufferPacketListener = new SetBlockBufferPacketListener(this);
 
@@ -104,7 +99,9 @@ public class AxiomPaper extends JavaPlugin implements Listener {
                     if (!player.hasPermission("axiom.*")) {
                         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
                         buf.writeBoolean(false);
-                        player.sendPluginMessage(this, "axiom:enable", buf.accessByteBufWithCorrectSize());
+                        byte[] bytes = new byte[buf.writerIndex()];
+                        buf.getBytes(0, bytes);
+                        player.sendPluginMessage(this, "axiom:enable", bytes);
                     } else {
                         newActiveAxiomPlayers.add(player.getUniqueId());
                     }

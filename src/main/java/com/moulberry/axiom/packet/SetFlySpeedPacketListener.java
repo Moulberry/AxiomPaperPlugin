@@ -1,13 +1,10 @@
 package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.event.AxiomFlySpeedChangeEvent;
-import com.moulberry.axiom.event.AxiomGameModeChangeEvent;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.level.GameType;
 import org.bukkit.Bukkit;
-import org.bukkit.GameMode;
-import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_20_R2.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;

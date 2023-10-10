@@ -9,11 +9,12 @@ import com.moulberry.axiom.persistence.UUIDDataType;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
+import net.minecraft.SharedConstants;
 import net.minecraft.network.FriendlyByteBuf;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_20_R1.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.v1_20_R2.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -42,7 +43,13 @@ public class HelloPacketListener implements PluginMessageListener {
 
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         int apiVersion = friendlyByteBuf.readVarInt();
+        int dataVersion = friendlyByteBuf.readVarInt();
         friendlyByteBuf.readNbt(); // Discard
+
+        if (dataVersion != SharedConstants.getCurrentVersion().getDataVersion().getVersion()) {
+            player.kick(Component.text("Axiom: Incompatible data version detected, are you using ViaVersion?"));
+            return;
+        }
 
         if (apiVersion != AxiomConstants.API_VERSION) {
             player.kick(Component.text("Unsupported Axiom API Version. Server supports " + AxiomConstants.API_VERSION +
@@ -68,7 +75,10 @@ public class HelloPacketListener implements PluginMessageListener {
         buf.writeVarInt(5); // Maximum Reach
         buf.writeVarInt(16); // Max editor views
         buf.writeBoolean(true); // Editable Views
-        player.sendPluginMessage(this.plugin, "axiom:enable", buf.accessByteBufWithCorrectSize());
+
+        byte[] enableBytes = new byte[buf.writerIndex()];
+        buf.getBytes(0, enableBytes);
+        player.sendPluginMessage(this.plugin, "axiom:enable", enableBytes);
 
         // Initialize Hotbars
         PersistentDataContainer container = player.getPersistentDataContainer();
@@ -86,7 +96,10 @@ public class HelloPacketListener implements PluginMessageListener {
                     buf.writeItem(CraftItemStack.asNMSCopy(stack));
                 }
             }
-            player.sendPluginMessage(this.plugin, "axiom:initialize_hotbars", buf.accessByteBufWithCorrectSize());
+
+            byte[] bytes = new byte[buf.writerIndex()];
+            buf.getBytes(0, bytes);
+            player.sendPluginMessage(this.plugin, "axiom:initialize_hotbars", bytes);
         }
 
         // Initialize Views
@@ -101,7 +114,9 @@ public class HelloPacketListener implements PluginMessageListener {
                 View.load(view).write(buf);
             }
 
-            player.sendPluginMessage(this.plugin, "axiom:set_editor_views", buf.accessByteBufWithCorrectSize());
+            byte[] bytes = new byte[buf.writerIndex()];
+            buf.getBytes(0, bytes);
+            player.sendPluginMessage(this.plugin, "axiom:set_editor_views", bytes);
         }
 
         // Register world properties

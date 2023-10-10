@@ -1,14 +1,14 @@
 plugins {
     `java-library`
-    id("io.papermc.paperweight.userdev") version "1.5.5"
-    id("xyz.jpenilla.run-paper") version "2.1.0" // Adds runServer and runMojangMappedServer tasks for testing
+    id("io.papermc.paperweight.userdev") version "1.5.8"
+    id("xyz.jpenilla.run-paper") version "2.2.0" // Adds runServer and runMojangMappedServer tasks for testing
 
     // Shades and relocates dependencies into our plugin jar. See https://imperceptiblethoughts.com/shadow/introduction/
     id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 group = "com.moulberry.axiom"
-version = "1.4.0"
+version = "1.4.1"
 description = "Serverside component for Axiom on Paper"
 
 java {
@@ -25,7 +25,7 @@ repositories {
 }
 
 dependencies {
-    paperweight.paperDevBundle("1.20.1-R0.1-SNAPSHOT")
+    paperweight.paperDevBundle("1.20.2-R0.1-20231010.011415-29")
     implementation("xyz.jpenilla:reflection-remapper:0.1.0-SNAPSHOT")
 
     // Zstd Compression Library

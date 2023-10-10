@@ -9,7 +9,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.GameRules;
 import org.bukkit.GameRule;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_20_R1.CraftWorld;
+import org.bukkit.craftbukkit.v1_20_R2.CraftWorld;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
@@ -53,8 +53,9 @@ public class ServerWorldPropertiesRegistry {
             buf.writeCollection(entry.getValue(), (buffer, p) -> p.write(buffer));
         }
 
-        bukkitPlayer.sendPluginMessage(plugin, "axiom:register_world_properties",
-            buf.accessByteBufWithCorrectSize());
+        byte[] bytes = new byte[buf.writerIndex()];
+        buf.getBytes(0, bytes);
+        bukkitPlayer.sendPluginMessage(plugin, "axiom:register_world_properties", bytes);
     }
 
     public void registerDefault(World world) {

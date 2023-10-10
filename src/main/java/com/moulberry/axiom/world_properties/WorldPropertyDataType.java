@@ -42,7 +42,10 @@ public abstract class WorldPropertyDataType<T> {
         public byte[] serialize(Integer value) {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer(8));
             buf.writeVarInt(value);
-            return buf.accessByteBufWithCorrectSize();
+
+            byte[] bytes = new byte[buf.writerIndex()];
+            buf.getBytes(0, bytes);
+            return bytes;
         }
 
         @Override
@@ -79,7 +82,10 @@ public abstract class WorldPropertyDataType<T> {
         public byte[] serialize(Item value) {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer(8));
             buf.writeId(BuiltInRegistries.ITEM, value);
-            return buf.accessByteBufWithCorrectSize();
+
+            byte[] bytes = new byte[buf.writerIndex()];
+            buf.getBytes(0, bytes);
+            return bytes;
         }
 
         @Override
@@ -99,7 +105,10 @@ public abstract class WorldPropertyDataType<T> {
         public byte[] serialize(Block value) {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer(8));
             buf.writeId(BuiltInRegistries.BLOCK, value);
-            return buf.accessByteBufWithCorrectSize();
+
+            byte[] bytes = new byte[buf.writerIndex()];
+            buf.getBytes(0, bytes);
+            return bytes;
         }
 
         @Override

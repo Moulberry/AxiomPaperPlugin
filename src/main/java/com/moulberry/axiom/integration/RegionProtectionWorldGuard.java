@@ -47,7 +47,7 @@ public class RegionProtectionWorldGuard {
         // Don't do any protection if player has bypass
         if (platform.getSessionManager().hasBypass(worldGuardPlayer, worldEditWorld)) {
             // todo: enable bypass
-//            return null;
+            return null;
         }
 
         RegionManager regionManager = regionContainer.get(worldEditWorld);
@@ -108,7 +108,7 @@ public class RegionProtectionWorldGuard {
 //                }
             }
 
-            System.out.println("returning default");
+            // System.out.println("returning default");
             StateFlag.State fallback = Flags.BUILD.getDefault();
             return fallback == StateFlag.State.DENY ? SectionProtection.DENY : SectionProtection.ALLOW;
         }
@@ -117,7 +117,7 @@ public class RegionProtectionWorldGuard {
         for (Map.Entry<ProtectedRegion, StateFlag.State> entry : consideredValues.entrySet()) {
             ProtectedRegion region = entry.getKey();
             if (entry.getValue() == StateFlag.State.DENY) {
-                System.out.println("found region with deny!");
+                // System.out.println("found region with deny!");
                 if (region instanceof GlobalProtectedRegion) {
                     return SectionProtection.DENY;
                 } else if (region instanceof ProtectedCuboidRegion && doesRegionCompletelyContainSection(region, cx, cy, cz)) {
@@ -128,7 +128,7 @@ public class RegionProtectionWorldGuard {
         }
 
         if (hasPartialDeny) {
-            System.out.println("returning check!");
+            // System.out.println("returning check!");
             return new SectionProtection() {
                 @Override
                 public SectionState getSectionState() {
@@ -143,7 +143,7 @@ public class RegionProtectionWorldGuard {
             // return complex thing
         }
 
-        System.out.println("returning allow!");
+        // System.out.println("returning allow!");
         return SectionProtection.ALLOW;
     }
 

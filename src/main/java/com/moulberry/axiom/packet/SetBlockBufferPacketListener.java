@@ -114,7 +114,7 @@ public class SetBlockBufferPacketListener {
             Bukkit.getPluginManager().callEvent(modifyWorldEvent);
             if (modifyWorldEvent.isCancelled()) return;
 
-            RegionProtection regionProtection = new RegionProtection(player.getBukkitEntity(), world.getWorld());
+            // RegionProtection regionProtection = new RegionProtection(player.getBukkitEntity(), world.getWorld());
 
             // Allowed, apply buffer
             BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
@@ -133,7 +133,7 @@ public class SetBlockBufferPacketListener {
                     continue;
                 }
 
-                SectionProtection sectionProtection = regionProtection.getSection(cx, cy, cz);
+//                SectionProtection sectionProtection = regionProtection.getSection(cx, cy, cz);
 //                switch (sectionProtection.getSectionState()) {
 //                    case ALLOW -> sectionProtection = null;
 //                    case DENY -> {
@@ -171,11 +171,11 @@ public class SetBlockBufferPacketListener {
                             BlockState blockState = container.get(x, y, z);
                             if (blockState == emptyState) continue;
 
-                            switch (sectionProtection.getSectionState()) {
-                                case ALLOW -> {}
-                                case DENY -> blockState = Blocks.REDSTONE_BLOCK.defaultBlockState();
-                                case CHECK -> blockState = Blocks.DIAMOND_BLOCK.defaultBlockState();
-                            }
+//                            switch (sectionProtection.getSectionState()) {
+//                                case ALLOW -> {}
+//                                case DENY -> blockState = Blocks.REDSTONE_BLOCK.defaultBlockState();
+//                                case CHECK -> blockState = Blocks.DIAMOND_BLOCK.defaultBlockState();
+//                            }
 
                             int bx = cx*16 + x;
                             int by = cy*16 + y;

@@ -12,7 +12,7 @@ public class AxiomConstants {
         }
     }
 
-    public static final int API_VERSION = 6;
+    public static final int API_VERSION = 7;
     public static final NamespacedKey ACTIVE_HOTBAR_INDEX = new NamespacedKey("axiom", "active_hotbar_index");
     public static final NamespacedKey HOTBAR_DATA = new NamespacedKey("axiom", "hotbar_data");
 

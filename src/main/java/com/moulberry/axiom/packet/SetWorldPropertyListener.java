@@ -1,26 +1,14 @@
 package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
-import com.moulberry.axiom.event.AxiomTimeChangeEvent;
-import com.moulberry.axiom.world_properties.WorldPropertyCategory;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import com.moulberry.axiom.world_properties.server.ServerWorldProperty;
 import io.netty.buffer.Unpooled;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.GameRules;
-import net.minecraft.world.level.Level;
-import org.bukkit.Bukkit;
-import org.bukkit.craftbukkit.v1_20_R1.CraftWorld;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.List;
-import java.util.Map;
 
 public class SetWorldPropertyListener implements PluginMessageListener {
 
@@ -46,8 +34,10 @@ public class SetWorldPropertyListener implements PluginMessageListener {
 
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
         buf.writeVarInt(updateId);
-        player.sendPluginMessage(AxiomPaper.PLUGIN, "axiom:ack_world_properties",
-            buf.accessByteBufWithCorrectSize());
+
+        byte[] bytes = new byte[buf.writerIndex()];
+        buf.getBytes(0, bytes);
+        player.sendPluginMessage(AxiomPaper.PLUGIN, "axiom:ack_world_properties", bytes);
     }
 
 }

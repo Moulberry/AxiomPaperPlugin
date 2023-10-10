@@ -61,7 +61,8 @@ public class ServerWorldProperty<T> {
         buf.writeVarInt(this.widget.dataType().getTypeId());
         buf.writeByteArray(this.widget.dataType().serialize(this.value));
 
-        byte[] message = buf.accessByteBufWithCorrectSize();
+        byte[] message = new byte[buf.writerIndex()];
+        buf.getBytes(0, message);
         for (Player player : world.getPlayers()) {
             if (AxiomPaper.PLUGIN.activeAxiomPlayers.contains(player.getUniqueId())) {
                 player.sendPluginMessage(AxiomPaper.PLUGIN, "axiom:set_world_property", message);
