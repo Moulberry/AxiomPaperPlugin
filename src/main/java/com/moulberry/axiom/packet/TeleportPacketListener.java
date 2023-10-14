@@ -1,5 +1,6 @@
 package com.moulberry.axiom.packet;
 
+import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomGameModeChangeEvent;
 import com.moulberry.axiom.event.AxiomTeleportEvent;
 import io.netty.buffer.Unpooled;
@@ -14,9 +15,14 @@ import org.jetbrains.annotations.NotNull;
 
 public class TeleportPacketListener implements PluginMessageListener {
 
+    private final AxiomPaper plugin;
+    public TeleportPacketListener(AxiomPaper plugin) {
+        this.plugin = plugin;
+    }
+
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        if (!player.hasPermission("axiom.*")) {
+        if (!this.plugin.canUseAxiom(player)) {
             return;
         }
 

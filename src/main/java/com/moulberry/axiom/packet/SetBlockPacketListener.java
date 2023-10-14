@@ -62,7 +62,7 @@ public class SetBlockPacketListener implements PluginMessageListener {
 
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player bukkitPlayer, @NotNull byte[] message) {
-        if (!bukkitPlayer.hasPermission("axiom.*")) {
+        if (!this.plugin.canUseAxiom(bukkitPlayer)) {
             return;
         }
 

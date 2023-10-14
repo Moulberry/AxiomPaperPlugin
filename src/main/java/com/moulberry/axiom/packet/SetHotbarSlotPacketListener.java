@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomConstants;
+import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.persistence.ItemStackDataType;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
@@ -15,9 +16,14 @@ import org.jetbrains.annotations.NotNull;
 
 public class SetHotbarSlotPacketListener implements PluginMessageListener {
 
+    private final AxiomPaper plugin;
+    public SetHotbarSlotPacketListener(AxiomPaper plugin) {
+        this.plugin = plugin;
+    }
+
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        if (!player.hasPermission("axiom.*")) {
+        if (!this.plugin.canUseAxiom(player)) {
             return;
         }
 

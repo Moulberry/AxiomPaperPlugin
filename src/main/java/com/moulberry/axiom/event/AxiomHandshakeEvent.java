@@ -12,10 +12,11 @@ public class AxiomHandshakeEvent extends Event implements Cancellable {
 
     private final Player player;
     private boolean cancelled = false;
-    private int maxBufferSize = 0x100000;
+    private int maxBufferSize;
 
-    public AxiomHandshakeEvent(Player player) {
+    public AxiomHandshakeEvent(Player player, int maxBufferSize) {
         this.player = player;
+        this.maxBufferSize = maxBufferSize;
     }
 
     public Player getPlayer() {

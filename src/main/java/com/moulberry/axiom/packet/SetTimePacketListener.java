@@ -1,5 +1,7 @@
 package com.moulberry.axiom.packet;
 
+import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import com.moulberry.axiom.event.AxiomTimeChangeEvent;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.registries.Registries;
@@ -16,9 +18,14 @@ import org.jetbrains.annotations.NotNull;
 
 public class SetTimePacketListener implements PluginMessageListener {
 
+    private final AxiomPaper plugin;
+    public SetTimePacketListener(AxiomPaper plugin) {
+        this.plugin = plugin;
+    }
+
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        if (!player.hasPermission("axiom.*")) {
+        if (!this.plugin.canUseAxiom(player)) {
             return;
         }
 
@@ -32,7 +39,12 @@ public class SetTimePacketListener implements PluginMessageListener {
         ServerLevel level = ((CraftWorld)player.getWorld()).getHandle();
         if (!level.dimension().equals(key)) return;
 
-        // Call event
+        // Call modify world
+        AxiomModifyWorldEvent modifyWorldEvent = new AxiomModifyWorldEvent(player, player.getWorld());
+        Bukkit.getPluginManager().callEvent(modifyWorldEvent);
+        if (modifyWorldEvent.isCancelled()) return;
+
+        // Call time change event
         AxiomTimeChangeEvent timeChangeEvent = new AxiomTimeChangeEvent(player, time, freezeTime);
         Bukkit.getPluginManager().callEvent(timeChangeEvent);
         if (timeChangeEvent.isCancelled()) return;

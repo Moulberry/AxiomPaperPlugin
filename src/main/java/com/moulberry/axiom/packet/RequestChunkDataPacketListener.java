@@ -3,6 +3,7 @@ package com.moulberry.axiom.packet;
 import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
+import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.*;
 import net.minecraft.core.BlockPos;
@@ -21,6 +22,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
+import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.v1_20_R2.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
@@ -33,7 +35,6 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
     private static final ResourceLocation RESPONSE_ID = new ResourceLocation("axiom:response_chunk_data");
 
     private final AxiomPaper plugin;
-
     public RequestChunkDataPacketListener(AxiomPaper plugin) {
         this.plugin = plugin;
     }
@@ -44,8 +45,16 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         long id = friendlyByteBuf.readLong();
 
-        if (!bukkitPlayer.hasPermission("axiom.*")) {
+        if (!this.plugin.canUseAxiom(bukkitPlayer)) {
             // We always send an 'empty' response in order to make the client happy
+            sendEmptyResponse(player, id);
+            return;
+        }
+
+        // Call AxiomModifyWorldEvent event
+        AxiomModifyWorldEvent modifyWorldEvent = new AxiomModifyWorldEvent(bukkitPlayer, bukkitPlayer.getWorld());
+        Bukkit.getPluginManager().callEvent(modifyWorldEvent);
+        if (modifyWorldEvent.isCancelled()) {
             sendEmptyResponse(player, id);
             return;
         }

@@ -9,6 +9,7 @@ import com.moulberry.axiom.persistence.UUIDDataType;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.minecraft.SharedConstants;
 import net.minecraft.network.FriendlyByteBuf;
 import org.bukkit.Bukkit;
@@ -48,19 +49,38 @@ public class HelloPacketListener implements PluginMessageListener {
 
         int serverDataVersion = SharedConstants.getCurrentVersion().getDataVersion().getVersion();
         if (dataVersion != serverDataVersion) {
-            player.kick(Component.text("Axiom: Incompatible data version detected (client " + dataVersion +
-                ", server " + serverDataVersion  + "), are you using ViaVersion?"));
-            return;
+            Component text = Component.text("Axiom: Incompatible data version detected (client " + dataVersion +
+                ", server " + serverDataVersion  + "), are you using ViaVersion?");
+
+            String incompatibleDataVersion = plugin.configuration.getString("incompatible-data-version");
+            if (incompatibleDataVersion == null) incompatibleDataVersion = "kick";
+            if (incompatibleDataVersion.equals("warn")) {
+                player.sendMessage(text.color(NamedTextColor.RED));
+                return;
+            } else if (!incompatibleDataVersion.equals("ignore")) {
+                player.kick(text);
+                return;
+            }
         }
 
         if (apiVersion != AxiomConstants.API_VERSION) {
-            player.kick(Component.text("Unsupported Axiom API Version. Server supports " + AxiomConstants.API_VERSION +
-                ", while client is " + apiVersion));
-            return;
+            Component text = Component.text("Unsupported Axiom API Version. Server supports " + AxiomConstants.API_VERSION +
+                ", while client is " + apiVersion);
+
+            String unsupportedAxiomVersion = plugin.configuration.getString("unsupported-axiom-version");
+            if (unsupportedAxiomVersion == null) unsupportedAxiomVersion = "kick";
+            if (unsupportedAxiomVersion.equals("warn")) {
+                player.sendMessage(text.color(NamedTextColor.RED));
+                return;
+            } else if (!unsupportedAxiomVersion.equals("ignore")) {
+                player.kick(text);
+                return;
+            }
         }
 
         // Call handshake event
-        AxiomHandshakeEvent handshakeEvent = new AxiomHandshakeEvent(player);
+        int maxBufferSize = plugin.configuration.getInt("max-block-buffer-packet-size");
+        AxiomHandshakeEvent handshakeEvent = new AxiomHandshakeEvent(player, maxBufferSize);
         Bukkit.getPluginManager().callEvent(handshakeEvent);
         if (handshakeEvent.isCancelled()) {
             return;

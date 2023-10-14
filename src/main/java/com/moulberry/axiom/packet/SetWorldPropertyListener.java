@@ -12,9 +12,14 @@ import org.jetbrains.annotations.NotNull;
 
 public class SetWorldPropertyListener implements PluginMessageListener {
 
+    private final AxiomPaper plugin;
+    public SetWorldPropertyListener(AxiomPaper plugin) {
+        this.plugin = plugin;
+    }
+
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        if (!player.hasPermission("axiom.*")) {
+        if (!this.plugin.canUseAxiom(player)) {
             return;
         }
 

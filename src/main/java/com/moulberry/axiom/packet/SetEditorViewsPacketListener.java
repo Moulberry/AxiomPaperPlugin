@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomConstants;
+import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.View;
 import com.moulberry.axiom.persistence.UUIDDataType;
 import io.netty.buffer.Unpooled;
@@ -16,9 +17,14 @@ import java.util.UUID;
 
 public class SetEditorViewsPacketListener implements PluginMessageListener {
 
+    private final AxiomPaper plugin;
+    public SetEditorViewsPacketListener(AxiomPaper plugin) {
+        this.plugin = plugin;
+    }
+
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        if (!player.hasPermission("axiom.*")) {
+        if (!this.plugin.canUseAxiom(player)) {
             return;
         }
 

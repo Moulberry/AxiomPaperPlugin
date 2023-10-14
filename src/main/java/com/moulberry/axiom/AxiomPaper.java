@@ -19,7 +19,10 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import org.bukkit.*;
+import org.bukkit.configuration.Configuration;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -37,10 +40,22 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     public static AxiomPaper PLUGIN; // tsk tsk tsk
 
     public final Set<UUID> activeAxiomPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    public Configuration configuration;
 
     @Override
     public void onEnable() {
         PLUGIN = this;
+
+        this.saveDefaultConfig();
+        configuration = this.getConfig();
+
+        Set<String> validResolutions = Set.of("kick", "warn", "ignore");
+        if (!validResolutions.contains(configuration.getString("incompatible-data-version"))) {
+            this.getLogger().warning("Invalid value for incompatible-data-version, expected 'kick', 'warn' or 'ignore'");
+        }
+        if (!validResolutions.contains(configuration.getString("unsupported-axiom-version"))) {
+            this.getLogger().warning("Invalid value for unsupported-axiom-version, expected 'kick', 'warn' or 'ignore'");
+        }
 
         Bukkit.getPluginManager().registerEvents(this, this);
         // Bukkit.getPluginManager().registerEvents(new WorldPropertiesExample(), this);
@@ -56,40 +71,64 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerOutgoingPluginChannel(this, "axiom:set_world_property");
         msg.registerOutgoingPluginChannel(this, "axiom:ack_world_properties");
 
-        msg.registerIncomingPluginChannel(this, "axiom:hello", new HelloPacketListener(this, activeAxiomPlayers));
-        msg.registerIncomingPluginChannel(this, "axiom:set_gamemode", new SetGamemodePacketListener());
-        msg.registerIncomingPluginChannel(this, "axiom:set_fly_speed", new SetFlySpeedPacketListener());
-        msg.registerIncomingPluginChannel(this, "axiom:set_world_time", new SetTimePacketListener());
-        msg.registerIncomingPluginChannel(this, "axiom:set_world_property", new SetWorldPropertyListener());
-        msg.registerIncomingPluginChannel(this, "axiom:set_block", new SetBlockPacketListener(this));
-        msg.registerIncomingPluginChannel(this, "axiom:set_hotbar_slot", new SetHotbarSlotPacketListener());
-        msg.registerIncomingPluginChannel(this, "axiom:switch_active_hotbar", new SwitchActiveHotbarPacketListener());
-        msg.registerIncomingPluginChannel(this, "axiom:teleport", new TeleportPacketListener());
-        msg.registerIncomingPluginChannel(this, "axiom:set_editor_views", new SetEditorViewsPacketListener());
-        msg.registerIncomingPluginChannel(this, "axiom:request_chunk_data", new RequestChunkDataPacketListener(this));
+        if (configuration.getBoolean("packet-handlers.hello")) {
+            msg.registerIncomingPluginChannel(this, "axiom:hello", new HelloPacketListener(this, activeAxiomPlayers));
+        }
+        if (configuration.getBoolean("packet-handlers.set-gamemode")) {
+            msg.registerIncomingPluginChannel(this, "axiom:set_gamemode", new SetGamemodePacketListener(this));
+        }
+        if (configuration.getBoolean("packet-handlers.set-fly-speed")) {
+            msg.registerIncomingPluginChannel(this, "axiom:set_fly_speed", new SetFlySpeedPacketListener(this));
+        }
+        if (configuration.getBoolean("packet-handlers.set-world-time")) {
+            msg.registerIncomingPluginChannel(this, "axiom:set_world_time", new SetTimePacketListener(this));
+        }
+        if (configuration.getBoolean("packet-handlers.set-world-property")) {
+            msg.registerIncomingPluginChannel(this, "axiom:set_world_property", new SetWorldPropertyListener(this));
+        }
+        if (configuration.getBoolean("packet-handlers.set-single-block")) {
+            msg.registerIncomingPluginChannel(this, "axiom:set_block", new SetBlockPacketListener(this));
+        }
+        if (configuration.getBoolean("packet-handlers.set-hotbar-slot")) {
+            msg.registerIncomingPluginChannel(this, "axiom:set_hotbar_slot", new SetHotbarSlotPacketListener(this));
+        }
+        if (configuration.getBoolean("packet-handlers.switch-active-hotbar")) {
+            msg.registerIncomingPluginChannel(this, "axiom:switch_active_hotbar", new SwitchActiveHotbarPacketListener(this));
+        }
+        if (configuration.getBoolean("packet-handlers.teleport")) {
+            msg.registerIncomingPluginChannel(this, "axiom:teleport", new TeleportPacketListener(this));
+        }
+        if (configuration.getBoolean("packet-handlers.set-editor-views")) {
+            msg.registerIncomingPluginChannel(this, "axiom:set_editor_views", new SetEditorViewsPacketListener(this));
+        }
+        if (configuration.getBoolean("packet-handlers.request-chunk-data")) {
+            msg.registerIncomingPluginChannel(this, "axiom:request_chunk_data", new RequestChunkDataPacketListener(this));
+        }
 
-        SetBlockBufferPacketListener setBlockBufferPacketListener = new SetBlockBufferPacketListener(this);
+        if (configuration.getBoolean("packet-handlers.set-buffer")) {
+            SetBlockBufferPacketListener setBlockBufferPacketListener = new SetBlockBufferPacketListener(this);
 
-        ChannelInitializeListenerHolder.addListener(Key.key("axiom:handle_big_payload"), new ChannelInitializeListener() {
-            @Override
-            public void afterInitChannel(@NonNull Channel channel) {
-                var packets = ConnectionProtocol.PLAY.getPacketsByIds(PacketFlow.SERVERBOUND);
-                int payloadId = -1;
-                for (Map.Entry<Integer, Class<? extends Packet<?>>> entry : packets.entrySet()) {
-                    if (entry.getValue() == ServerboundCustomPayloadPacket.class) {
-                        payloadId = entry.getKey();
-                        break;
+            ChannelInitializeListenerHolder.addListener(Key.key("axiom:handle_big_payload"), new ChannelInitializeListener() {
+                @Override
+                public void afterInitChannel(@NonNull Channel channel) {
+                    var packets = ConnectionProtocol.PLAY.getPacketsByIds(PacketFlow.SERVERBOUND);
+                    int payloadId = -1;
+                    for (Map.Entry<Integer, Class<? extends Packet<?>>> entry : packets.entrySet()) {
+                        if (entry.getValue() == ServerboundCustomPayloadPacket.class) {
+                            payloadId = entry.getKey();
+                            break;
+                        }
                     }
-                }
-                if (payloadId < 0) {
-                    throw new RuntimeException("Failed to find ServerboundCustomPayloadPacket id");
-                }
+                    if (payloadId < 0) {
+                        throw new RuntimeException("Failed to find ServerboundCustomPayloadPacket id");
+                    }
 
-                Connection connection = (Connection) channel.pipeline().get("packet_handler");
-                channel.pipeline().addBefore("decoder", "axiom-big-payload-handler",
-                                             new AxiomBigPayloadHandler(payloadId, connection, setBlockBufferPacketListener));
-            }
-        });
+                    Connection connection = (Connection) channel.pipeline().get("packet_handler");
+                    channel.pipeline().addBefore("decoder", "axiom-big-payload-handler",
+                        new AxiomBigPayloadHandler(payloadId, connection, setBlockBufferPacketListener));
+                }
+            });
+        }
 
         Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
             HashSet<UUID> newActiveAxiomPlayers = new HashSet<>();
@@ -111,6 +150,17 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             activeAxiomPlayers.clear();
             activeAxiomPlayers.addAll(newActiveAxiomPlayers);
         }, 20, 20);
+
+        int maxChunkRelightsPerTick = configuration.getInt("max-chunk-relights-per-tick");
+        int maxChunkSendsPerTick = configuration.getInt("max-chunk-sends-per-tick");
+
+        Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
+            WorldExtension.tick(MinecraftServer.getServer(), maxChunkRelightsPerTick, maxChunkSendsPerTick);
+        }, 1, 1);
+    }
+
+    public boolean canUseAxiom(Player player) {
+        return player.hasPermission("axiom.*") && activeAxiomPlayers.contains(player.getUniqueId());
     }
 
     private final WeakHashMap<World, ServerWorldPropertiesRegistry> worldProperties = new WeakHashMap<>();

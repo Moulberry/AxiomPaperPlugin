@@ -1,27 +1,11 @@
 package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.WorldExtension;
 import com.moulberry.axiom.buffer.BiomeBuffer;
 import com.moulberry.axiom.buffer.BlockBuffer;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
-import com.moulberry.axiom.integration.RegionProtection;
-import com.moulberry.axiom.integration.SectionProtection;
-import com.sk89q.worldedit.bukkit.BukkitAdapter;
-import com.sk89q.worldedit.math.BlockVector3;
-import com.sk89q.worldedit.world.World;
-import com.sk89q.worldguard.LocalPlayer;
-import com.sk89q.worldguard.WorldGuard;
-import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
-import com.sk89q.worldguard.protection.ApplicableRegionSet;
-import com.sk89q.worldguard.protection.flags.Flags;
-import com.sk89q.worldguard.protection.flags.StateFlag;
-import com.sk89q.worldguard.protection.managers.RegionManager;
-import com.sk89q.worldguard.protection.regions.ProtectedCuboidRegion;
-import com.sk89q.worldguard.protection.regions.ProtectedRegion;
-import com.sk89q.worldguard.protection.regions.RegionContainer;
-import com.sk89q.worldguard.protection.regions.RegionQuery;
-import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
 import net.minecraft.core.BlockPos;
@@ -41,7 +25,6 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -96,7 +79,7 @@ public class SetBlockBufferPacketListener {
             applyBlockBuffer(player, server, buffer, worldKey);
         } else if (type == 1) {
             BiomeBuffer buffer = BiomeBuffer.load(friendlyByteBuf);
-            applyBiomeBuffer(server, buffer, worldKey);
+            applyBiomeBuffer(player, server, buffer, worldKey);
         } else {
             throw new RuntimeException("Unknown buffer type: " + type);
         }
@@ -109,17 +92,18 @@ public class SetBlockBufferPacketListener {
             ServerLevel world = server.getLevel(worldKey);
             if (world == null) return;
 
+            if (!this.plugin.canUseAxiom(player.getBukkitEntity())) {
+                return;
+            }
+
             // Call AxiomModifyWorldEvent event
             AxiomModifyWorldEvent modifyWorldEvent = new AxiomModifyWorldEvent(player.getBukkitEntity(), world.getWorld());
             Bukkit.getPluginManager().callEvent(modifyWorldEvent);
             if (modifyWorldEvent.isCancelled()) return;
 
-            // RegionProtection regionProtection = new RegionProtection(player.getBukkitEntity(), world.getWorld());
-
             // Allowed, apply buffer
             BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
-
-            var lightEngine = world.getChunkSource().getLightEngine();
+            WorldExtension extension = WorldExtension.get(world);
 
             BlockState emptyState = BlockBuffer.EMPTY_STATE;
 
@@ -133,17 +117,7 @@ public class SetBlockBufferPacketListener {
                     continue;
                 }
 
-//                SectionProtection sectionProtection = regionProtection.getSection(cx, cy, cz);
-//                switch (sectionProtection.getSectionState()) {
-//                    case ALLOW -> sectionProtection = null;
-//                    case DENY -> {
-//                        continue;
-//                    }
-//                    case CHECK -> {}
-//                }
-
                 LevelChunk chunk = world.getChunk(cx, cz);
-                chunk.setUnsaved(true);
 
                 LevelChunkSection section = chunk.getSection(world.getSectionIndexFromSectionY(cy));
                 PalettedContainer<BlockState> sectionStates = section.getStates();
@@ -163,6 +137,12 @@ public class SetBlockBufferPacketListener {
                     }
                 }
 
+                boolean sectionChanged = false;
+                boolean sectionLightChanged = false;
+
+                boolean containerMaybeHasPoi = container.maybeHas(PoiTypes::hasPoi);
+                boolean sectionMaybeHasPoi = section.maybeHas(PoiTypes::hasPoi);
+
                 Short2ObjectMap<CompressedBlockEntity> blockEntityChunkMap = buffer.getBlockEntityChunkMap(entry.getLongKey());
 
                 for (int x = 0; x < 16; x++) {
@@ -171,21 +151,9 @@ public class SetBlockBufferPacketListener {
                             BlockState blockState = container.get(x, y, z);
                             if (blockState == emptyState) continue;
 
-//                            switch (sectionProtection.getSectionState()) {
-//                                case ALLOW -> {}
-//                                case DENY -> blockState = Blocks.REDSTONE_BLOCK.defaultBlockState();
-//                                case CHECK -> blockState = Blocks.DIAMOND_BLOCK.defaultBlockState();
-//                            }
-
                             int bx = cx*16 + x;
                             int by = cy*16 + y;
                             int bz = cz*16 + z;
-
-//                          if (!regionProtection.canBuild(bx, by, bz)) {
-//                              continue;
-//                          }
-
-                            blockPos.set(bx, by, bz);
 
                             if (hasOnlyAir && blockState.isAir()) {
                                 continue;
@@ -193,6 +161,9 @@ public class SetBlockBufferPacketListener {
 
                             BlockState old = section.setBlockState(x, y, z, blockState, true);
                             if (blockState != old) {
+                                sectionChanged = true;
+                                blockPos.set(bx, by, bz);
+
                                 Block block = blockState.getBlock();
                                 motionBlocking.update(x, by, z, blockState);
                                 motionBlockingNoLeaves.update(x, by, z, blockState);
@@ -245,18 +216,12 @@ public class SetBlockBufferPacketListener {
                                     chunk.removeBlockEntity(blockPos);
                                 }
 
-                                // Mark block changed
-                                world.getChunkSource().blockChanged(blockPos); // todo: maybe simply resend chunk instead of this?
-
                                 // Update Light
-                                if (LightEngine.hasDifferentLightProperties(chunk, blockPos, old, blockState)) {
-                                    chunk.getSkyLightSources().update(chunk, x, by, z);
-                                    lightEngine.checkBlock(blockPos);
-                                }
+                                sectionLightChanged |= LightEngine.hasDifferentLightProperties(chunk, blockPos, old, blockState);
 
                                 // Update Poi
-                                Optional<Holder<PoiType>> newPoi = PoiTypes.forState(blockState);
-                                Optional<Holder<PoiType>> oldPoi = PoiTypes.forState(old);
+                                Optional<Holder<PoiType>> newPoi = containerMaybeHasPoi ? PoiTypes.forState(blockState) : Optional.empty();
+                                Optional<Holder<PoiType>> oldPoi = sectionMaybeHasPoi ? PoiTypes.forState(old) : Optional.empty();
                                 if (!Objects.equals(oldPoi, newPoi)) {
                                     if (oldPoi.isPresent()) world.getPoiManager().remove(blockPos);
                                     if (newPoi.isPresent()) world.getPoiManager().add(blockPos, newPoi.get());
@@ -270,15 +235,32 @@ public class SetBlockBufferPacketListener {
                 if (hasOnlyAir != nowHasOnlyAir) {
                     world.getChunkSource().getLightEngine().updateSectionStatus(SectionPos.of(cx, cy, cz), nowHasOnlyAir);
                 }
+
+                if (sectionChanged) {
+                    extension.sendChunk(cx, cz);
+                    chunk.setUnsaved(true);
+                }
+                if (sectionLightChanged) {
+                    extension.lightChunk(cx, cz);
+                }
             }
         });
     }
 
 
-    private void applyBiomeBuffer(MinecraftServer server, BiomeBuffer biomeBuffer, ResourceKey<Level> worldKey) {
+    private void applyBiomeBuffer(ServerPlayer player, MinecraftServer server, BiomeBuffer biomeBuffer, ResourceKey<Level> worldKey) {
         server.execute(() -> {
             ServerLevel world = server.getLevel(worldKey);
             if (world == null) return;
+
+            if (!this.plugin.canUseAxiom(player.getBukkitEntity())) {
+                return;
+            }
+
+            // Call AxiomModifyWorldEvent event
+            AxiomModifyWorldEvent modifyWorldEvent = new AxiomModifyWorldEvent(player.getBukkitEntity(), world.getWorld());
+            Bukkit.getPluginManager().callEvent(modifyWorldEvent);
+            if (modifyWorldEvent.isCancelled()) return;
 
             Set<LevelChunk> changedChunks = new HashSet<>();
 

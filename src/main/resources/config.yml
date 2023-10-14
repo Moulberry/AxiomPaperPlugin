@@ -1,0 +1,29 @@
+# Max chunk sends per tick (per-world), 0 = no limit
+max-chunk-sends-per-tick: 0
+
+# Max chunk relights per tick (per-world), 0 = no limit
+max-chunk-relights-per-tick: 0
+
+# Action to take when a user with an incompatible Minecraft version or Axiom version joins
+# Valid actions are 'kick', 'warn' and 'ignore'
+# Using 'ignore' may result in corruption and is only provided for debugging purposes
+incompatible-data-version: "kick"
+unsupported-axiom-version: "kick"
+
+# Maximum packet size. Must not be less than 32767
+max-block-buffer-packet-size: 0x100000
+
+# Toggles for individual packet handlers. May break certain features
+packet-handlers:
+  hello: true
+  set-gamemode: true
+  set-fly-speed: true
+  set-world-time: true
+  set-world-property: true
+  set-single-block: true
+  set-hotbar-slot: true
+  switch-active-hotbar: true
+  teleport: true
+  set-editor-views: true
+  request-chunk-data: true
+  set-buffer: true
