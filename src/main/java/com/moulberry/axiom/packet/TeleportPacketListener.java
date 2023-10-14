@@ -38,6 +38,12 @@ public class TeleportPacketListener implements PluginMessageListener {
         World world = Bukkit.getWorld(namespacedKey);
         if (world == null) return;
 
+        // Prevent teleport based on config value
+        boolean allowTeleportBetweenWorlds = this.plugin.configuration.getBoolean("allow-teleport-between-worlds");
+        if (!allowTeleportBetweenWorlds && world != player.getWorld()) {
+            return;
+        }
+
         // Call event
         AxiomTeleportEvent teleportEvent = new AxiomTeleportEvent(player, new Location(world, x, y, z, yRot, xRot));
         Bukkit.getPluginManager().callEvent(teleportEvent);

@@ -93,39 +93,43 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
         int playerSectionZ = player.getBlockZ() >> 4;
 
         Long2ObjectMap<PalettedContainer<BlockState>> sections = new Long2ObjectOpenHashMap<>();
-        count = friendlyByteBuf.readVarInt();
-        for (int i = 0; i < count; i++) {
-            long pos = friendlyByteBuf.readLong();
 
-            int sx = BlockPos.getX(pos);
-            int sy = BlockPos.getY(pos);
-            int sz = BlockPos.getZ(pos);
+        int maxChunkLoadDistance = this.plugin.configuration.getInt("max-chunk-load-distance");
+        if (maxChunkLoadDistance > 0) {
+            count = friendlyByteBuf.readVarInt();
+            for (int i = 0; i < count; i++) {
+                long pos = friendlyByteBuf.readLong();
 
-            int distance = Math.abs(playerSectionX - sx) + Math.abs(playerSectionZ - sz);
-            if (distance > 128) continue;
+                int sx = BlockPos.getX(pos);
+                int sy = BlockPos.getY(pos);
+                int sz = BlockPos.getZ(pos);
 
-            LevelChunk chunk = level.getChunk(sx, sz);
-            int sectionIndex = chunk.getSectionIndexFromSectionY(sy);
-            if (sectionIndex < 0 || sectionIndex >= chunk.getSectionsCount()) continue;
-            LevelChunkSection section = chunk.getSection(sectionIndex);
+                int distance = Math.abs(playerSectionX - sx) + Math.abs(playerSectionZ - sz);
+                if (distance > maxChunkLoadDistance) continue;
 
-            if (section.hasOnlyAir()) {
-                sections.put(pos, null);
-            } else {
-                PalettedContainer<BlockState> container = section.getStates();
-                sections.put(pos, container);
+                LevelChunk chunk = level.getChunk(sx, sz);
+                int sectionIndex = chunk.getSectionIndexFromSectionY(sy);
+                if (sectionIndex < 0 || sectionIndex >= chunk.getSectionsCount()) continue;
+                LevelChunkSection section = chunk.getSection(sectionIndex);
 
-                if (sendBlockEntitiesInChunks && section.maybeHas(BlockState::hasBlockEntity)) {
-                    for (int x = 0; x < 16; x++) {
-                        for (int y = 0; y < 16; y++) {
-                            for (int z = 0; z < 16; z++) {
-                                BlockState blockState = container.get(x, y, z);
-                                if (blockState.hasBlockEntity()) {
-                                    mutableBlockPos.set(sx*16 + x, sy*16 + y, sz*16 + z);
-                                    BlockEntity blockEntity = chunk.getBlockEntity(mutableBlockPos, LevelChunk.EntityCreationType.CHECK);
-                                    if (blockEntity != null) {
-                                        CompoundTag tag = blockEntity.saveWithoutMetadata();
-                                        blockEntityMap.put(mutableBlockPos.asLong(), CompressedBlockEntity.compress(tag, baos));
+                if (section.hasOnlyAir()) {
+                    sections.put(pos, null);
+                } else {
+                    PalettedContainer<BlockState> container = section.getStates();
+                    sections.put(pos, container);
+
+                    if (sendBlockEntitiesInChunks && section.maybeHas(BlockState::hasBlockEntity)) {
+                        for (int x = 0; x < 16; x++) {
+                            for (int y = 0; y < 16; y++) {
+                                for (int z = 0; z < 16; z++) {
+                                    BlockState blockState = container.get(x, y, z);
+                                    if (blockState.hasBlockEntity()) {
+                                        mutableBlockPos.set(sx*16 + x, sy*16 + y, sz*16 + z);
+                                        BlockEntity blockEntity = chunk.getBlockEntity(mutableBlockPos, LevelChunk.EntityCreationType.CHECK);
+                                        if (blockEntity != null) {
+                                            CompoundTag tag = blockEntity.saveWithoutMetadata();
+                                            blockEntityMap.put(mutableBlockPos.asLong(), CompressedBlockEntity.compress(tag, baos));
+                                        }
                                     }
                                 }
                             }
@@ -134,7 +138,6 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
                 }
             }
         }
-
 
         // Send response packet
 
