@@ -191,7 +191,9 @@ public class SetBlockPacketListener implements PluginMessageListener {
 
                     // Update Light
                     if (LightEngine.hasDifferentLightProperties(chunk, blockPos, old, blockState)) {
-                        chunk.getSkyLightSources().update(chunk, x, by, z);
+                        // Note: Skylight Sources not currently needed on Paper due to Starlight
+                        // This might change in the future, so be careful!
+                        // chunk.getSkyLightSources().update(chunk, x, by, z);
                         level.getChunkSource().getLightEngine().checkBlock(blockPos);
                     }
 

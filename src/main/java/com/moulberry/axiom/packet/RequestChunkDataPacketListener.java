@@ -72,7 +72,7 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
             return;
         }
 
-        boolean sendBlockEntitiesInChunks= friendlyByteBuf.readBoolean();
+        boolean sendBlockEntitiesInChunks = friendlyByteBuf.readBoolean();
 
         Long2ObjectMap<CompressedBlockEntity> blockEntityMap = new Long2ObjectOpenHashMap<>();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
