@@ -51,10 +51,7 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
             return;
         }
 
-        // Call AxiomModifyWorldEvent event
-        AxiomModifyWorldEvent modifyWorldEvent = new AxiomModifyWorldEvent(bukkitPlayer, bukkitPlayer.getWorld());
-        Bukkit.getPluginManager().callEvent(modifyWorldEvent);
-        if (modifyWorldEvent.isCancelled()) {
+        if (!this.plugin.canModifyWorld(bukkitPlayer, bukkitPlayer.getWorld())) {
             sendEmptyResponse(player, id);
             return;
         }

@@ -20,6 +20,14 @@ unsupported-axiom-version: "kick"
 # Maximum packet size. Must not be less than 32767
 max-block-buffer-packet-size: 0x100000
 
+# Regex for whitelisting worlds
+# The world can only be modified if the regex matches the world's name
+whitelist-world-regex: null
+
+# Regex for blacklisting worlds
+# If the regex matches the world's name, the world can't be modified
+blacklist-world-regex: null
+
 # Toggles for individual packet handlers. May break certain features
 packet-handlers:
   hello: true

@@ -40,9 +40,9 @@ public class SetTimePacketListener implements PluginMessageListener {
         if (!level.dimension().equals(key)) return;
 
         // Call modify world
-        AxiomModifyWorldEvent modifyWorldEvent = new AxiomModifyWorldEvent(player, player.getWorld());
-        Bukkit.getPluginManager().callEvent(modifyWorldEvent);
-        if (modifyWorldEvent.isCancelled()) return;
+        if (!this.plugin.canModifyWorld(player, player.getWorld())) {
+            return;
+        }
 
         // Call time change event
         AxiomTimeChangeEvent timeChangeEvent = new AxiomTimeChangeEvent(player, time, freezeTime);

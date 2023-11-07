@@ -65,10 +65,9 @@ public class SetBlockPacketListener implements PluginMessageListener {
             return;
         }
 
-        // Check if player is allowed to modify this world
-        AxiomModifyWorldEvent modifyWorldEvent = new AxiomModifyWorldEvent(bukkitPlayer, bukkitPlayer.getWorld());
-        Bukkit.getPluginManager().callEvent(modifyWorldEvent);
-        if (modifyWorldEvent.isCancelled()) return;
+        if (!this.plugin.canModifyWorld(bukkitPlayer, bukkitPlayer.getWorld())) {
+            return;
+        }
 
         // Read packet
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));

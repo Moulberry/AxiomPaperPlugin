@@ -2,6 +2,7 @@ package com.moulberry.axiom;
 
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.event.AxiomCreateWorldPropertiesEvent;
+import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import com.moulberry.axiom.packet.*;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import com.moulberry.axiom.world_properties.server.ServerWorldProperty;
@@ -173,6 +174,22 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             worldProperties.put(world, properties);
             return properties;
         }
+    }
+
+    public boolean canModifyWorld(Player player, World world) {
+        String whitelist = this.configuration.getString("whitelist-world-regex");
+        if (whitelist != null && !world.getName().matches(whitelist)) {
+            return false;
+        }
+
+        String blacklist = this.configuration.getString("blacklist-world-regex");
+        if (blacklist != null && world.getName().matches(blacklist)) {
+            return false;
+        }
+
+        AxiomModifyWorldEvent modifyWorldEvent = new AxiomModifyWorldEvent(player, world);
+        Bukkit.getPluginManager().callEvent(modifyWorldEvent);
+        return !modifyWorldEvent.isCancelled();
     }
 
     @EventHandler

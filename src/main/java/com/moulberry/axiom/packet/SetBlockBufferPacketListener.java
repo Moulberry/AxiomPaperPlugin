@@ -96,10 +96,9 @@ public class SetBlockBufferPacketListener {
                 return;
             }
 
-            // Call AxiomModifyWorldEvent event
-            AxiomModifyWorldEvent modifyWorldEvent = new AxiomModifyWorldEvent(player.getBukkitEntity(), world.getWorld());
-            Bukkit.getPluginManager().callEvent(modifyWorldEvent);
-            if (modifyWorldEvent.isCancelled()) return;
+            if (!this.plugin.canModifyWorld(player.getBukkitEntity(), world.getWorld())) {
+                return;
+            }
 
             // Allowed, apply buffer
             BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
@@ -257,10 +256,9 @@ public class SetBlockBufferPacketListener {
                 return;
             }
 
-            // Call AxiomModifyWorldEvent event
-            AxiomModifyWorldEvent modifyWorldEvent = new AxiomModifyWorldEvent(player.getBukkitEntity(), world.getWorld());
-            Bukkit.getPluginManager().callEvent(modifyWorldEvent);
-            if (modifyWorldEvent.isCancelled()) return;
+            if (!this.plugin.canModifyWorld(player.getBukkitEntity(), world.getWorld())) {
+                return;
+            }
 
             Set<LevelChunk> changedChunks = new HashSet<>();
 
