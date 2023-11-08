@@ -26,6 +26,12 @@ public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
 
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
+        // Don't process if channel isn't active
+        if (!ctx.channel().isActive()) {
+            in.skipBytes(in.readableBytes());
+            return;
+        }
+
         int i = in.readableBytes();
         if (i != 0) {
             int readerIndex = in.readerIndex();
@@ -55,6 +61,11 @@ public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
         }
 
         ctx.fireChannelRead(in.retain());
+
+        // Skip remaining bytes
+        if (in.readableBytes() > 0) {
+            in.skipBytes(in.readableBytes());
+        }
     }
 
     @Override
