@@ -50,7 +50,7 @@ public class PlotSquaredIntegrationImpl {
             BukkitPlayer plotPlayer = BukkitUtil.adapt(player);
             // == rather than <= as we only care about the "ground level" not being destroyed
             if (block.getY() == area.getMinGenHeight()) {
-                if (!plotPlayer.hasPermission(Permission.PERMISSION_ADMIN_DESTROY_GROUNDLEVEL)) {
+                if (!plotPlayer.hasPermission(Permission.PERMISSION_ADMIN_DESTROY_GROUNDLEVEL, true)) {
                     return false;
                 }
             }
@@ -70,17 +70,17 @@ public class PlotSquaredIntegrationImpl {
                         return true;
                     }
                 }
-                return plotPlayer.hasPermission(Permission.PERMISSION_ADMIN_DESTROY_OTHER);
+                return plotPlayer.hasPermission(Permission.PERMISSION_ADMIN_DESTROY_OTHER, true);
             }
             // plot is 'done'
             if (Settings.Done.RESTRICT_BUILDING && DoneFlag.isDone(plot)) {
-                return plotPlayer.hasPermission(Permission.PERMISSION_ADMIN_BUILD_OTHER);
+                return plotPlayer.hasPermission(Permission.PERMISSION_ADMIN_BUILD_OTHER, true);
             }
             return true;
         }
 
         BukkitPlayer pp = BukkitUtil.adapt(player);
-        return pp.hasPermission(Permission.PERMISSION_ADMIN_DESTROY_ROAD);
+        return pp.hasPermission(Permission.PERMISSION_ADMIN_DESTROY_ROAD, true);
     }
 
     static boolean canPlaceBlock(Player player, org.bukkit.Location loc) {
@@ -98,20 +98,20 @@ public class PlotSquaredIntegrationImpl {
             }
             // check unowned plots
             if (!plot.hasOwner()) {
-                return pp.hasPermission(Permission.PERMISSION_ADMIN_BUILD_UNOWNED);
+                return pp.hasPermission(Permission.PERMISSION_ADMIN_BUILD_UNOWNED, true);
             }
             // player is breaking another player's plot
             if (!plot.isAdded(pp.getUUID())) {
-                return pp.hasPermission(Permission.PERMISSION_ADMIN_BUILD_OTHER);
+                return pp.hasPermission(Permission.PERMISSION_ADMIN_BUILD_OTHER, true);
             }
             // plot is 'done'
             if (Settings.Done.RESTRICT_BUILDING && DoneFlag.isDone(plot)) {
-                return pp.hasPermission(Permission.PERMISSION_ADMIN_BUILD_OTHER);
+                return pp.hasPermission(Permission.PERMISSION_ADMIN_BUILD_OTHER, true);
             }
             return true;
         }
 
-        return pp.hasPermission(Permission.PERMISSION_ADMIN_BUILD_ROAD);
+        return pp.hasPermission(Permission.PERMISSION_ADMIN_BUILD_ROAD, true);
     }
 
 }
