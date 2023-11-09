@@ -2,6 +2,7 @@ package com.moulberry.axiom.integration.plotsquared;
 
 import com.plotsquared.bukkit.player.BukkitPlayer;
 import com.plotsquared.bukkit.util.BukkitUtil;
+import com.plotsquared.core.PlotSquared;
 import com.plotsquared.core.configuration.Settings;
 import com.plotsquared.core.location.Location;
 import com.plotsquared.core.permissions.Permission;
@@ -12,11 +13,12 @@ import com.plotsquared.core.plot.flag.implementations.DoneFlag;
 import com.plotsquared.core.plot.flag.types.BlockTypeWrapper;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.world.block.BlockType;
-import org.bukkit.Bukkit;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 
 import java.util.List;
+import java.util.WeakHashMap;
 
 /*
  * PlotSquared, a land and world management plugin for Minecraft.
@@ -112,6 +114,27 @@ public class PlotSquaredIntegrationImpl {
         }
 
         return pp.hasPermission(Permission.PERMISSION_ADMIN_BUILD_ROAD, true);
+    }
+
+    private static final WeakHashMap<World, Boolean> plotWorldCache = new WeakHashMap<>();
+    static boolean isPlotWorld(World world) {
+        if (plotWorldCache.containsKey(world)) {
+            return plotWorldCache.get(world);
+        }
+
+        boolean isPlotWorld = false;
+
+        String worldName = world.getName();
+        for (String plotWorld : PlotSquared.get().getPlotAreaManager().getAllWorlds()) {
+            if (plotWorld.equals(worldName)) {
+                isPlotWorld = true;
+                break;
+            }
+        }
+
+        plotWorldCache.put(world, isPlotWorld);
+        return isPlotWorld;
+
     }
 
 }
