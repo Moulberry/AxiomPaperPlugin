@@ -1,8 +1,12 @@
 package com.moulberry.axiom.packet;
 
+import com.google.common.collect.Maps;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
+import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import io.netty.buffer.Unpooled;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.SectionPos;
@@ -23,7 +27,9 @@ import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.phys.BlockHitResult;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.block.BlockFace;
+import org.bukkit.craftbukkit.v1_20_R2.CraftWorld;
 import org.bukkit.craftbukkit.v1_20_R2.block.CraftBlock;
 import org.bukkit.craftbukkit.v1_20_R2.entity.CraftPlayer;
 import org.bukkit.entity.Player;
@@ -38,6 +44,7 @@ import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.IntFunction;
 
 public class SetBlockPacketListener implements PluginMessageListener {
 
@@ -71,7 +78,9 @@ public class SetBlockPacketListener implements PluginMessageListener {
 
         // Read packet
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
-        Map<BlockPos, BlockState> blocks = friendlyByteBuf.readMap(FriendlyByteBuf::readBlockPos, buf -> buf.readById(Block.BLOCK_STATE_REGISTRY));
+        IntFunction<Map<BlockPos, BlockState>> mapFunction = FriendlyByteBuf.limitValue(Maps::newLinkedHashMapWithExpectedSize, 512);
+        Map<BlockPos, BlockState> blocks = friendlyByteBuf.readMap(mapFunction,
+                FriendlyByteBuf::readBlockPos, buf -> buf.readById(Block.BLOCK_STATE_REGISTRY));
         boolean updateNeighbors = friendlyByteBuf.readBoolean();
 
         int reason = friendlyByteBuf.readVarInt();
@@ -104,16 +113,47 @@ public class SetBlockPacketListener implements PluginMessageListener {
             return;
         }
 
+        CraftWorld world = player.level().getWorld();
+
         // Update blocks
         if (updateNeighbors) {
+            int count = 0;
             for (Map.Entry<BlockPos, BlockState> entry : blocks.entrySet()) {
-                player.level().setBlock(entry.getKey(), entry.getValue(), 3);
-            }
-        } else {
-            for (Map.Entry<BlockPos, BlockState> entry : blocks.entrySet()) {
+                if (count++ > 64) break;
+
                 BlockPos blockPos = entry.getKey();
                 BlockState blockState = entry.getValue();
 
+                // Check PlotSquared
+                if (blockState.isAir()) {
+                    if (!PlotSquaredIntegration.canBreakBlock(bukkitPlayer, world.getBlockAt(blockPos.getX(), blockPos.getY(), blockPos.getZ()))) {
+                        continue;
+                    }
+                } else if (!PlotSquaredIntegration.canPlaceBlock(bukkitPlayer, new Location(world, blockPos.getX(), blockPos.getY(), blockPos.getZ()))) {
+                    continue;
+                }
+
+                // Place block
+                player.level().setBlock(blockPos, blockState, 3);
+            }
+        } else {
+            int count = 0;
+            for (Map.Entry<BlockPos, BlockState> entry : blocks.entrySet()) {
+                if (count++ > 64) break;
+
+                BlockPos blockPos = entry.getKey();
+                BlockState blockState = entry.getValue();
+
+                // Check PlotSquared
+                if (blockState.isAir()) {
+                    if (!PlotSquaredIntegration.canBreakBlock(bukkitPlayer, world.getBlockAt(blockPos.getX(), blockPos.getY(), blockPos.getZ()))) {
+                        continue;
+                    }
+                } else if (!PlotSquaredIntegration.canPlaceBlock(bukkitPlayer, new Location(world, blockPos.getX(), blockPos.getY(), blockPos.getZ()))) {
+                    continue;
+                }
+
+                // Place block
                 int bx = blockPos.getX();
                 int by = blockPos.getY();
                 int bz = blockPos.getZ();
