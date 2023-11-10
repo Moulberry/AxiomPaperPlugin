@@ -1,6 +1,7 @@
 package com.moulberry.axiom.integration.plotsquared;
 
 
+import com.moulberry.axiom.integration.SectionPermissionChecker;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -28,6 +29,13 @@ public class PlotSquaredIntegration {
             return true;
         }
         return PlotSquaredIntegrationImpl.isPlotWorld(world);
+    }
+
+    public static SectionPermissionChecker checkSection(Player player, World world, int sectionX, int sectionY, int sectionZ) {
+        if (!Bukkit.getPluginManager().isPluginEnabled("PlotSquared")) {
+            return SectionPermissionChecker.ALL_ALLOWED;
+        }
+        return PlotSquaredIntegrationImpl.checkSection(player, world, sectionX, sectionY, sectionZ);
     }
 
 }

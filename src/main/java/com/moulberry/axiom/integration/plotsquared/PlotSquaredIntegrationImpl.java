@@ -1,5 +1,7 @@
 package com.moulberry.axiom.integration.plotsquared;
 
+import com.moulberry.axiom.integration.Box;
+import com.moulberry.axiom.integration.SectionPermissionChecker;
 import com.plotsquared.bukkit.player.BukkitPlayer;
 import com.plotsquared.bukkit.util.BukkitUtil;
 import com.plotsquared.core.PlotSquared;
@@ -8,17 +10,20 @@ import com.plotsquared.core.location.Location;
 import com.plotsquared.core.permissions.Permission;
 import com.plotsquared.core.plot.Plot;
 import com.plotsquared.core.plot.PlotArea;
+import com.plotsquared.core.plot.PlotId;
 import com.plotsquared.core.plot.flag.implementations.BreakFlag;
 import com.plotsquared.core.plot.flag.implementations.DoneFlag;
 import com.plotsquared.core.plot.flag.types.BlockTypeWrapper;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
+import com.sk89q.worldedit.math.BlockVector3;
+import com.sk89q.worldedit.regions.CuboidRegion;
 import com.sk89q.worldedit.world.block.BlockType;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
-import java.util.List;
-import java.util.WeakHashMap;
+import java.util.*;
 
 /*
  * PlotSquared, a land and world management plugin for Minecraft.
@@ -117,6 +122,7 @@ public class PlotSquaredIntegrationImpl {
     }
 
     private static final WeakHashMap<World, Boolean> plotWorldCache = new WeakHashMap<>();
+
     static boolean isPlotWorld(World world) {
         if (plotWorldCache.containsKey(world)) {
             return plotWorldCache.get(world);
@@ -134,7 +140,85 @@ public class PlotSquaredIntegrationImpl {
 
         plotWorldCache.put(world, isPlotWorld);
         return isPlotWorld;
-
     }
 
+    static SectionPermissionChecker checkSection(Player player, World world, int sectionX, int sectionY, int sectionZ) {
+        int minX = sectionX * 16;
+        int minY = sectionY * 16;
+        int minZ = sectionZ * 16;
+        int maxX = sectionX * 16 + 15;
+        int maxY = sectionY * 16 + 15;
+        int maxZ = sectionZ * 16 + 15;
+
+        PlotArea[] plotAreas = PlotSquared.get().getPlotAreaManager().getPlotAreas(world.getName(), new CuboidRegion(
+                BlockVector3.at(minX, minY, minZ),
+                BlockVector3.at(maxX, maxY, maxZ)
+        ));
+
+        if (plotAreas.length == 0) {
+            return SectionPermissionChecker.ALL_ALLOWED;
+        }
+
+        Set<Plot> checkedPlots = new HashSet<>();
+        List<Box> allowed = new ArrayList<>();
+
+        for (PlotArea plotArea : plotAreas) {
+            for (int px = minX; px <= maxX; px += 15) {
+                for (int py = minY; py <= maxY; py += 15) {
+                    for (int pz = minZ; pz <= maxZ; pz += 15) {
+                        PlotId pid = plotArea.getPlotManager().getPlotId(px, py, pz);
+                        if (pid == null) continue;
+                        Plot plot = plotArea.getOwnedPlotAbs(pid);
+                        if (plot == null) continue;
+
+                        if (!checkedPlots.add(plot)) continue;
+
+                        if (!plot.hasOwner()) continue;
+                        if (!plot.isAdded(player.getUniqueId())) continue;
+                        if (Settings.Done.RESTRICT_BUILDING && DoneFlag.isDone(plot)) continue;
+
+                        Location bottom = plot.getBottomAbs();
+                        Location top = plot.getTopAbs();
+
+                        int minPlotX = Math.max(Math.min(bottom.getX(), top.getX()), minX);
+                        int minPlotY = Math.max(Math.min(bottom.getY(), top.getY()), minY);
+                        int minPlotZ = Math.max(Math.min(bottom.getZ(), top.getZ()), minZ);
+                        int maxPlotX = Math.min(Math.max(bottom.getX(), top.getX()), maxX);
+                        int maxPlotY = Math.min(Math.max(bottom.getY(), top.getY()), maxY);
+                        int maxPlotZ = Math.min(Math.max(bottom.getZ(), top.getZ()), maxZ);
+
+                        if (minPlotX <= minX && minPlotY <= minY && minPlotZ <= minZ &&
+                                maxPlotX >= maxX && maxPlotY >= maxY && maxPlotZ >= maxZ) {
+                            return SectionPermissionChecker.ALL_ALLOWED;
+                        }
+
+                        allowed.add(new Box(minPlotX - minX, minPlotY - minY, minPlotZ - minZ,
+                                maxPlotX - minX, maxPlotY - minY, maxPlotZ - minZ));
+                    }
+                }
+            }
+        }
+
+        // Combine
+        main:
+        while (allowed.size() >= 2) {
+            for (int i = 0; i < allowed.size() - 1; i++) {
+                Box first = allowed.get(i);
+                for (int j = i + 1; j < allowed.size(); j++) {
+                    Box second = allowed.get(j);
+
+                    Box combined = first.tryCombine(second);
+                    if (combined != null) {
+                        allowed.remove(j);
+                        allowed.remove(i);
+                        allowed.add(combined);
+                        continue main;
+                    }
+                }
+            }
+            break;
+        }
+
+        return SectionPermissionChecker.fromAllowedBoxes(allowed);
+    }
 }
