@@ -1,11 +1,15 @@
 package com.moulberry.axiom.packet;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.View;
 import com.moulberry.axiom.persistence.UUIDDataType;
 import io.netty.buffer.Unpooled;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -13,7 +17,9 @@ import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.IntFunction;
 
 public class SetEditorViewsPacketListener implements PluginMessageListener {
 
@@ -30,7 +36,8 @@ public class SetEditorViewsPacketListener implements PluginMessageListener {
 
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         UUID uuid = friendlyByteBuf.readUUID();
-        List<View> views = friendlyByteBuf.readList(View::read);
+        IntFunction<List<View>> listFunction = FriendlyByteBuf.limitValue(Lists::newArrayListWithCapacity, 64);
+        List<View> views = friendlyByteBuf.readCollection(listFunction, View::read);
 
         PersistentDataContainer container = player.getPersistentDataContainer();
         container.set(AxiomConstants.ACTIVE_VIEW, UUIDDataType.INSTANCE, uuid);
