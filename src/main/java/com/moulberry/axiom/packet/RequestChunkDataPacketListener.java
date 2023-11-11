@@ -4,6 +4,7 @@ import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
+import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.*;
 import net.minecraft.core.BlockPos;
@@ -92,6 +93,12 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
         Long2ObjectMap<PalettedContainer<BlockState>> sections = new Long2ObjectOpenHashMap<>();
 
         int maxChunkLoadDistance = this.plugin.configuration.getInt("max-chunk-load-distance");
+
+        // Don't allow loading chunks outside render distance for plot worlds
+        if (PlotSquaredIntegration.isPlotWorld(level.getWorld())) {
+            maxChunkLoadDistance = 0;
+        }
+
         if (maxChunkLoadDistance > 0) {
             count = friendlyByteBuf.readVarInt();
             for (int i = 0; i < count; i++) {
