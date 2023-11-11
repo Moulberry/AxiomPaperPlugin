@@ -168,7 +168,7 @@ public class PlotSquaredIntegrationImpl {
                     for (int pz = minZ; pz <= maxZ; pz += 15) {
                         PlotId pid = plotArea.getPlotManager().getPlotId(px, py, pz);
                         if (pid == null) continue;
-                        Plot plot = plotArea.getOwnedPlotAbs(pid);
+                        Plot plot = plotArea.getOwnedPlot(pid);
                         if (plot == null) continue;
 
                         if (!checkedPlots.add(plot)) continue;
@@ -177,23 +177,29 @@ public class PlotSquaredIntegrationImpl {
                         if (!plot.isAdded(player.getUniqueId())) continue;
                         if (Settings.Done.RESTRICT_BUILDING && DoneFlag.isDone(plot)) continue;
 
-                        Location bottom = plot.getBottomAbs();
-                        Location top = plot.getTopAbs();
+                        for (CuboidRegion region : plot.getRegions()) {
+                            BlockVector3 minPoint = region.getMinimumPoint();
+                            BlockVector3 maxPoint = region.getMaximumPoint();
 
-                        int minPlotX = Math.max(Math.min(bottom.getX(), top.getX()), minX);
-                        int minPlotY = Math.max(Math.min(bottom.getY(), top.getY()), minY);
-                        int minPlotZ = Math.max(Math.min(bottom.getZ(), top.getZ()), minZ);
-                        int maxPlotX = Math.min(Math.max(bottom.getX(), top.getX()), maxX);
-                        int maxPlotY = Math.min(Math.max(bottom.getY(), top.getY()), maxY);
-                        int maxPlotZ = Math.min(Math.max(bottom.getZ(), top.getZ()), maxZ);
+                            int minPlotX = Math.max(minPoint.getX(), minX);
+                            int minPlotY = Math.max(minPoint.getY(), minY);
+                            int minPlotZ = Math.max(minPoint.getZ(), minZ);
+                            int maxPlotX = Math.min(maxPoint.getX(), maxX);
+                            int maxPlotY = Math.min(maxPoint.getY(), maxY);
+                            int maxPlotZ = Math.min(maxPoint.getZ(), maxZ);
 
-                        if (minPlotX <= minX && minPlotY <= minY && minPlotZ <= minZ &&
-                                maxPlotX >= maxX && maxPlotY >= maxY && maxPlotZ >= maxZ) {
-                            return SectionPermissionChecker.ALL_ALLOWED;
+                            if (minPlotX > maxPlotX) continue;
+                            if (minPlotY > maxPlotY) continue;
+                            if (minPlotZ > maxPlotZ) continue;
+
+                            if (minPlotX <= minX && minPlotY <= minY && minPlotZ <= minZ &&
+                                    maxPlotX >= maxX && maxPlotY >= maxY && maxPlotZ >= maxZ) {
+                                return SectionPermissionChecker.ALL_ALLOWED;
+                            }
+
+                            allowed.add(new Box(minPlotX - minX, minPlotY - minY, minPlotZ - minZ,
+                                    maxPlotX - minX, maxPlotY - minY, maxPlotZ - minZ));
                         }
-
-                        allowed.add(new Box(minPlotX - minX, minPlotY - minY, minPlotZ - minZ,
-                                maxPlotX - minX, maxPlotY - minY, maxPlotZ - minZ));
                     }
                 }
             }
