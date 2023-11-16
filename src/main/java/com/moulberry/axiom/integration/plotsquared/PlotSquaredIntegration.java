@@ -26,7 +26,7 @@ public class PlotSquaredIntegration {
 
     public static boolean isPlotWorld(World world) {
         if (!Bukkit.getPluginManager().isPluginEnabled("PlotSquared")) {
-            return true;
+            return false;
         }
         return PlotSquaredIntegrationImpl.isPlotWorld(world);
     }
