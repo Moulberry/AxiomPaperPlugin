@@ -12,6 +12,8 @@ import org.bukkit.World;
 import org.bukkit.craftbukkit.v1_20_R2.util.CraftNamespacedKey;
 import org.bukkit.entity.Player;
 
+import java.util.Objects;
+
 public class ServerWorldPropertyHolder<T> {
 
     private T value;
@@ -56,7 +58,7 @@ public class ServerWorldPropertyHolder<T> {
     }
 
     public void setValue(World world, T value) {
-        boolean sync = this.unsyncedValue || !value.equals(this.value);
+        boolean sync = this.unsyncedValue || !Objects.equals(value, this.value);
         this.value = value;
         if (sync) {
             this.sync(world);
