@@ -60,7 +60,6 @@ public interface WorldPropertyWidgetType<T> {
         }
     };
 
-
     WorldPropertyWidgetType<Void> BUTTON = new WorldPropertyWidgetType<>() {
         @Override
         public WorldPropertyDataType<Void> dataType() {
