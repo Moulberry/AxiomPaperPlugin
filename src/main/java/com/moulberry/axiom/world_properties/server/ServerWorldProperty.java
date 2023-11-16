@@ -4,32 +4,29 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.world_properties.PropertyUpdateHandler;
 import com.moulberry.axiom.world_properties.WorldPropertyDataType;
 import com.moulberry.axiom.world_properties.WorldPropertyWidgetType;
-import io.netty.buffer.Unpooled;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.v1_20_R2.util.CraftNamespacedKey;
-import org.bukkit.entity.Player;
 
-import java.util.function.Predicate;
+import java.util.function.Function;
 
 public class ServerWorldProperty<T> {
 
     private final ResourceLocation id;
-    private final String name;
-    private final boolean localizeName;
-    private WorldPropertyWidgetType<T> widget;
-    private T value;
-    private PropertyUpdateHandler<T> handler;
+    /*package-private*/ final String name;
+    /*package-private*/ final boolean localizeName;
+    /*package-private*/ WorldPropertyWidgetType<T> widget;
+    /*package-private*/ Function<World, T> defaultValueFunction;
+    /*package-private*/ PropertyUpdateHandler<T> handler;
 
     public ServerWorldProperty(NamespacedKey id, String name, boolean localizeName, WorldPropertyWidgetType<T> widget,
-                               T value, PropertyUpdateHandler<T> handler) {
+                               Function<World, T> defaultValueFunction, PropertyUpdateHandler<T> handler) {
         this.id = CraftNamespacedKey.toMinecraft(id);
         this.name = name;
         this.localizeName = localizeName;
         this.widget = widget;
-        this.value = value;
+        this.defaultValueFunction = defaultValueFunction;
         this.handler = handler;
     }
 
@@ -41,44 +38,30 @@ public class ServerWorldProperty<T> {
         return this.widget.dataType();
     }
 
-    public void update(Player player, World world, byte[] data) {
-        this.value = this.widget.dataType().deserialize(data);
-        if (this.handler.update(player, world, this.value)) {
-            this.sync(world);
-        }
-    }
-
-    public void setValueWithoutSyncing(T value) {
-        this.value = value;
-    }
-
-    public void setValue(World world, T value) {
-        this.value = value;
-        this.sync(world);
-    }
-
-    public void sync(World world) {
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-
-        buf.writeResourceLocation(this.id);
-        buf.writeVarInt(this.widget.dataType().getTypeId());
-        buf.writeByteArray(this.widget.dataType().serialize(this.value));
-
-        byte[] message = new byte[buf.writerIndex()];
-        buf.getBytes(0, message);
-        for (Player player : world.getPlayers()) {
-            if (AxiomPaper.PLUGIN.activeAxiomPlayers.contains(player.getUniqueId())) {
-                player.sendPluginMessage(AxiomPaper.PLUGIN, "axiom:set_world_property", message);
+    @SuppressWarnings("unchecked")
+    public boolean setValueWithoutSyncing(World world, T value) {
+        ServerWorldPropertiesRegistry properties = AxiomPaper.PLUGIN.getWorldPropertiesIfPresent(world);
+        if (properties != null) {
+            ServerWorldPropertyHolder<?> property = properties.getById(this.id);
+            if (property != null && property.getProperty() == this) {
+                ((ServerWorldPropertyHolder<T>)property).setValueWithoutSyncing(value);
+                return true;
             }
         }
+        return false;
     }
 
-    public void write(FriendlyByteBuf friendlyByteBuf) {
-        friendlyByteBuf.writeResourceLocation(this.id);
-        friendlyByteBuf.writeUtf(this.name);
-        friendlyByteBuf.writeBoolean(this.localizeName);
-        this.widget.write(friendlyByteBuf);
-        friendlyByteBuf.writeByteArray(this.widget.dataType().serialize(this.value));
+    @SuppressWarnings("unchecked")
+    public boolean setValue(World world, T value) {
+        ServerWorldPropertiesRegistry properties = AxiomPaper.PLUGIN.getWorldPropertiesIfPresent(world);
+        if (properties != null) {
+            ServerWorldPropertyHolder<?> property = properties.getById(this.id);
+            if (property != null && property.getProperty() == this) {
+                ((ServerWorldPropertyHolder<T>)property).setValue(world, value);
+                return true;
+            }
+        }
+        return false;
     }
 
 }

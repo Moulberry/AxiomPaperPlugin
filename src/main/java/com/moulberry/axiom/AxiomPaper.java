@@ -5,7 +5,6 @@ import com.moulberry.axiom.event.AxiomCreateWorldPropertiesEvent;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import com.moulberry.axiom.packet.*;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
-import com.moulberry.axiom.world_properties.server.ServerWorldProperty;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.papermc.paper.event.player.PlayerFailMoveEvent;
@@ -19,11 +18,9 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import org.bukkit.*;
 import org.bukkit.configuration.Configuration;
-import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -166,7 +163,11 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     private final WeakHashMap<World, ServerWorldPropertiesRegistry> worldProperties = new WeakHashMap<>();
 
-    public @Nullable ServerWorldPropertiesRegistry getWorldProperties(World world) {
+    public @Nullable ServerWorldPropertiesRegistry getWorldPropertiesIfPresent(World world) {
+        return worldProperties.get(world);
+    }
+
+    public @Nullable ServerWorldPropertiesRegistry getOrCreateWorldProperties(World world) {
         if (worldProperties.containsKey(world)) {
             return worldProperties.get(world);
         } else {
@@ -207,7 +208,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     public void onChangedWorld(PlayerChangedWorldEvent event) {
         World world = event.getPlayer().getWorld();
 
-        ServerWorldPropertiesRegistry properties = getWorldProperties(world);
+        ServerWorldPropertiesRegistry properties = getOrCreateWorldProperties(world);
 
         if (properties == null) {
             event.getPlayer().sendPluginMessage(this, "axiom:register_world_properties", new byte[]{0});
@@ -219,13 +220,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     @EventHandler
     public void onGameRuleChanged(WorldGameRuleChangeEvent event) {
         if (event.getGameRule() == GameRule.DO_WEATHER_CYCLE) {
-            ServerWorldPropertiesRegistry properties = getWorldProperties(event.getWorld());
-            if (properties != null) {
-                ServerWorldProperty<?> property = properties.getById(new ResourceLocation("axiom:pause_weather"));
-                if (property != null) {
-                    ((ServerWorldProperty<Boolean>)property).setValue(event.getWorld(), !Boolean.parseBoolean(event.getValue()));
-                }
-            }
+            ServerWorldPropertiesRegistry.PAUSE_WEATHER.setValue(event.getWorld(), !Boolean.parseBoolean(event.getValue()));
         }
     }
 

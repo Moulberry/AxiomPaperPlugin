@@ -143,7 +143,7 @@ public class HelloPacketListener implements PluginMessageListener {
 
         // Register world properties
         World world = player.getWorld();
-        ServerWorldPropertiesRegistry properties = plugin.getWorldProperties(world);
+        ServerWorldPropertiesRegistry properties = plugin.getOrCreateWorldProperties(world);
 
         if (properties == null) {
             player.sendPluginMessage(plugin, "axiom:register_world_properties", new byte[]{0});

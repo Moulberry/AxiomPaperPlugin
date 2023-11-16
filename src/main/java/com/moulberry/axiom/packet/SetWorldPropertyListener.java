@@ -2,7 +2,7 @@ package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
-import com.moulberry.axiom.world_properties.server.ServerWorldProperty;
+import com.moulberry.axiom.world_properties.server.ServerWorldPropertyHolder;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -29,10 +29,10 @@ public class SetWorldPropertyListener implements PluginMessageListener {
         byte[] data = friendlyByteBuf.readByteArray();
         int updateId = friendlyByteBuf.readVarInt();
 
-        ServerWorldPropertiesRegistry registry = AxiomPaper.PLUGIN.getWorldProperties(player.getWorld());
+        ServerWorldPropertiesRegistry registry = AxiomPaper.PLUGIN.getOrCreateWorldProperties(player.getWorld());
         if (registry == null) return;
 
-        ServerWorldProperty<?> property = registry.getById(id);
+        ServerWorldPropertyHolder<?> property = registry.getById(id);
         if (property != null && property.getType().getTypeId() == type) {
             property.update(player, player.getWorld(), data);
         }

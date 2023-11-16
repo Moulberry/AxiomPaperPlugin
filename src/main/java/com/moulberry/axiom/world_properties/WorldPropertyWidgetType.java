@@ -1,7 +1,6 @@
 package com.moulberry.axiom.world_properties;
 
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Unit;
 
 import java.util.List;
@@ -62,9 +61,9 @@ public interface WorldPropertyWidgetType<T> {
     };
 
 
-    WorldPropertyWidgetType<Unit> BUTTON = new WorldPropertyWidgetType<>() {
+    WorldPropertyWidgetType<Void> BUTTON = new WorldPropertyWidgetType<>() {
         @Override
-        public WorldPropertyDataType<Unit> dataType() {
+        public WorldPropertyDataType<Void> dataType() {
             return WorldPropertyDataType.EMPTY;
         }
 
