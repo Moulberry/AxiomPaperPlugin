@@ -6,7 +6,9 @@ import com.moulberry.axiom.world_properties.WorldPropertyWidgetType;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
+import org.bukkit.craftbukkit.v1_20_R2.util.CraftNamespacedKey;
 import org.bukkit.entity.Player;
 
 import java.util.function.Predicate;
@@ -20,9 +22,9 @@ public class ServerWorldProperty<T> {
     private T value;
     private Predicate<T> handler;
 
-    public ServerWorldProperty(ResourceLocation id, String name, boolean localizeName, WorldPropertyWidgetType<T> widget,
-            T value, Predicate<T> handler) {
-        this.id = id;
+    public ServerWorldProperty(NamespacedKey id, String name, boolean localizeName, WorldPropertyWidgetType<T> widget,
+                               T value, Predicate<T> handler) {
+        this.id = CraftNamespacedKey.toMinecraft(id);
         this.name = name;
         this.localizeName = localizeName;
         this.widget = widget;
