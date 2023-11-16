@@ -3,6 +3,7 @@ package com.moulberry.axiom;
 import com.moulberry.axiom.event.AxiomCreateWorldPropertiesEvent;
 import com.moulberry.axiom.world_properties.WorldPropertyCategory;
 import com.moulberry.axiom.world_properties.WorldPropertyWidgetType;
+import com.moulberry.axiom.world_properties.server.PropertyUpdateResult;
 import com.moulberry.axiom.world_properties.server.ServerWorldProperty;
 import net.kyori.adventure.text.Component;
 import org.bukkit.NamespacedKey;
@@ -19,7 +20,7 @@ public class WorldPropertiesExample implements Listener {
         false, WorldPropertyWidgetType.CHECKBOX, world -> false,
         (player, world, bool) -> {
             world.sendMessage(Component.text("Checkbox: " + bool)); // Do something with input
-            return true; // true to sync with client
+            return PropertyUpdateResult.UPDATE_AND_SYNC; // sync with client
         }
     );
 
@@ -30,7 +31,7 @@ public class WorldPropertiesExample implements Listener {
         world -> 4,
         (player, world, integer) -> {
             world.sendMessage(Component.text("Slider: " + integer)); // Do something with input
-            return true; // true to sync with client
+            return PropertyUpdateResult.UPDATE_AND_SYNC; // sync with client
         }
     );
 
@@ -41,7 +42,7 @@ public class WorldPropertiesExample implements Listener {
         world -> "Hello",
         (player, world, string) -> {
             world.sendMessage(Component.text("Textbox: " + string)); // Do something with input
-            return true; // true to sync with client
+            return PropertyUpdateResult.UPDATE_AND_SYNC; // sync with client
         }
     );
 
@@ -52,7 +53,7 @@ public class WorldPropertiesExample implements Listener {
         world -> null,
         (player, world, unit) -> {
             world.sendMessage(Component.text("Button pressed")); // Do something with input
-            return true; // true to sync with client
+            return PropertyUpdateResult.UPDATE_AND_SYNC; // sync with client
         }
     );
 

@@ -25,7 +25,7 @@ public abstract class ServerWorldPropertyBase<T> {
 
     public abstract T getDefaultValue(World world);
 
-    public abstract boolean handleUpdateProperty(Player player, World world, T value);
+    public abstract PropertyUpdateResult handleUpdateProperty(Player player, World world, T value);
 
     public ResourceLocation getId() {
         return this.id;

@@ -35,8 +35,12 @@ public class ServerWorldPropertyHolder<T> {
     }
 
     public void update(Player player, World world, byte[] data) {
-        this.value = this.property.widget.dataType().deserialize(data);
-        if (this.property.handleUpdateProperty(player, world, this.value)) {
+        PropertyUpdateResult result = this.property.handleUpdateProperty(player, world, this.value);
+
+        if (result.isUpdate()) {
+            this.value = this.property.widget.dataType().deserialize(data);
+        }
+        if (result.isSync()) {
             this.sync(world);
         }
     }

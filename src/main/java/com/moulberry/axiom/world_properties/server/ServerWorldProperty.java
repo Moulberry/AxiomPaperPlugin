@@ -26,7 +26,7 @@ public class ServerWorldProperty<T> extends ServerWorldPropertyBase<T> {
     }
 
     @Override
-    public boolean handleUpdateProperty(Player player, World world, T value) {
+    public PropertyUpdateResult handleUpdateProperty(Player player, World world, T value) {
         return this.handler.update(player, world, value);
     }
 
