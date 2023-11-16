@@ -4,7 +4,9 @@ import io.netty.buffer.Unpooled;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 
 import java.nio.charset.StandardCharsets;
 
@@ -22,7 +24,7 @@ public abstract class WorldPropertyDataType<T> {
 
         @Override
         public byte[] serialize(Boolean value) {
-            return new byte[] { value ? (byte)1 : (byte)0 };
+            return new byte[] { value != null && value ? (byte)1 : (byte)0 };
         }
 
         @Override
@@ -39,6 +41,8 @@ public abstract class WorldPropertyDataType<T> {
 
         @Override
         public byte[] serialize(Integer value) {
+            if (value == null) value = 0;
+
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer(8));
             buf.writeVarInt(value);
 
@@ -62,6 +66,7 @@ public abstract class WorldPropertyDataType<T> {
 
         @Override
         public byte[] serialize(String value) {
+            if (value == null) value = "";
             return value.getBytes(StandardCharsets.UTF_8);
         }
 
@@ -79,6 +84,8 @@ public abstract class WorldPropertyDataType<T> {
 
         @Override
         public byte[] serialize(Item value) {
+            if (value == null) value = Items.AIR;
+
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer(8));
             buf.writeId(BuiltInRegistries.ITEM, value);
 
@@ -102,6 +109,8 @@ public abstract class WorldPropertyDataType<T> {
 
         @Override
         public byte[] serialize(Block value) {
+            if (value == null) value = Blocks.AIR;
+
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer(8));
             buf.writeId(BuiltInRegistries.BLOCK, value);
 
