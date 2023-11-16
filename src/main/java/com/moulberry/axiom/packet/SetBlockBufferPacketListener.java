@@ -92,8 +92,8 @@ public class SetBlockBufferPacketListener {
 
     private void applyBlockBuffer(ServerPlayer player, MinecraftServer server, BlockBuffer buffer, ResourceKey<Level> worldKey) {
         server.execute(() -> {
-            ServerLevel world = server.getLevel(worldKey);
-            if (world == null) return;
+            ServerLevel world = player.serverLevel();
+            if (!world.dimension().equals(worldKey)) return;
 
             if (!this.plugin.canUseAxiom(player.getBukkitEntity())) {
                 return;
@@ -278,8 +278,8 @@ public class SetBlockBufferPacketListener {
 
     private void applyBiomeBuffer(ServerPlayer player, MinecraftServer server, BiomeBuffer biomeBuffer, ResourceKey<Level> worldKey) {
         server.execute(() -> {
-            ServerLevel world = server.getLevel(worldKey);
-            if (world == null) return;
+            ServerLevel world = player.serverLevel();
+            if (!world.dimension().equals(worldKey)) return;
 
             if (!this.plugin.canUseAxiom(player.getBukkitEntity())) {
                 return;
