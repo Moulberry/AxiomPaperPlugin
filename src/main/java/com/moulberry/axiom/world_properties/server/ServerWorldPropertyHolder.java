@@ -16,6 +16,7 @@ public class ServerWorldPropertyHolder<T> {
 
     private T value;
     private ServerWorldPropertyBase<T> property;
+    private boolean unsyncedValue = false;
 
     public ServerWorldPropertyHolder(T value, ServerWorldPropertyBase<T> property) {
         this.value = value;
@@ -35,10 +36,15 @@ public class ServerWorldPropertyHolder<T> {
     }
 
     public void update(Player player, World world, byte[] data) {
-        PropertyUpdateResult result = this.property.handleUpdateProperty(player, world, this.value);
+        T newValue = this.property.widget.dataType().deserialize(data);
+
+        PropertyUpdateResult result = this.property.handleUpdateProperty(player, world, newValue);
 
         if (result.isUpdate()) {
-            this.value = this.property.widget.dataType().deserialize(data);
+            this.value = newValue;
+            if (!result.isSync()) {
+                this.unsyncedValue = true;
+            }
         }
         if (result.isSync()) {
             this.sync(world);
@@ -50,8 +56,11 @@ public class ServerWorldPropertyHolder<T> {
     }
 
     public void setValue(World world, T value) {
+        boolean sync = this.unsyncedValue || !value.equals(this.value);
         this.value = value;
-        this.sync(world);
+        if (sync) {
+            this.sync(world);
+        }
     }
 
     public void sync(World world) {
