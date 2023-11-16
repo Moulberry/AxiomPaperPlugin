@@ -67,7 +67,7 @@ public class ServerWorldPropertiesRegistry {
 
         ServerWorldProperty<Integer> time = new ServerWorldProperty<>(new NamespacedKey("axiom", "time"),
             "axiom.editorui.window.world_properties.time",
-            true, WorldPropertyWidgetType.TIME, 0, integer -> false
+            true, WorldPropertyWidgetType.TIME, 0, (player, w, integer) -> false
         );
 
         this.addCategory(timeCategory, List.of(time));
@@ -78,7 +78,7 @@ public class ServerWorldPropertiesRegistry {
 
         ServerWorldProperty<Boolean> pauseWeather = new ServerWorldProperty<>(new NamespacedKey("axiom", "pause_weather"),
             "axiom.editorui.window.world_properties.pause_weather",
-            true, WorldPropertyWidgetType.CHECKBOX, !world.getGameRuleValue(GameRule.DO_WEATHER_CYCLE), bool -> {
+            true, WorldPropertyWidgetType.CHECKBOX, !world.getGameRuleValue(GameRule.DO_WEATHER_CYCLE), (player, w, bool) -> {
             world.setGameRule(GameRule.DO_WEATHER_CYCLE, !bool);
             return false;
         });
@@ -87,7 +87,7 @@ public class ServerWorldPropertiesRegistry {
             "axiom.editorui.window.world_properties.clear_weather",
             true, new WorldPropertyWidgetType.ButtonArray(
             List.of("axiom.editorui.window.world_properties.rain_weather", "axiom.editorui.window.world_properties.thunder_weather")
-        ), 0, index -> {
+        ), 0, (player, w, index) -> {
             if (index == 0) {
                 serverLevel.setWeatherParameters(ServerLevel.RAIN_DELAY.sample(serverLevel.random), 0, false, false);
             } else if (index == 1) {

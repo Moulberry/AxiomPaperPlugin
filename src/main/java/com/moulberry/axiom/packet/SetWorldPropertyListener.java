@@ -34,7 +34,7 @@ public class SetWorldPropertyListener implements PluginMessageListener {
 
         ServerWorldProperty<?> property = registry.getById(id);
         if (property != null && property.getType().getTypeId() == type) {
-            property.update(player.getWorld(), data);
+            property.update(player, player.getWorld(), data);
         }
 
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());

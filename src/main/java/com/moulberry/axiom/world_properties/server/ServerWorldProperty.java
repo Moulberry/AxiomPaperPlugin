@@ -1,6 +1,7 @@
 package com.moulberry.axiom.world_properties.server;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.world_properties.PropertyUpdateHandler;
 import com.moulberry.axiom.world_properties.WorldPropertyDataType;
 import com.moulberry.axiom.world_properties.WorldPropertyWidgetType;
 import io.netty.buffer.Unpooled;
@@ -20,10 +21,10 @@ public class ServerWorldProperty<T> {
     private final boolean localizeName;
     private WorldPropertyWidgetType<T> widget;
     private T value;
-    private Predicate<T> handler;
+    private PropertyUpdateHandler<T> handler;
 
     public ServerWorldProperty(NamespacedKey id, String name, boolean localizeName, WorldPropertyWidgetType<T> widget,
-                               T value, Predicate<T> handler) {
+                               T value, PropertyUpdateHandler<T> handler) {
         this.id = CraftNamespacedKey.toMinecraft(id);
         this.name = name;
         this.localizeName = localizeName;
@@ -40,9 +41,9 @@ public class ServerWorldProperty<T> {
         return this.widget.dataType();
     }
 
-    public void update(World world, byte[] data) {
+    public void update(Player player, World world, byte[] data) {
         this.value = this.widget.dataType().deserialize(data);
-        if (this.handler.test(this.value)) {
+        if (this.handler.update(player, world, this.value)) {
             this.sync(world);
         }
     }
