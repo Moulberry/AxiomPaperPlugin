@@ -77,6 +77,8 @@ public class ServerWorldPropertyHolder<T> {
                 player.sendPluginMessage(AxiomPaper.PLUGIN, "axiom:set_world_property", message);
             }
         }
+
+        this.unsyncedValue = false;
     }
 
     public void write(FriendlyByteBuf friendlyByteBuf) {
