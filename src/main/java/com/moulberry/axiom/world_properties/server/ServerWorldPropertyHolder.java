@@ -42,12 +42,12 @@ public class ServerWorldPropertyHolder<T> {
 
         if (result.isUpdate()) {
             this.value = newValue;
-            if (!result.isSync()) {
+
+            if (result.isSync()) {
+                this.sync(world);
+            } else {
                 this.unsyncedValue = true;
             }
-        }
-        if (result.isSync()) {
-            this.sync(world);
         }
     }
 
