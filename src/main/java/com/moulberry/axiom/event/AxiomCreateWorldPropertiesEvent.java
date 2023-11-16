@@ -3,6 +3,7 @@ package com.moulberry.axiom.event;
 import com.moulberry.axiom.world_properties.WorldPropertyCategory;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import com.moulberry.axiom.world_properties.server.ServerWorldProperty;
+import com.moulberry.axiom.world_properties.server.ServerWorldPropertyBase;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertyHolder;
 import org.bukkit.World;
 import org.bukkit.event.Cancellable;
@@ -29,7 +30,7 @@ public class AxiomCreateWorldPropertiesEvent extends Event implements Cancellabl
         return world;
     }
 
-    public void addCategory(WorldPropertyCategory category, List<ServerWorldProperty<?>> properties) {
+    public void addCategory(WorldPropertyCategory category, List<ServerWorldPropertyBase<?>> properties) {
         this.registry.addCategory(category, properties);
     }
 

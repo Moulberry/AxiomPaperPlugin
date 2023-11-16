@@ -31,11 +31,11 @@ public class ServerWorldPropertiesRegistry {
     }
 
     @SuppressWarnings("unchecked")
-    public void addCategory(WorldPropertyCategory category, List<ServerWorldProperty<?>> properties) {
+    public void addCategory(WorldPropertyCategory category, List<ServerWorldPropertyBase<?>> properties) {
         List<ServerWorldPropertyHolder<?>> holders = new ArrayList<>();
-        for (ServerWorldProperty<?> property : properties) {
-            Object defaultValue = property.defaultValueFunction.apply(this.world);
-            holders.add(new ServerWorldPropertyHolder<>(defaultValue, (ServerWorldProperty<Object>) property));
+        for (ServerWorldPropertyBase<?> property : properties) {
+            Object defaultValue = property.getDefaultValue(this.world);
+            holders.add(new ServerWorldPropertyHolder<>(defaultValue, (ServerWorldPropertyBase<Object>) property));
         }
 
         this.propertyList.put(category, holders);

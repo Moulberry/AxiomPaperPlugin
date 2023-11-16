@@ -15,9 +15,9 @@ import org.bukkit.entity.Player;
 public class ServerWorldPropertyHolder<T> {
 
     private T value;
-    private ServerWorldProperty<T> property;
+    private ServerWorldPropertyBase<T> property;
 
-    public ServerWorldPropertyHolder(T value, ServerWorldProperty<T> property) {
+    public ServerWorldPropertyHolder(T value, ServerWorldPropertyBase<T> property) {
         this.value = value;
         this.property = property;
     }
@@ -30,13 +30,13 @@ public class ServerWorldPropertyHolder<T> {
         return this.property.widget.dataType();
     }
 
-    public ServerWorldProperty<T> getProperty() {
+    public ServerWorldPropertyBase<T> getProperty() {
         return property;
     }
 
     public void update(Player player, World world, byte[] data) {
         this.value = this.property.widget.dataType().deserialize(data);
-        if (this.property.handler.update(player, world, this.value)) {
+        if (this.property.handleUpdateProperty(player, world, this.value)) {
             this.sync(world);
         }
     }

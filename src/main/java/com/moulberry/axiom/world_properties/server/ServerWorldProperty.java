@@ -1,67 +1,33 @@
 package com.moulberry.axiom.world_properties.server;
 
-import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.world_properties.PropertyUpdateHandler;
-import com.moulberry.axiom.world_properties.WorldPropertyDataType;
 import com.moulberry.axiom.world_properties.WorldPropertyWidgetType;
-import net.minecraft.resources.ResourceLocation;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_20_R2.util.CraftNamespacedKey;
+import org.bukkit.entity.Player;
 
 import java.util.function.Function;
 
-public class ServerWorldProperty<T> {
+public class ServerWorldProperty<T> extends ServerWorldPropertyBase<T> {
 
-    private final ResourceLocation id;
-    /*package-private*/ final String name;
-    /*package-private*/ final boolean localizeName;
-    /*package-private*/ WorldPropertyWidgetType<T> widget;
-    /*package-private*/ Function<World, T> defaultValueFunction;
-    /*package-private*/ PropertyUpdateHandler<T> handler;
+    private final Function<World, T> defaultValueFunction;
+    private final PropertyUpdateHandler<T> handler;
 
     public ServerWorldProperty(NamespacedKey id, String name, boolean localizeName, WorldPropertyWidgetType<T> widget,
                                Function<World, T> defaultValueFunction, PropertyUpdateHandler<T> handler) {
-        this.id = CraftNamespacedKey.toMinecraft(id);
-        this.name = name;
-        this.localizeName = localizeName;
-        this.widget = widget;
+        super(id, name, localizeName, widget);
         this.defaultValueFunction = defaultValueFunction;
         this.handler = handler;
     }
 
-    public ResourceLocation getId() {
-        return this.id;
+    @Override
+    public T getDefaultValue(World world) {
+        return this.defaultValueFunction.apply(world);
     }
 
-    public WorldPropertyDataType<T> getType() {
-        return this.widget.dataType();
-    }
-
-    @SuppressWarnings("unchecked")
-    public boolean setValueWithoutSyncing(World world, T value) {
-        ServerWorldPropertiesRegistry properties = AxiomPaper.PLUGIN.getWorldPropertiesIfPresent(world);
-        if (properties != null) {
-            ServerWorldPropertyHolder<?> property = properties.getById(this.id);
-            if (property != null && property.getProperty() == this) {
-                ((ServerWorldPropertyHolder<T>)property).setValueWithoutSyncing(value);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    @SuppressWarnings("unchecked")
-    public boolean setValue(World world, T value) {
-        ServerWorldPropertiesRegistry properties = AxiomPaper.PLUGIN.getWorldPropertiesIfPresent(world);
-        if (properties != null) {
-            ServerWorldPropertyHolder<?> property = properties.getById(this.id);
-            if (property != null && property.getProperty() == this) {
-                ((ServerWorldPropertyHolder<T>)property).setValue(world, value);
-                return true;
-            }
-        }
-        return false;
+    @Override
+    public boolean handleUpdateProperty(Player player, World world, T value) {
+        return this.handler.update(player, world, value);
     }
 
 }
