@@ -128,16 +128,9 @@ public class PlotSquaredIntegrationImpl {
             return plotWorldCache.get(world);
         }
 
-        boolean isPlotWorld = false;
-
         String worldName = world.getName();
-        for (String plotWorld : PlotSquared.get().getPlotAreaManager().getAllWorlds()) {
-            if (plotWorld.equals(worldName)) {
-                isPlotWorld = true;
-                break;
-            }
-        }
-
+        PlotArea[] plotAreas = PlotSquared.get().getPlotAreaManager().getPlotAreas(worldName, null);
+        boolean isPlotWorld = plotAreas.length > 0;
         plotWorldCache.put(world, isPlotWorld);
         return isPlotWorld;
     }
