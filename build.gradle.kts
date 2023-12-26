@@ -25,7 +25,7 @@ repositories {
 }
 
 dependencies {
-    paperweight.paperDevBundle("1.20.2-R0.1-SNAPSHOT")
+    paperweight.paperDevBundle("1.20.4-R0.1-SNAPSHOT")
     implementation("xyz.jpenilla:reflection-remapper:0.1.0-SNAPSHOT")
 
     // Zstd Compression Library

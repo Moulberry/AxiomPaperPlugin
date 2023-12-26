@@ -6,7 +6,7 @@ import com.moulberry.axiom.world_properties.WorldPropertyWidgetType;
 import net.minecraft.resources.ResourceLocation;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_20_R2.util.CraftNamespacedKey;
+import org.bukkit.craftbukkit.v1_20_R3.util.CraftNamespacedKey;
 import org.bukkit.entity.Player;
 
 public abstract class ServerWorldPropertyBase<T> {
