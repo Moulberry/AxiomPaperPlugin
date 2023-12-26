@@ -5,6 +5,7 @@ import com.github.luben.zstd.ZstdDictCompress;
 import com.github.luben.zstd.ZstdDictDecompress;
 import com.moulberry.axiom.AxiomPaper;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.network.FriendlyByteBuf;
 
@@ -44,7 +45,7 @@ public record CompressedBlockEntity(int originalSize, byte compressionDict, byte
 
         try {
             byte[] nbt = Zstd.decompress(this.compressed, zstdDictDecompress, this.originalSize);
-            return NbtIo.read(new DataInputStream(new ByteArrayInputStream(nbt)));
+            return NbtIo.read(new DataInputStream(new ByteArrayInputStream(nbt)), NbtAccounter.create(131072));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

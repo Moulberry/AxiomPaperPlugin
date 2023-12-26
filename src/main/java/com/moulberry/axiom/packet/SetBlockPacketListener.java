@@ -80,7 +80,7 @@ public class SetBlockPacketListener implements PluginMessageListener {
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         IntFunction<Map<BlockPos, BlockState>> mapFunction = FriendlyByteBuf.limitValue(Maps::newLinkedHashMapWithExpectedSize, 512);
         Map<BlockPos, BlockState> blocks = friendlyByteBuf.readMap(mapFunction,
-                FriendlyByteBuf::readBlockPos, buf -> buf.readById(Block.BLOCK_STATE_REGISTRY));
+                FriendlyByteBuf::readBlockPos, buf -> buf.readById(this.plugin.allowedBlockRegistry));
         boolean updateNeighbors = friendlyByteBuf.readBoolean();
 
         int reason = friendlyByteBuf.readVarInt();

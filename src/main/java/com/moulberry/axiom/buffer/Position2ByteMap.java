@@ -1,13 +1,16 @@
 package com.moulberry.axiom.buffer;
 
+import com.google.common.util.concurrent.RateLimiter;
 import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.LongFunction;
 
 public class Position2ByteMap {
@@ -42,6 +45,10 @@ public class Position2ByteMap {
         }
     }
 
+    public int size() {
+        return this.map.size();
+    }
+
     public void save(FriendlyByteBuf friendlyByteBuf) {
         friendlyByteBuf.writeByte(this.defaultValue);
         for (Long2ObjectMap.Entry<byte[]> entry : this.map.long2ObjectEntrySet()) {
@@ -51,12 +58,19 @@ public class Position2ByteMap {
         friendlyByteBuf.writeLong(AxiomConstants.MIN_POSITION_LONG);
     }
 
-    public static Position2ByteMap load(FriendlyByteBuf friendlyByteBuf) {
+    public static Position2ByteMap load(FriendlyByteBuf friendlyByteBuf, @Nullable RateLimiter rateLimiter, AtomicBoolean reachedRateLimit) {
         Position2ByteMap map = new Position2ByteMap(friendlyByteBuf.readByte());
 
         while (true) {
             long pos = friendlyByteBuf.readLong();
             if (pos == AxiomConstants.MIN_POSITION_LONG) break;
+
+            if (rateLimiter != null) {
+                if (!rateLimiter.tryAcquire()) {
+                    reachedRateLimit.set(true);
+                    return map;
+                }
+            }
 
             byte[] bytes = new byte[16*16*16];
             friendlyByteBuf.readBytes(bytes);

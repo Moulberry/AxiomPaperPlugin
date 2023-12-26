@@ -1,5 +1,6 @@
 package com.moulberry.axiom.packet;
 
+import com.google.common.util.concurrent.RateLimiter;
 import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.View;
@@ -29,11 +30,9 @@ import java.util.UUID;
 public class HelloPacketListener implements PluginMessageListener {
 
     private final AxiomPaper plugin;
-    private final Set<UUID> activeAxiomPlayers;
 
-    public HelloPacketListener(AxiomPaper plugin, Set<UUID> activeAxiomPlayers) {
+    public HelloPacketListener(AxiomPaper plugin) {
         this.plugin = plugin;
-        this.activeAxiomPlayers = activeAxiomPlayers;
     }
 
     @Override
@@ -86,7 +85,11 @@ public class HelloPacketListener implements PluginMessageListener {
             return;
         }
 
-        activeAxiomPlayers.add(player.getUniqueId());
+        this.plugin.activeAxiomPlayers.add(player.getUniqueId());
+        int rateLimit = this.plugin.configuration.getInt("block-buffer-rate-limit");
+        if (rateLimit > 0) {
+            this.plugin.playerBlockBufferRateLimiters.putIfAbsent(player.getUniqueId(), RateLimiter.create(rateLimit));
+        }
 
         // Enable
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());

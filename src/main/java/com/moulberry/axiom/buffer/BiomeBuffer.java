@@ -1,11 +1,15 @@
 package com.moulberry.axiom.buffer;
 
+import com.google.common.util.concurrent.RateLimiter;
 import it.unimi.dsi.fastutil.objects.Object2ByteMap;
 import it.unimi.dsi.fastutil.objects.Object2ByteOpenHashMap;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.biome.Biome;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BiomeBuffer {
 
@@ -27,6 +31,10 @@ public class BiomeBuffer {
         this.paletteSize = this.paletteReverse.size();
     }
 
+    public int size() {
+        return this.map.size();
+    }
+
     public void save(FriendlyByteBuf friendlyByteBuf) {
         friendlyByteBuf.writeByte(this.paletteSize);
         for (int i = 0; i < this.paletteSize; i++) {
@@ -35,7 +43,7 @@ public class BiomeBuffer {
         this.map.save(friendlyByteBuf);
     }
 
-    public static BiomeBuffer load(FriendlyByteBuf friendlyByteBuf) {
+    public static BiomeBuffer load(FriendlyByteBuf friendlyByteBuf, @Nullable RateLimiter rateLimiter, AtomicBoolean reachedRateLimit) {
         int paletteSize = friendlyByteBuf.readByte();
         ResourceKey<Biome>[] palette = new ResourceKey[255];
         Object2ByteMap<ResourceKey<Biome>> paletteReverse = new Object2ByteOpenHashMap<>();
@@ -44,7 +52,7 @@ public class BiomeBuffer {
             palette[i] = key;
             paletteReverse.put(key, (byte)(i+1));
         }
-        Position2ByteMap map = Position2ByteMap.load(friendlyByteBuf);
+        Position2ByteMap map = Position2ByteMap.load(friendlyByteBuf, rateLimiter, reachedRateLimit);
         return new BiomeBuffer(map, palette, paletteReverse);
 
     }

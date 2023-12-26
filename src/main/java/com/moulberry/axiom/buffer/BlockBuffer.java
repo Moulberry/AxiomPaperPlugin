@@ -1,5 +1,6 @@
 package com.moulberry.axiom.buffer;
 
+import com.google.common.util.concurrent.RateLimiter;
 import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -15,6 +16,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 public class BlockBuffer {
 
     public static final BlockState EMPTY_STATE = Blocks.STRUCTURE_VOID.defaultBlockState();
@@ -24,6 +27,8 @@ public class BlockBuffer {
     private PalettedContainer<BlockState> last = null;
     private long lastId = AxiomConstants.MIN_POSITION_LONG;
     private final Long2ObjectMap<Short2ObjectMap<CompressedBlockEntity>> blockEntities = new Long2ObjectOpenHashMap<>();
+    private long totalBlockEntities = 0;
+    private long totalBlockEntityBytes = 0;
 
     public BlockBuffer() {
         this.values = new Long2ObjectOpenHashMap<>();
@@ -53,12 +58,24 @@ public class BlockBuffer {
         friendlyByteBuf.writeLong(AxiomConstants.MIN_POSITION_LONG);
     }
 
-    public static BlockBuffer load(FriendlyByteBuf friendlyByteBuf) {
+    public static BlockBuffer load(FriendlyByteBuf friendlyByteBuf, @Nullable RateLimiter rateLimiter, AtomicBoolean reachedRateLimit) {
         BlockBuffer buffer = new BlockBuffer();
+
+        long totalBlockEntities = 0;
+        long totalBlockEntityBytes = 0;
 
         while (true) {
             long index = friendlyByteBuf.readLong();
             if (index == AxiomConstants.MIN_POSITION_LONG) break;
+
+            if (rateLimiter != null) {
+                if (!rateLimiter.tryAcquire()) {
+                    reachedRateLimit.set(true);
+                    buffer.totalBlockEntities = totalBlockEntities;
+                    buffer.totalBlockEntityBytes = totalBlockEntityBytes;
+                    return buffer;
+                }
+            }
 
             PalettedContainer<BlockState> palettedContainer = buffer.getOrCreateSection(index);
             palettedContainer.read(friendlyByteBuf);
@@ -66,41 +83,32 @@ public class BlockBuffer {
             int blockEntitySize = Math.min(4096, friendlyByteBuf.readVarInt());
             if (blockEntitySize > 0) {
                 Short2ObjectMap<CompressedBlockEntity> map = new Short2ObjectOpenHashMap<>(blockEntitySize);
+
+                int startIndex = friendlyByteBuf.readerIndex();
+
                 for (int i = 0; i < blockEntitySize; i++) {
                     short offset = friendlyByteBuf.readShort();
                     CompressedBlockEntity blockEntity = CompressedBlockEntity.read(friendlyByteBuf);
                     map.put(offset, blockEntity);
                 }
+
                 buffer.blockEntities.put(index, map);
+                totalBlockEntities += blockEntitySize;
+                totalBlockEntityBytes += friendlyByteBuf.readerIndex() - startIndex;
             }
         }
 
+        buffer.totalBlockEntities = totalBlockEntities;
+        buffer.totalBlockEntityBytes = totalBlockEntityBytes;
         return buffer;
     }
 
-    public void clear() {
-        this.last = null;
-        this.lastId = AxiomConstants.MIN_POSITION_LONG;
-        this.values.clear();
+    public long getTotalBlockEntities() {
+        return this.totalBlockEntities;
     }
 
-    public void putBlockEntity(int x, int y, int z, CompressedBlockEntity blockEntity) {
-        long cpos = BlockPos.asLong(x >> 4, y >> 4, z >> 4);
-        Short2ObjectMap<CompressedBlockEntity> chunkMap = this.blockEntities.computeIfAbsent(cpos, k -> new Short2ObjectOpenHashMap<>());
-
-        int key = (x & 0xF) | ((y & 0xF) << 4) | ((z & 0xF) << 8);
-        chunkMap.put((short)key, blockEntity);
-    }
-
-    @Nullable
-    public CompressedBlockEntity getBlockEntity(int x, int y, int z) {
-        long cpos = BlockPos.asLong(x >> 4, y >> 4, z >> 4);
-        Short2ObjectMap<CompressedBlockEntity> chunkMap = this.blockEntities.get(cpos);
-
-        if (chunkMap == null) return null;
-
-        int key = (x & 0xF) | ((y & 0xF) << 4) | ((z & 0xF) << 8);
-        return chunkMap.get((short)key);
+    public long getTotalBlockEntityBytes() {
+        return this.totalBlockEntityBytes;
     }
 
     @Nullable
@@ -170,7 +178,7 @@ public class BlockBuffer {
     public PalettedContainer<BlockState> getOrCreateSection(long id) {
         if (this.last == null || id != this.lastId) {
             this.lastId = id;
-            this.last = this.values.computeIfAbsent(id, k -> new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY,
+            this.last = this.values.computeIfAbsent(id, k -> new PalettedContainer<>(AxiomPaper.PLUGIN.allowedBlockRegistry,
                              EMPTY_STATE, PalettedContainer.Strategy.SECTION_STATES));
         }
 

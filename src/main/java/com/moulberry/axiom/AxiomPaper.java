@@ -1,5 +1,8 @@
 package com.moulberry.axiom;
 
+import com.google.common.util.concurrent.RateLimiter;
+import com.mojang.brigadier.StringReader;
+import com.moulberry.axiom.buffer.BlockBuffer;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.event.AxiomCreateWorldPropertiesEvent;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
@@ -12,6 +15,11 @@ import io.papermc.paper.event.world.WorldGameRuleChangeEvent;
 import io.papermc.paper.network.ChannelInitializeListener;
 import io.papermc.paper.network.ChannelInitializeListenerHolder;
 import net.kyori.adventure.key.Key;
+import net.minecraft.commands.arguments.blocks.BlockPredicateArgument;
+import net.minecraft.commands.arguments.blocks.BlockStateArgument;
+import net.minecraft.commands.arguments.blocks.BlockStateParser;
+import net.minecraft.core.IdMapper;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.Connection;
 import net.minecraft.network.ConnectionProtocol;
 import net.minecraft.network.FriendlyByteBuf;
@@ -19,6 +27,9 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.*;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.entity.Player;
@@ -32,13 +43,19 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 public class AxiomPaper extends JavaPlugin implements Listener {
 
     public static AxiomPaper PLUGIN; // tsk tsk tsk
 
     public final Set<UUID> activeAxiomPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    public final Map<UUID, RateLimiter> playerBlockBufferRateLimiters = new ConcurrentHashMap<>();
     public Configuration configuration;
+
+    public IdMapper<BlockState> allowedBlockRegistry = null;
+    private boolean logLargeBlockBufferChanges = false;
 
     @Override
     public void onEnable() {
@@ -55,6 +72,11 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             this.getLogger().warning("Invalid value for unsupported-axiom-version, expected 'kick', 'warn' or 'ignore'");
         }
 
+        this.logLargeBlockBufferChanges = this.configuration.getBoolean("log-large-block-buffer-changes");
+
+        List<String> disallowedBlocks = this.configuration.getStringList("disallowed-blocks");
+        this.allowedBlockRegistry = DisallowedBlocks.createAllowedBlockRegistry(disallowedBlocks);
+
         Bukkit.getPluginManager().registerEvents(this, this);
         // Bukkit.getPluginManager().registerEvents(new WorldPropertiesExample(), this);
         CompressedBlockEntity.initialize(this);
@@ -70,7 +92,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerOutgoingPluginChannel(this, "axiom:ack_world_properties");
 
         if (configuration.getBoolean("packet-handlers.hello")) {
-            msg.registerIncomingPluginChannel(this, "axiom:hello", new HelloPacketListener(this, activeAxiomPlayers));
+            msg.registerIncomingPluginChannel(this, "axiom:hello", new HelloPacketListener(this));
         }
         if (configuration.getBoolean("packet-handlers.set-gamemode")) {
             msg.registerIncomingPluginChannel(this, "axiom:set_gamemode", new SetGamemodePacketListener(this));
@@ -129,7 +151,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         }
 
         Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
-            HashSet<UUID> newActiveAxiomPlayers = new HashSet<>();
+            HashSet<UUID> stillActiveAxiomPlayers = new HashSet<>();
 
             for (Player player : Bukkit.getServer().getOnlinePlayers()) {
                 if (activeAxiomPlayers.contains(player.getUniqueId())) {
@@ -140,13 +162,13 @@ public class AxiomPaper extends JavaPlugin implements Listener {
                         buf.getBytes(0, bytes);
                         player.sendPluginMessage(this, "axiom:enable", bytes);
                     } else {
-                        newActiveAxiomPlayers.add(player.getUniqueId());
+                        stillActiveAxiomPlayers.add(player.getUniqueId());
                     }
                 }
             }
 
-            activeAxiomPlayers.clear();
-            activeAxiomPlayers.addAll(newActiveAxiomPlayers);
+            activeAxiomPlayers.retainAll(stillActiveAxiomPlayers);
+            playerBlockBufferRateLimiters.keySet().retainAll(stillActiveAxiomPlayers);
         }, 20, 20);
 
         int maxChunkRelightsPerTick = configuration.getInt("max-chunk-relights-per-tick");
@@ -157,8 +179,16 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         }, 1, 1);
     }
 
+    public boolean logLargeBlockBufferChanges() {
+        return this.logLargeBlockBufferChanges;
+    }
+
     public boolean canUseAxiom(Player player) {
         return player.hasPermission("axiom.*") && activeAxiomPlayers.contains(player.getUniqueId());
+    }
+
+    public @Nullable RateLimiter getBlockBufferRateLimiter(UUID uuid) {
+        return this.playerBlockBufferRateLimiters.get(uuid);
     }
 
     private final WeakHashMap<World, ServerWorldPropertiesRegistry> worldProperties = new WeakHashMap<>();

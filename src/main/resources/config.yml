@@ -28,6 +28,17 @@ whitelist-world-regex: null
 # If the regex matches the world's name, the world can't be modified
 blacklist-world-regex: null
 
+# Block buffer rate-limit (in chunk sections per second), 0 = no limit
+block-buffer-rate-limit: 0
+
+# Log large block buffer changes
+log-large-block-buffer-changes: false
+
+# Disallowed blocks
+disallowed-blocks:
+#  - "minecraft:wheat"
+#  - "minecraft:oak_stairs[waterlogged=true]"
+
 # Toggles for individual packet handlers. May break certain features
 packet-handlers:
   hello: true
