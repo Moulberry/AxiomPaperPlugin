@@ -257,7 +257,12 @@ public class SetBlockPacketListener implements PluginMessageListener {
         }
 
         if (!breaking) {
-            BlockItem.updateCustomBlockEntityTag(player.level(), player, blockPlaceContext.getClickedPos(), player.getItemInHand(hand));
+            BlockPos clickedPos = blockPlaceContext.getClickedPos();
+            ItemStack inHand = player.getItemInHand(hand);
+            BlockState blockState = player.level().getBlockState(clickedPos);
+
+            BlockItem.updateCustomBlockEntityTag(player.level(), player, clickedPos, inHand);
+            blockState.getBlock().setPlacedBy(player.level(), clickedPos, blockState, player, inHand);
         }
 
         if (sequenceId >= 0) {
