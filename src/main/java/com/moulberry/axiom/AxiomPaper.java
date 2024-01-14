@@ -124,6 +124,15 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         if (configuration.getBoolean("packet-handlers.request-chunk-data")) {
             msg.registerIncomingPluginChannel(this, "axiom:request_chunk_data", new RequestChunkDataPacketListener(this));
         }
+        if (configuration.getBoolean("packet-handlers.spawn-entity")) {
+            msg.registerIncomingPluginChannel(this, "axiom:spawn_entity", new SpawnEntityPacketListener(this));
+        }
+        if (configuration.getBoolean("packet-handlers.manipulate-entity")) {
+            msg.registerIncomingPluginChannel(this, "axiom:manipulate_entity", new ManipulateEntityPacketListener(this));
+        }
+        if (configuration.getBoolean("packet-handlers.delete-entity")) {
+            msg.registerIncomingPluginChannel(this, "axiom:delete_entity", new DeleteEntityPacketListener(this));
+        }
 
         if (configuration.getBoolean("packet-handlers.set-buffer")) {
             SetBlockBufferPacketListener setBlockBufferPacketListener = new SetBlockBufferPacketListener(this);

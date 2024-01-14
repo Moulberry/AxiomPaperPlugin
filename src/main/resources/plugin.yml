@@ -7,6 +7,15 @@ authors:
 api-version: "$apiVersion"
 permissions:
   axiom.*:
-    description: Allows use of all Axiom features
+    description: Allows use of all default Axiom features
     default: op
 
+  axiom.entity.*:
+    description: Allows use of all entity-related features (spawning, manipulating, deleting)
+    default: op
+  axiom.entity.spawn:
+    description: Allows entity spawning
+  axiom.entity.manipulate:
+    description: Allows entity manipulation
+  axiom.entity.delete:
+    description: Allows entity deletion
