@@ -77,6 +77,20 @@ public class HelloPacketListener implements PluginMessageListener {
             }
         }
 
+        if (!player.getListeningPluginChannels().contains("axiom:restrictions")) {
+            Component text = Component.text("This server requires the use of Axiom 2.3 or later. Contact the server administrator if you believe this is unintentional");
+
+            String unsupportedRestrictions = plugin.configuration.getString("client-doesnt-support-restrictions");
+            if (unsupportedRestrictions == null) unsupportedRestrictions = "kick";
+            if (unsupportedRestrictions.equals("warn")) {
+                player.sendMessage(text.color(NamedTextColor.RED));
+                return;
+            } else if (!unsupportedRestrictions.equals("ignore")) {
+                player.kick(text);
+                return;
+            }
+        }
+
         // Call handshake event
         int maxBufferSize = plugin.configuration.getInt("max-block-buffer-packet-size");
         AxiomHandshakeEvent handshakeEvent = new AxiomHandshakeEvent(player, maxBufferSize);

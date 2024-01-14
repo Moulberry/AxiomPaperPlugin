@@ -1,11 +1,10 @@
 package com.moulberry.axiom;
 
 import com.google.common.util.concurrent.RateLimiter;
-import com.mojang.brigadier.StringReader;
-import com.moulberry.axiom.buffer.BlockBuffer;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.event.AxiomCreateWorldPropertiesEvent;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
+import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.*;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import io.netty.buffer.Unpooled;
@@ -15,11 +14,8 @@ import io.papermc.paper.event.world.WorldGameRuleChangeEvent;
 import io.papermc.paper.network.ChannelInitializeListener;
 import io.papermc.paper.network.ChannelInitializeListenerHolder;
 import net.kyori.adventure.key.Key;
-import net.minecraft.commands.arguments.blocks.BlockPredicateArgument;
-import net.minecraft.commands.arguments.blocks.BlockStateArgument;
-import net.minecraft.commands.arguments.blocks.BlockStateParser;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.IdMapper;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.Connection;
 import net.minecraft.network.ConnectionProtocol;
 import net.minecraft.network.FriendlyByteBuf;
@@ -27,8 +23,6 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.*;
 import org.bukkit.configuration.Configuration;
@@ -43,8 +37,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
 
 public class AxiomPaper extends JavaPlugin implements Listener {
 
@@ -52,6 +44,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     public final Set<UUID> activeAxiomPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
     public final Map<UUID, RateLimiter> playerBlockBufferRateLimiters = new ConcurrentHashMap<>();
+    public final Map<UUID, Restrictions> playerRestrictions = new ConcurrentHashMap<>();
     public Configuration configuration;
 
     public IdMapper<BlockState> allowedBlockRegistry = null;
@@ -90,6 +83,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerOutgoingPluginChannel(this, "axiom:register_world_properties");
         msg.registerOutgoingPluginChannel(this, "axiom:set_world_property");
         msg.registerOutgoingPluginChannel(this, "axiom:ack_world_properties");
+        msg.registerOutgoingPluginChannel(this, "axiom:restrictions");
 
         if (configuration.getBoolean("packet-handlers.hello")) {
             msg.registerIncomingPluginChannel(this, "axiom:hello", new HelloPacketListener(this));
@@ -162,6 +156,13 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
             HashSet<UUID> stillActiveAxiomPlayers = new HashSet<>();
 
+            int rateLimit = this.configuration.getInt("block-buffer-rate-limit");
+            if (rateLimit > 0) {
+                // Reduce by 20% just to prevent synchronization/timing issues
+                rateLimit = rateLimit * 8/10;
+                if (rateLimit <= 0) rateLimit = 1;
+            }
+
             for (Player player : Bukkit.getServer().getOnlinePlayers()) {
                 if (activeAxiomPlayers.contains(player.getUniqueId())) {
                     if (!player.hasPermission("axiom.*")) {
@@ -171,13 +172,70 @@ public class AxiomPaper extends JavaPlugin implements Listener {
                         buf.getBytes(0, bytes);
                         player.sendPluginMessage(this, "axiom:enable", bytes);
                     } else {
-                        stillActiveAxiomPlayers.add(player.getUniqueId());
+                        UUID uuid = player.getUniqueId();
+                        stillActiveAxiomPlayers.add(uuid);
+
+                        boolean send = false;
+
+                        Restrictions restrictions = playerRestrictions.get(uuid);
+                        if (restrictions == null) {
+                            restrictions = new Restrictions();
+                            playerRestrictions.put(uuid, restrictions);
+                            send = true;
+                        }
+
+                        BlockPos boundsMin = null;
+                        BlockPos boundsMax = null;
+
+                        if (!player.hasPermission("axiom.allow_copying_other_plots")) {
+                            if (PlotSquaredIntegration.isPlotWorld(player.getWorld())) {
+                                PlotSquaredIntegration.PlotBounds editable = PlotSquaredIntegration.getCurrentEditablePlot(player);
+                                if (editable != null) {
+                                    restrictions.lastPlotBounds = editable;
+                                    boundsMin = editable.min();
+                                    boundsMax = editable.max();
+                                } else if (restrictions.lastPlotBounds != null && restrictions.lastPlotBounds.worldName().equals(player.getWorld().getName())) {
+                                    boundsMin = restrictions.lastPlotBounds.min();
+                                    boundsMax = restrictions.lastPlotBounds.max();
+                                } else {
+                                    boundsMin = BlockPos.ZERO;
+                                    boundsMax = BlockPos.ZERO;
+                                }
+                            }
+
+                            int min = Integer.MIN_VALUE;
+                            int max = Integer.MAX_VALUE;
+                            if (boundsMin != null && boundsMax != null &&
+                                    boundsMin.getX() == min && boundsMin.getY() == min && boundsMin.getZ() == min &&
+                                    boundsMax.getX() == max && boundsMax.getY() == max && boundsMax.getZ() == max) {
+                                boundsMin = null;
+                                boundsMax = null;
+                            }
+                        }
+
+                        boolean allowImportingBlocks = player.hasPermission("axiom.can_import_blocks");
+
+                        if (restrictions.maxSectionsPerSecond != rateLimit ||
+                                restrictions.canImportBlocks != allowImportingBlocks ||
+                                !Objects.equals(restrictions.boundsMin, boundsMin) ||
+                                !Objects.equals(restrictions.boundsMax, boundsMax)) {
+                            restrictions.maxSectionsPerSecond = rateLimit;
+                            restrictions.canImportBlocks = allowImportingBlocks;
+                            restrictions.boundsMin = boundsMin;
+                            restrictions.boundsMax = boundsMax;
+                            send = true;
+                        }
+
+                        if (send) {
+                            restrictions.send(this, player);
+                        }
                     }
                 }
             }
 
             activeAxiomPlayers.retainAll(stillActiveAxiomPlayers);
             playerBlockBufferRateLimiters.keySet().retainAll(stillActiveAxiomPlayers);
+            playerRestrictions.keySet().retainAll(stillActiveAxiomPlayers);
         }, 20, 20);
 
         int maxChunkRelightsPerTick = configuration.getInt("max-chunk-relights-per-tick");

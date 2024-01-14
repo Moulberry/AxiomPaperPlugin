@@ -135,6 +135,52 @@ public class PlotSquaredIntegrationImpl {
         return isPlotWorld;
     }
 
+    static PlotSquaredIntegration.PlotBounds getCurrentEditablePlot(Player player) {
+        org.bukkit.Location loc = player.getLocation();
+
+        Location location = BukkitUtil.adapt(loc);
+        PlotArea area = location.getPlotArea();
+        if (area == null) {
+            return null;
+        }
+
+        BukkitPlayer pp = BukkitUtil.adapt(player);
+        Plot plot = area.getPlot(location);
+        if (plot != null) {
+            Location bottom = plot.getExtendedBottomAbs();
+            Location top = plot.getExtendedTopAbs();
+            CuboidRegion cuboidRegion = new CuboidRegion(bottom.getBlockVector3(), top.getBlockVector3());
+
+            // check unowned plots
+            if (!plot.hasOwner()) {
+                if (!pp.hasPermission(Permission.PERMISSION_ADMIN_BUILD_UNOWNED, false)) {
+                    return null;
+                } else {
+                    return new PlotSquaredIntegration.PlotBounds(cuboidRegion, player.getWorld().getName());
+                }
+            }
+            // player is breaking another player's plot
+            if (!plot.isAdded(pp.getUUID())) {
+                if (!pp.hasPermission(Permission.PERMISSION_ADMIN_BUILD_OTHER, false)) {
+                    return null;
+                } else {
+                    return new PlotSquaredIntegration.PlotBounds(cuboidRegion, player.getWorld().getName());
+                }
+            }
+            // plot is 'done'
+            if (Settings.Done.RESTRICT_BUILDING && DoneFlag.isDone(plot)) {
+                if (!pp.hasPermission(Permission.PERMISSION_ADMIN_BUILD_OTHER, false)) {
+                    return null;
+                } else {
+                    return new PlotSquaredIntegration.PlotBounds(cuboidRegion, player.getWorld().getName());
+                }
+            }
+            return new PlotSquaredIntegration.PlotBounds(cuboidRegion, player.getWorld().getName());
+        }
+
+        return null;
+    }
+
     static SectionPermissionChecker checkSection(Player player, World world, int sectionX, int sectionY, int sectionZ) {
         int minX = sectionX * 16;
         int minY = sectionY * 16;
