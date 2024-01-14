@@ -19,3 +19,10 @@ permissions:
     description: Allows entity manipulation
   axiom.entity.delete:
     description: Allows entity deletion
+
+  axiom.allow_copying_other_plots:
+    description: This permission allows users to copy other user's plots
+    default: true
+  axiom.can_import_blocks:
+    description: Allows players to import schematics/blueprints into Axiom
+    default: true
