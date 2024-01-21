@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.event.AxiomTeleportEvent;
 import com.moulberry.axiom.event.AxiomUnknownTeleportEvent;
 import io.netty.buffer.Unpooled;
@@ -81,9 +82,11 @@ public class SpawnEntityPacketListener implements PluginMessageListener {
                 continue;
             }
 
+            if (serverLevel.getEntity(entry.newUuid) != null) continue;
+
             CompoundTag tag = entry.tag == null ? new CompoundTag() : entry.tag;
 
-            if (serverLevel.getEntity(entry.newUuid) != null) continue;
+            NbtSanitization.sanitizeEntity(tag);
 
             if (entry.copyFrom != null) {
                 Entity entityCopyFrom = serverLevel.getEntity(entry.copyFrom);

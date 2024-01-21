@@ -19,7 +19,6 @@ incompatible-data-version: "warn"
 unsupported-axiom-version: "warn"
 client-doesnt-support-restrictions: "ignore"
 
-
 # Maximum packet size. Must not be less than 32767
 max-block-buffer-packet-size: 0x100000
 
@@ -51,6 +50,9 @@ whitelist-entities:
 blacklist-entities:
 #  - "minecraft:ender_dragon"
 
+# True allows players to see/manipulate marker entities
+send-markers: false
+
 # Disallowed blocks
 disallowed-blocks:
 #  - "minecraft:wheat"
@@ -73,3 +75,4 @@ packet-handlers:
   spawn-entity: true
   manipulate-entity: true
   delete-entity: true
+  marker-nbt-request: true

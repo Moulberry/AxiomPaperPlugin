@@ -1,15 +1,24 @@
 package com.moulberry.axiom;
 
+import com.moulberry.axiom.marker.MarkerData;
+import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.*;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Marker;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
+import org.bukkit.World;
+import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
+import org.bukkit.craftbukkit.v1_20_R3.entity.CraftPlayer;
+import org.bukkit.entity.Player;
 
 import java.util.*;
 
@@ -23,15 +32,16 @@ public class WorldExtension {
         return extension;
     }
 
-    public static void tick(MinecraftServer server, int maxChunkRelightsPerTick, int maxChunkSendsPerTick) {
+    public static void onPlayerJoin(World world, Player player) {
+        ServerLevel level = ((CraftWorld)world).getHandle();
+        get(level).onPlayerJoin(player);
+    }
+
+    public static void tick(MinecraftServer server, boolean sendMarkers, int maxChunkRelightsPerTick, int maxChunkSendsPerTick) {
         extensions.keySet().retainAll(server.levelKeys());
 
         for (ServerLevel level : server.getAllLevels()) {
-            WorldExtension extension = extensions.get(level.dimension());
-            if (extension != null) {
-                extension.level = level;
-                extension.tick(maxChunkRelightsPerTick, maxChunkSendsPerTick);
-            }
+            get(level).tick(sendMarkers, maxChunkRelightsPerTick, maxChunkSendsPerTick);
         }
     }
 
@@ -39,6 +49,7 @@ public class WorldExtension {
 
     private final LongSet pendingChunksToSend = new LongOpenHashSet();
     private final LongSet pendingChunksToLight = new LongOpenHashSet();
+    private final Map<UUID, MarkerData> previousMarkerData = new HashMap<>();
 
     public void sendChunk(int cx, int cz) {
         this.pendingChunksToSend.add(ChunkPos.asLong(cx, cz));
@@ -48,7 +59,66 @@ public class WorldExtension {
         this.pendingChunksToLight.add(ChunkPos.asLong(cx, cz));
     }
 
-    public void tick(int maxChunkRelightsPerTick, int maxChunkSendsPerTick) {
+    public void onPlayerJoin(Player player) {
+        if (!this.previousMarkerData.isEmpty()) {
+            List<MarkerData> markerData = new ArrayList<>(this.previousMarkerData.values());
+
+            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+            buf.writeCollection(markerData, MarkerData::write);
+            buf.writeCollection(Set.of(), FriendlyByteBuf::writeUUID);
+            byte[] bytes = new byte[buf.writerIndex()];
+            buf.getBytes(0, bytes);
+
+            player.sendPluginMessage(AxiomPaper.PLUGIN, "axiom:marker_data", bytes);
+        }
+    }
+
+    public void tick(boolean sendMarkers, int maxChunkRelightsPerTick, int maxChunkSendsPerTick) {
+        if (sendMarkers) {
+            this.tickMarkers();
+        }
+        this.tickChunkRelight(maxChunkRelightsPerTick, maxChunkSendsPerTick);
+    }
+
+    private void tickMarkers() {
+        List<MarkerData> changedData = new ArrayList<>();
+
+        Set<UUID> allMarkers = new HashSet<>();
+
+        for (Entity entity : this.level.getEntities().getAll()) {
+            if (entity instanceof Marker marker) {
+                MarkerData currentData = MarkerData.createFrom(marker);
+
+                MarkerData previousData = this.previousMarkerData.get(marker.getUUID());
+                if (!Objects.equals(currentData, previousData)) {
+                    this.previousMarkerData.put(marker.getUUID(), currentData);
+                    changedData.add(currentData);
+                }
+
+                allMarkers.add(marker.getUUID());
+            }
+        }
+
+        Set<UUID> oldUuids = new HashSet<>(this.previousMarkerData.keySet());
+        oldUuids.removeAll(allMarkers);
+        this.previousMarkerData.keySet().removeAll(oldUuids);
+
+        if (!changedData.isEmpty() || !oldUuids.isEmpty()) {
+            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+            buf.writeCollection(changedData, MarkerData::write);
+            buf.writeCollection(oldUuids, FriendlyByteBuf::writeUUID);
+            byte[] bytes = new byte[buf.writerIndex()];
+            buf.getBytes(0, bytes);
+
+            for (ServerPlayer player : this.level.players()) {
+                if (AxiomPaper.PLUGIN.activeAxiomPlayers.contains(player.getUUID())) {
+                    player.getBukkitEntity().sendPluginMessage(AxiomPaper.PLUGIN, "axiom:marker_data", bytes);
+                }
+            }
+        }
+    }
+
+    private void tickChunkRelight(int maxChunkRelightsPerTick, int maxChunkSendsPerTick) {
         ChunkMap chunkMap = this.level.getChunkSource().chunkMap;
 
         boolean sendAll = maxChunkSendsPerTick <= 0;
