@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.NbtSanitization;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -104,6 +105,8 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
             if (blacklistedEntities.contains(type)) continue;
 
             if (entry.merge != null && !entry.merge.isEmpty()) {
+                NbtSanitization.sanitizeEntity(entry.merge);
+
                 CompoundTag compoundTag = entity.saveWithoutId(new CompoundTag());
                 compoundTag = merge(compoundTag, entry.merge);
                 entity.load(compoundTag);

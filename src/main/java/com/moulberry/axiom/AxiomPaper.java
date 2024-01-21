@@ -84,6 +84,8 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerOutgoingPluginChannel(this, "axiom:set_world_property");
         msg.registerOutgoingPluginChannel(this, "axiom:ack_world_properties");
         msg.registerOutgoingPluginChannel(this, "axiom:restrictions");
+        msg.registerOutgoingPluginChannel(this, "axiom:marker_data");
+        msg.registerOutgoingPluginChannel(this, "axiom:marker_nbt_response");
 
         if (configuration.getBoolean("packet-handlers.hello")) {
             msg.registerIncomingPluginChannel(this, "axiom:hello", new HelloPacketListener(this));
@@ -126,6 +128,9 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         }
         if (configuration.getBoolean("packet-handlers.delete-entity")) {
             msg.registerIncomingPluginChannel(this, "axiom:delete_entity", new DeleteEntityPacketListener(this));
+        }
+        if (configuration.getBoolean("packet-handlers.marker-nbt-request")) {
+            msg.registerIncomingPluginChannel(this, "axiom:marker_nbt_request", new MarkerNbtRequestPacketListener(this));
         }
 
         if (configuration.getBoolean("packet-handlers.set-buffer")) {
@@ -238,11 +243,12 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             playerRestrictions.keySet().retainAll(stillActiveAxiomPlayers);
         }, 20, 20);
 
+        boolean sendMarkers = configuration.getBoolean("send-markers");
         int maxChunkRelightsPerTick = configuration.getInt("max-chunk-relights-per-tick");
         int maxChunkSendsPerTick = configuration.getInt("max-chunk-sends-per-tick");
 
         Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
-            WorldExtension.tick(MinecraftServer.getServer(), maxChunkRelightsPerTick, maxChunkSendsPerTick);
+            WorldExtension.tick(MinecraftServer.getServer(), sendMarkers, maxChunkRelightsPerTick, maxChunkSendsPerTick);
         }, 1, 1);
     }
 
@@ -292,17 +298,22 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onFailMove(PlayerFailMoveEvent event) {
-        if (event.getPlayer().hasPermission("axiom.*")) {
-            if (event.getFailReason() == PlayerFailMoveEvent.FailReason.MOVED_TOO_QUICKLY) {
-                event.setAllowed(true); // Support for arcball camera
-            } else if (event.getPlayer().isFlying()) {
-                event.setAllowed(true); // Support for noclip
-            }
+        if (!this.activeAxiomPlayers.contains(event.getPlayer().getUniqueId())) {
+            return;
+        }
+        if (event.getFailReason() == PlayerFailMoveEvent.FailReason.MOVED_TOO_QUICKLY) {
+            event.setAllowed(true); // Support for arcball camera
+        } else if (event.getPlayer().isFlying()) {
+            event.setAllowed(true); // Support for noclip
         }
     }
 
     @EventHandler
     public void onChangedWorld(PlayerChangedWorldEvent event) {
+        if (!this.activeAxiomPlayers.contains(event.getPlayer().getUniqueId())) {
+            return;
+        }
+
         World world = event.getPlayer().getWorld();
 
         ServerWorldPropertiesRegistry properties = getOrCreateWorldProperties(world);
@@ -312,6 +323,8 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         } else {
             properties.registerFor(this, event.getPlayer());
         }
+
+        WorldExtension.onPlayerJoin(world, event.getPlayer());
     }
 
     @EventHandler

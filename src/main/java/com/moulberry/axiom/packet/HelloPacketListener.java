@@ -4,6 +4,7 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.View;
+import com.moulberry.axiom.WorldExtension;
 import com.moulberry.axiom.event.AxiomHandshakeEvent;
 import com.moulberry.axiom.persistence.ItemStackDataType;
 import com.moulberry.axiom.persistence.UUIDDataType;
@@ -167,6 +168,8 @@ public class HelloPacketListener implements PluginMessageListener {
         } else {
             properties.registerFor(plugin, player);
         }
+
+        WorldExtension.onPlayerJoin(world, player);
     }
 
 }
