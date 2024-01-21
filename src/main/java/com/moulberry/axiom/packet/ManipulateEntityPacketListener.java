@@ -176,6 +176,11 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
     }
 
     private static CompoundTag merge(CompoundTag left, CompoundTag right) {
+        if (right.contains("axiom:modify")) {
+            right.remove("axiom:modify");
+            return right;
+        }
+
         for (String key : right.getAllKeys()) {
             Tag tag = right.get(key);
             if (tag instanceof CompoundTag compound) {
@@ -183,9 +188,14 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
                     left.remove(key);
                 } else if (left.contains(key, Tag.TAG_COMPOUND)) {
                     CompoundTag child = left.getCompound(key);
-                    merge(child, compound);
+                    child = merge(child, compound);
+                    left.put(key, child);
                 } else {
-                    left.put(key, tag.copy());
+                    CompoundTag copied = compound.copy();
+                    if (copied.contains("axiom:modify")) {
+                        copied.remove("axiom:modify");
+                    }
+                    left.put(key, copied);
                 }
             } else {
                 left.put(key, tag.copy());
