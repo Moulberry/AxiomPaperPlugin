@@ -11,7 +11,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
+import net.minecraft.network.protocol.game.ClientboundCustomPayloadPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -24,7 +24,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import org.bukkit.Bukkit;
-import org.bukkit.craftbukkit.v1_20_R2.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
@@ -163,9 +163,7 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
                     buf.writeLong(AxiomConstants.MIN_POSITION_LONG);
                     buf.writeLong(AxiomConstants.MIN_POSITION_LONG);
                     buf.writeBoolean(false);
-                    byte[] bytes = new byte[buf.writerIndex()];
-                    buf.getBytes(0, bytes);
-                    player.connection.send(new ClientboundCustomPayloadPacket(new CustomByteArrayPayload(RESPONSE_ID, bytes)));
+                    player.connection.send(new ClientboundCustomPayloadPacket(RESPONSE_ID, buf));
 
                     // Continuation packet
                     buf = new FriendlyByteBuf(Unpooled.buffer());
@@ -183,9 +181,7 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
                     buf.writeLong(AxiomConstants.MIN_POSITION_LONG);
                     buf.writeLong(AxiomConstants.MIN_POSITION_LONG);
                     buf.writeBoolean(false);
-                    byte[] bytes = new byte[buf.writerIndex()];
-                    buf.getBytes(0, bytes);
-                    player.connection.send(new ClientboundCustomPayloadPacket(new CustomByteArrayPayload(RESPONSE_ID, bytes)));
+                    player.connection.send(new ClientboundCustomPayloadPacket(RESPONSE_ID, buf));
 
                     // Continuation packet
                     buf = new FriendlyByteBuf(Unpooled.buffer());
@@ -219,9 +215,7 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
                     // Finish and send current packet
                     buf.writeLong(AxiomConstants.MIN_POSITION_LONG);
                     buf.writeBoolean(false);
-                    byte[] bytes = new byte[buf.writerIndex()];
-                    buf.getBytes(0, bytes);
-                    player.connection.send(new ClientboundCustomPayloadPacket(new CustomByteArrayPayload(RESPONSE_ID, bytes)));
+                    player.connection.send(new ClientboundCustomPayloadPacket(RESPONSE_ID, buf));
 
                     // Continuation packet
                     buf = new FriendlyByteBuf(Unpooled.buffer());
@@ -239,9 +233,7 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
                     // Finish and send current packet
                     buf.writeLong(AxiomConstants.MIN_POSITION_LONG);
                     buf.writeBoolean(false);
-                    byte[] bytes = new byte[buf.writerIndex()];
-                    buf.getBytes(0, bytes);
-                    player.connection.send(new ClientboundCustomPayloadPacket(new CustomByteArrayPayload(RESPONSE_ID, bytes)));
+                    player.connection.send(new ClientboundCustomPayloadPacket(RESPONSE_ID, buf));
 
                     // Continuation packet
                     buf = new FriendlyByteBuf(Unpooled.buffer());
@@ -259,9 +251,7 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
 
         buf.writeLong(AxiomConstants.MIN_POSITION_LONG);
         buf.writeBoolean(true);
-        byte[] bytes = new byte[buf.writerIndex()];
-        buf.getBytes(0, bytes);
-        player.connection.send(new ClientboundCustomPayloadPacket(new CustomByteArrayPayload(RESPONSE_ID, bytes)));
+        player.connection.send(new ClientboundCustomPayloadPacket(RESPONSE_ID, buf));
     }
 
     private void sendEmptyResponse(ServerPlayer player, long id) {
@@ -271,9 +261,7 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
         buf.writeLong(AxiomConstants.MIN_POSITION_LONG); // no chunks
         buf.writeBoolean(true); // finished
 
-        byte[] bytes = new byte[buf.writerIndex()];
-        buf.getBytes(0, bytes);
-        player.connection.send(new ClientboundCustomPayloadPacket(new CustomByteArrayPayload(RESPONSE_ID, bytes)));
+        player.connection.send(new ClientboundCustomPayloadPacket(RESPONSE_ID, buf));
     }
 
 }
