@@ -218,12 +218,13 @@ public class SetBlockBufferPacketListener {
 
                                 if (checker != null && !checker.allowed(x, y, z)) continue;
 
+                                Block block = blockState.getBlock();
+
                                 BlockState old = section.setBlockState(x, y, z, blockState, true);
                                 if (blockState != old) {
                                     sectionChanged = true;
                                     blockPos.set(bx, by, bz);
 
-                                    Block block = blockState.getBlock();
                                     motionBlocking.update(x, by, z, blockState);
                                     motionBlockingNoLeaves.update(x, by, z, blockState);
                                     oceanFloor.update(x, by, z, blockState);
@@ -237,44 +238,6 @@ public class SetBlockBufferPacketListener {
                                         }
                                     }
 
-                                    if (blockState.hasBlockEntity()) {
-                                        BlockEntity blockEntity = chunk.getBlockEntity(blockPos, LevelChunk.EntityCreationType.CHECK);
-
-                                        if (blockEntity == null) {
-                                            // There isn't a block entity here, create it!
-                                            blockEntity = ((EntityBlock)block).newBlockEntity(blockPos, blockState);
-                                            if (blockEntity != null) {
-                                                chunk.addAndRegisterBlockEntity(blockEntity);
-                                            }
-                                        } else if (blockEntity.getType().isValid(blockState)) {
-                                            // Block entity is here and the type is correct
-                                            blockEntity.setBlockState(blockState);
-
-                                            try {
-                                                this.updateBlockEntityTicker.invoke(chunk, blockEntity);
-                                            } catch (IllegalAccessException | InvocationTargetException e) {
-                                                throw new RuntimeException(e);
-                                            }
-                                        } else {
-                                            // Block entity type isn't correct, we need to recreate it
-                                            chunk.removeBlockEntity(blockPos);
-
-                                            blockEntity = ((EntityBlock)block).newBlockEntity(blockPos, blockState);
-                                            if (blockEntity != null) {
-                                                chunk.addAndRegisterBlockEntity(blockEntity);
-                                            }
-                                        }
-                                        if (blockEntity != null && blockEntityChunkMap != null) {
-                                            int key = x | (y << 4) | (z << 8);
-                                            CompressedBlockEntity savedBlockEntity = blockEntityChunkMap.get((short) key);
-                                            if (savedBlockEntity != null) {
-                                                blockEntity.load(savedBlockEntity.decompress());
-                                            }
-                                        }
-                                    } else if (old.hasBlockEntity()) {
-                                        chunk.removeBlockEntity(blockPos);
-                                    }
-
                                     // Update Light
                                     sectionLightChanged |= LightEngine.hasDifferentLightProperties(chunk, blockPos, old, blockState);
 
@@ -285,6 +248,46 @@ public class SetBlockBufferPacketListener {
                                         if (oldPoi.isPresent()) world.getPoiManager().remove(blockPos);
                                         if (newPoi.isPresent()) world.getPoiManager().add(blockPos, newPoi.get());
                                     }
+                                }
+
+                                if (blockState.hasBlockEntity()) {
+                                    blockPos.set(bx, by, bz);
+
+                                    BlockEntity blockEntity = chunk.getBlockEntity(blockPos, LevelChunk.EntityCreationType.CHECK);
+
+                                    if (blockEntity == null) {
+                                        // There isn't a block entity here, create it!
+                                        blockEntity = ((EntityBlock)block).newBlockEntity(blockPos, blockState);
+                                        if (blockEntity != null) {
+                                            chunk.addAndRegisterBlockEntity(blockEntity);
+                                        }
+                                    } else if (blockEntity.getType().isValid(blockState)) {
+                                        // Block entity is here and the type is correct
+                                        blockEntity.setBlockState(blockState);
+
+                                        try {
+                                            this.updateBlockEntityTicker.invoke(chunk, blockEntity);
+                                        } catch (IllegalAccessException | InvocationTargetException e) {
+                                            throw new RuntimeException(e);
+                                        }
+                                    } else {
+                                        // Block entity type isn't correct, we need to recreate it
+                                        chunk.removeBlockEntity(blockPos);
+
+                                        blockEntity = ((EntityBlock)block).newBlockEntity(blockPos, blockState);
+                                        if (blockEntity != null) {
+                                            chunk.addAndRegisterBlockEntity(blockEntity);
+                                        }
+                                    }
+                                    if (blockEntity != null && blockEntityChunkMap != null) {
+                                        int key = x | (y << 4) | (z << 8);
+                                        CompressedBlockEntity savedBlockEntity = blockEntityChunkMap.get((short) key);
+                                        if (savedBlockEntity != null) {
+                                            blockEntity.load(savedBlockEntity.decompress());
+                                        }
+                                    }
+                                } else if (old.hasBlockEntity()) {
+                                    chunk.removeBlockEntity(blockPos);
                                 }
                             }
                         }
