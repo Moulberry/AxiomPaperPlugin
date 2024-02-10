@@ -30,21 +30,21 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
 
         byte flags = friendlyByteBuf.readByte();
 
-        if ((flags & 1) != 0) {
+        if (flags != 0) {
             minRegion = friendlyByteBuf.readVec3();
             maxRegion = friendlyByteBuf.readVec3();
-        }
 
-        if ((flags & 2) != 0) {
-            lineArgb = friendlyByteBuf.readInt();
-        }
+            if ((flags & 2) != 0) {
+                lineArgb = friendlyByteBuf.readInt();
+            }
 
-        if ((flags & 4) != 0) {
-            lineThickness = friendlyByteBuf.readFloat();
-        }
+            if ((flags & 4) != 0) {
+                lineThickness = friendlyByteBuf.readFloat();
+            }
 
-        if ((flags & 8) != 0) {
-            faceArgb = friendlyByteBuf.readInt();
+            if ((flags & 8) != 0) {
+                faceArgb = friendlyByteBuf.readInt();
+            }
         }
 
         return new MarkerData(uuid, position, name, minRegion, maxRegion, lineArgb, lineThickness, faceArgb);
@@ -57,45 +57,33 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
         friendlyByteBuf.writeDouble(markerData.position.z);
         friendlyByteBuf.writeNullable(markerData.name, FriendlyByteBuf::writeUtf);
 
-        byte flags = 0;
-
         if (markerData.minRegion != null && markerData.maxRegion != null) {
-            flags |= 1;
-        }
+            byte flags = 1;
+            if (markerData.lineArgb != 0) flags |= 2;
+            if (markerData.lineThickness != 0) flags |= 4;
+            if (markerData.faceArgb != 0) flags |= 8;
+            friendlyByteBuf.writeByte(flags);
 
-        if (markerData.lineArgb != 0) {
-            flags |= 2;
-        }
-
-        if (markerData.lineThickness != 0) {
-            flags |= 4;
-        }
-
-        if (markerData.faceArgb != 0) {
-            flags |= 8;
-        }
-
-        friendlyByteBuf.writeByte(flags);
-
-        if (markerData.minRegion != null && markerData.maxRegion != null) {
             friendlyByteBuf.writeDouble(markerData.minRegion.x);
             friendlyByteBuf.writeDouble(markerData.minRegion.y);
             friendlyByteBuf.writeDouble(markerData.minRegion.z);
             friendlyByteBuf.writeDouble(markerData.maxRegion.x);
             friendlyByteBuf.writeDouble(markerData.maxRegion.y);
             friendlyByteBuf.writeDouble(markerData.maxRegion.z);
-        }
 
-        if (markerData.lineArgb != 0) {
-            friendlyByteBuf.writeInt(markerData.lineArgb);
-        }
+            if (markerData.lineArgb != 0) {
+                friendlyByteBuf.writeInt(markerData.lineArgb);
+            }
 
-        if (markerData.lineArgb != 0) {
-            friendlyByteBuf.writeFloat(markerData.lineThickness);
-        }
+            if (markerData.lineArgb != 0) {
+                friendlyByteBuf.writeFloat(markerData.lineThickness);
+            }
 
-        if (markerData.faceArgb != 0) {
-            friendlyByteBuf.writeInt(markerData.faceArgb);
+            if (markerData.faceArgb != 0) {
+                friendlyByteBuf.writeInt(markerData.faceArgb);
+            }
+        } else {
+            friendlyByteBuf.writeByte(0);
         }
     }
 
@@ -148,20 +136,19 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
                 double maxZ = max.getDouble(2);
                 minRegion = new Vec3(minX, minY, minZ);
                 maxRegion = new Vec3(maxX, maxY, maxZ);
+
+                if (data.contains("line_argb", Tag.TAG_ANY_NUMERIC)) {
+                    lineArgb = data.getInt("line_argb");
+                }
+
+                if (data.contains("line_thickness", Tag.TAG_ANY_NUMERIC)) {
+                    lineThickness = data.getInt("line_thickness");
+                }
+
+                if (data.contains("face_argb", Tag.TAG_ANY_NUMERIC)) {
+                    faceArgb = data.getInt("face_argb");
+                }
             }
-
-        }
-
-        if (data.contains("line_argb", Tag.TAG_ANY_NUMERIC)) {
-            lineArgb = data.getInt("line_argb");
-        }
-
-        if (data.contains("line_thickness", Tag.TAG_ANY_NUMERIC)) {
-            lineThickness = data.getInt("line_thickness");
-        }
-
-        if (data.contains("face_argb", Tag.TAG_ANY_NUMERIC)) {
-            faceArgb = data.getInt("face_argb");
         }
 
         return new MarkerData(marker.getUUID(), position, name, minRegion, maxRegion, lineArgb, lineThickness, faceArgb);
