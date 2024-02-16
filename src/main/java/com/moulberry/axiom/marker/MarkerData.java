@@ -75,7 +75,7 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
                 friendlyByteBuf.writeInt(markerData.lineArgb);
             }
 
-            if (markerData.lineArgb != 0) {
+            if (markerData.lineThickness != 0) {
                 friendlyByteBuf.writeFloat(markerData.lineThickness);
             }
 
