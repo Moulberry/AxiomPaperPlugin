@@ -11,6 +11,9 @@ max-chunk-load-distance: 128
 # Whether players are allowed to teleport between worlds using views
 allow-teleport-between-worlds: true
 
+# Whether to allow clients to save/load/share blueprints through the server
+blueprint-sharing: false
+
 # Action to take when a user with an incompatible Minecraft version or Axiom version joins
 # Valid actions are 'kick', 'warn' and 'ignore'
 # 'warn' will give the player a warning and disable Axiom
@@ -76,3 +79,4 @@ packet-handlers:
   manipulate-entity: true
   delete-entity: true
   marker-nbt-request: true
+  blueprint-request: true
