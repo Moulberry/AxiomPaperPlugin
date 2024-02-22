@@ -19,7 +19,7 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
                          int lineArgb, float lineThickness, int faceArgb) {
     public static MarkerData read(FriendlyByteBuf friendlyByteBuf) {
         UUID uuid = friendlyByteBuf.readUUID();
-        Vec3 position = friendlyByteBuf.readVec3();
+        Vec3 position = new Vec3(friendlyByteBuf.readDouble(), friendlyByteBuf.readDouble(), friendlyByteBuf.readDouble());
         String name = friendlyByteBuf.readNullable(FriendlyByteBuf::readUtf);
 
         Vec3 minRegion = null;
@@ -31,8 +31,8 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
         byte flags = friendlyByteBuf.readByte();
 
         if (flags != 0) {
-            minRegion = friendlyByteBuf.readVec3();
-            maxRegion = friendlyByteBuf.readVec3();
+            minRegion = new Vec3(friendlyByteBuf.readDouble(), friendlyByteBuf.readDouble(), friendlyByteBuf.readDouble());
+            maxRegion = new Vec3(friendlyByteBuf.readDouble(), friendlyByteBuf.readDouble(), friendlyByteBuf.readDouble());
 
             if ((flags & 2) != 0) {
                 lineArgb = friendlyByteBuf.readInt();
