@@ -5,6 +5,7 @@ import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.View;
 import com.moulberry.axiom.WorldExtension;
+import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.event.AxiomHandshakeEvent;
 import com.moulberry.axiom.persistence.ItemStackDataType;
 import com.moulberry.axiom.persistence.UUIDDataType;
@@ -17,6 +18,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
+import org.bukkit.craftbukkit.v1_20_R3.entity.CraftPlayer;
 import org.bukkit.craftbukkit.v1_20_R3.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -25,6 +27,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -170,6 +173,8 @@ public class HelloPacketListener implements PluginMessageListener {
         }
 
         WorldExtension.onPlayerJoin(world, player);
+
+        ServerBlueprintManager.sendManifest(List.of(((CraftPlayer)player).getHandle()));
     }
 
 }
