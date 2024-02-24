@@ -20,6 +20,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.ChunkStatus;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
@@ -76,28 +77,41 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         BlockPos.MutableBlockPos mutableBlockPos = new BlockPos.MutableBlockPos();
 
-        // Save and compress block entities
-        int count = friendlyByteBuf.readVarInt();
-        for (int i = 0; i < count; i++) {
-            long pos = friendlyByteBuf.readLong();
-            BlockEntity blockEntity = level.getBlockEntity(mutableBlockPos.set(pos));
-            if (blockEntity != null) {
-                CompoundTag tag = blockEntity.saveWithoutMetadata();
-                blockEntityMap.put(pos, CompressedBlockEntity.compress(tag, baos));
-            }
-        }
-
-        int playerSectionX = player.getBlockX() >> 4;
-        int playerSectionZ = player.getBlockZ() >> 4;
-
-        Long2ObjectMap<PalettedContainer<BlockState>> sections = new Long2ObjectOpenHashMap<>();
-
         int maxChunkLoadDistance = this.plugin.configuration.getInt("max-chunk-load-distance");
 
         // Don't allow loading chunks outside render distance for plot worlds
         if (PlotSquaredIntegration.isPlotWorld(level.getWorld())) {
             maxChunkLoadDistance = 0;
         }
+
+        int playerSectionX = player.getBlockX() >> 4;
+        int playerSectionZ = player.getBlockZ() >> 4;
+
+        // Save and compress block entities
+        int count = friendlyByteBuf.readVarInt();
+        for (int i = 0; i < count; i++) {
+            long pos = friendlyByteBuf.readLong();
+            mutableBlockPos.set(pos);
+
+            if (level.isOutsideBuildHeight(mutableBlockPos)) continue;
+
+            int chunkX = mutableBlockPos.getX() >> 4;
+            int chunkZ = mutableBlockPos.getZ() >> 4;
+
+            int distance = Math.abs(playerSectionX - chunkX) + Math.abs(playerSectionZ - chunkZ);
+            boolean canLoad = distance <= maxChunkLoadDistance;
+
+            LevelChunk chunk = (LevelChunk) level.getChunk(chunkX, chunkZ, ChunkStatus.FULL, canLoad);
+            if (chunk == null) continue;
+
+            BlockEntity blockEntity = chunk.getBlockEntity(mutableBlockPos, LevelChunk.EntityCreationType.IMMEDIATE);
+            if (blockEntity != null) {
+                CompoundTag tag = blockEntity.saveWithoutMetadata();
+                blockEntityMap.put(pos, CompressedBlockEntity.compress(tag, baos));
+            }
+        }
+
+        Long2ObjectMap<PalettedContainer<BlockState>> sections = new Long2ObjectOpenHashMap<>();
 
         if (maxChunkLoadDistance > 0) {
             count = friendlyByteBuf.readVarInt();
