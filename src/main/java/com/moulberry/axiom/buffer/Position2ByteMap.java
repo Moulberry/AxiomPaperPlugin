@@ -2,7 +2,6 @@ package com.moulberry.axiom.buffer;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.moulberry.axiom.AxiomConstants;
-import com.moulberry.axiom.AxiomPaper;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
