@@ -1,10 +1,9 @@
 package com.moulberry.axiom.blueprint;
 
 import com.moulberry.axiom.AxiomPaper;
-import com.moulberry.axiom.packet.CustomByteArrayPayload;
+import com.moulberry.axiom.VersionHelper;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import org.bukkit.craftbukkit.v1_20_R3.entity.CraftPlayer;
@@ -55,9 +54,8 @@ public class ServerBlueprintManager {
                     buf.writeUtf("");
                     byte[] bytes = new byte[buf.writerIndex()];
                     buf.getBytes(0, bytes);
-                    var payload = new CustomByteArrayPayload(PACKET_BLUEPRINT_MANIFEST_IDENTIFIER, bytes);
                     for (ServerPlayer serverPlayer : sendTo) {
-                        serverPlayer.connection.send(new ClientboundCustomPayloadPacket(payload));
+                        VersionHelper.sendCustomPayload(serverPlayer, PACKET_BLUEPRINT_MANIFEST_IDENTIFIER, bytes);
                     }
 
                     // Continue
@@ -69,9 +67,8 @@ public class ServerBlueprintManager {
             buf.writeUtf("");
             byte[] bytes = new byte[buf.writerIndex()];
             buf.getBytes(0, bytes);
-            var payload = new CustomByteArrayPayload(PACKET_BLUEPRINT_MANIFEST_IDENTIFIER, bytes);
             for (ServerPlayer serverPlayer : sendTo) {
-                serverPlayer.connection.send(new ClientboundCustomPayloadPacket(payload));
+                VersionHelper.sendCustomPayload(serverPlayer, PACKET_BLUEPRINT_MANIFEST_IDENTIFIER, bytes);
             }
         }
     }
