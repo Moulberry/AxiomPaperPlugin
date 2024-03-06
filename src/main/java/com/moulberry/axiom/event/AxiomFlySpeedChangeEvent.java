@@ -1,6 +1,5 @@
 package com.moulberry.axiom.event;
 
-import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
