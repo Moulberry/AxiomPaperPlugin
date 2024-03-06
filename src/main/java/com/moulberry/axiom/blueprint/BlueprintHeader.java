@@ -23,7 +23,8 @@ public record BlueprintHeader(String name, String author, List<String> tags, flo
     public static BlueprintHeader read(FriendlyByteBuf friendlyByteBuf) {
         String name = friendlyByteBuf.readUtf();
         String author = friendlyByteBuf.readUtf();
-        List<String> tags = friendlyByteBuf.readList(FriendlyByteBuf::readUtf);
+        List<String> tags = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
+            FriendlyByteBuf::readUtf);
         int blockCount = friendlyByteBuf.readInt();
         return new BlueprintHeader(name, author, tags, 0, 0, true, blockCount);
     }

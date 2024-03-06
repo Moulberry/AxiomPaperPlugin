@@ -2,6 +2,7 @@ package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
+import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -17,12 +18,14 @@ import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.phys.Vec3;
+import org.bukkit.Location;
 import org.bukkit.craftbukkit.v1_20_R1.CraftWorld;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -63,7 +66,8 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
             PassengerManipulation passengerManipulation = friendlyByteBuf.readEnum(PassengerManipulation.class);
             List<UUID> passengers = List.of();
             if (passengerManipulation == PassengerManipulation.ADD_LIST || passengerManipulation == PassengerManipulation.REMOVE_LIST) {
-                passengers = friendlyByteBuf.readList(FriendlyByteBuf::readUUID);
+                passengers = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
+                    FriendlyByteBuf::readUUID);
             }
 
             return new ManipulateEntry(uuid, relativeMovementSet, position, yaw, pitch, nbt,
@@ -88,7 +92,8 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
         }
 
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
-        List<ManipulateEntry> entries = friendlyByteBuf.readList(ManipulateEntry::read);
+        List<ManipulateEntry> entries = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
+            ManipulateEntry::read);
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();
 
@@ -104,6 +109,14 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
             if (!whitelistedEntities.isEmpty() && !whitelistedEntities.contains(type)) continue;
             if (blacklistedEntities.contains(type)) continue;
 
+            Vec3 position = entity.position();
+            BlockPos containing = BlockPos.containing(position.x, position.y, position.z);
+
+            if (!PlotSquaredIntegration.canPlaceBlock(player, new Location(player.getWorld(),
+                    containing.getX(), containing.getY(), containing.getZ()))) {
+                continue;
+            }
+
             if (entry.merge != null && !entry.merge.isEmpty()) {
                 NbtSanitization.sanitizeEntity(entry.merge);
 
@@ -111,6 +124,8 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
                 compoundTag = merge(compoundTag, entry.merge);
                 entity.load(compoundTag);
             }
+
+            entity.setPosRaw(position.x, position.y, position.z);
 
             Vec3 entryPos = entry.position();
             if (entryPos != null && entry.relativeMovementSet != null) {
@@ -130,7 +145,13 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
                     }
                 }
 
-                entity.teleportTo(serverLevel, newX, newY, newZ, Set.of(), newYaw, newPitch);
+                containing = BlockPos.containing(newX, newY, newZ);
+
+                if (PlotSquaredIntegration.canPlaceBlock(player, new Location(player.getWorld(),
+                        containing.getX(), containing.getY(), containing.getZ()))) {
+                    entity.teleportTo(serverLevel, newX, newY, newZ, Set.of(), newYaw, newPitch);
+                }
+
                 entity.setYHeadRot(newYaw);
             }
 
@@ -151,6 +172,14 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
 
                         // Prevent mounting loop
                         if (passenger.getSelfAndPassengers().anyMatch(entity2 -> entity2 == entity)) {
+                            continue;
+                        }
+
+                        position = passenger.position();
+                        containing = BlockPos.containing(position.x, position.y, position.z);
+
+                        if (!PlotSquaredIntegration.canPlaceBlock(player, new Location(player.getWorld(),
+                                containing.getX(), containing.getY(), containing.getZ()))) {
                             continue;
                         }
 
