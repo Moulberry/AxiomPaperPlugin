@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.blueprint.RawBlueprint;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.blueprint.ServerBlueprintRegistry;
@@ -54,8 +55,7 @@ public class BlueprintRequestPacketListener implements PluginMessageListener {
 
             byte[] bytes = new byte[buf.writerIndex()];
             buf.getBytes(0, bytes);
-            var payload = new CustomByteArrayPayload(RESPONSE_PACKET_IDENTIFIER, bytes);
-            ((CraftPlayer)player).getHandle().connection.send(new ClientboundCustomPayloadPacket(payload));
+            VersionHelper.sendCustomPayload(((CraftPlayer)player).getHandle(), RESPONSE_PACKET_IDENTIFIER, bytes);
         }
     }
 
