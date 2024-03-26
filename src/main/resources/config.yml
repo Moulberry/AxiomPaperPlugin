@@ -14,6 +14,9 @@ allow-teleport-between-worlds: true
 # Whether to allow clients to save/load/share blueprints through the server
 blueprint-sharing: false
 
+# Allow large chunk data requests, not recommended for public servers
+allow-large-chunk-data-request: false
+
 # Action to take when a user with an incompatible Minecraft version or Axiom version joins
 # Valid actions are 'kick', 'warn' and 'ignore'
 # 'warn' will give the player a warning and disable Axiom
