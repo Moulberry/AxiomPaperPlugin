@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.VersionHelper;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
@@ -61,7 +62,8 @@ public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
                     } else if (identifier.equals(UPLOAD_BLUEPRINT)) {
                         ServerPlayer player = connection.getPlayer();
                         if (AxiomPaper.PLUGIN.canUseAxiom(player.getBukkitEntity())) {
-                            uploadBlueprint.onReceive(player, buf);
+                            player.getServer().execute(() -> uploadBlueprint.onReceive(player, buf));
+
                             success = true;
                             in.skipBytes(in.readableBytes());
                             return;
@@ -69,8 +71,12 @@ public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
                     } else if (requestChunkDataPacketListener != null && identifier.equals(REQUEST_CHUNK_DATA)) {
                         ServerPlayer player = connection.getPlayer();
                         if (AxiomPaper.PLUGIN.canUseAxiom(player.getBukkitEntity())) {
-                            requestChunkDataPacketListener.onPluginMessageReceived(identifier.toString(), player.getBukkitEntity(),
-                                buf.array());
+                            byte[] bytes = new byte[buf.writerIndex() - buf.readerIndex()];
+                            buf.getBytes(buf.readerIndex(), bytes);
+
+                            player.getServer().execute(() -> requestChunkDataPacketListener.onPluginMessageReceived(
+                                identifier.toString(), player.getBukkitEntity(), bytes));
+
                             success = true;
                             in.skipBytes(in.readableBytes());
                             return;
