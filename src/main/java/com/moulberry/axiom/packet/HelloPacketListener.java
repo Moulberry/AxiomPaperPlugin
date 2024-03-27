@@ -41,7 +41,7 @@ public class HelloPacketListener implements PluginMessageListener {
 
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        if (!player.hasPermission("axiom.*")) {
+        if (!this.plugin.hasAxiomPermission(player)) {
             return;
         }
 
