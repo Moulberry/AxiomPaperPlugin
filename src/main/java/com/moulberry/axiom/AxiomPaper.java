@@ -194,7 +194,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
             for (Player player : Bukkit.getServer().getOnlinePlayers()) {
                 if (activeAxiomPlayers.contains(player.getUniqueId())) {
-                    if (!player.hasPermission("axiom.*")) {
+                    if (!this.hasAxiomPermission(player)) {
                         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
                         buf.writeBoolean(false);
                         byte[] bytes = new byte[buf.writerIndex()];
@@ -280,8 +280,12 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         return this.logLargeBlockBufferChanges;
     }
 
+    public boolean hasAxiomPermission(Player player) {
+        return player.hasPermission("axiom.*") || player.isOp();
+    }
+
     public boolean canUseAxiom(Player player) {
-        return player.hasPermission("axiom.*") && activeAxiomPlayers.contains(player.getUniqueId());
+        return hasAxiomPermission(player) && activeAxiomPlayers.contains(player.getUniqueId());
     }
 
     public @Nullable RateLimiter getBlockBufferRateLimiter(UUID uuid) {
