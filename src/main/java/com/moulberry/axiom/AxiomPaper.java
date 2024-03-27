@@ -1,6 +1,7 @@
 package com.moulberry.axiom;
 
 import com.google.common.util.concurrent.RateLimiter;
+import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.event.AxiomCreateWorldPropertiesEvent;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
@@ -35,6 +36,9 @@ import org.bukkit.plugin.messaging.Messenger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -49,6 +53,8 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     public IdMapper<BlockState> allowedBlockRegistry = null;
     private boolean logLargeBlockBufferChanges = false;
+
+    public Path blueprintFolder = null;
 
     @Override
     public void onEnable() {
@@ -65,6 +71,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             this.getLogger().warning("Invalid value for unsupported-axiom-version, expected 'kick', 'warn' or 'ignore'");
         }
 
+        boolean allowLargeChunkDataRequest = this.configuration.getBoolean("allow-large-chunk-data-request");
         this.logLargeBlockBufferChanges = this.configuration.getBoolean("log-large-block-buffer-changes");
 
         List<String> disallowedBlocks = this.configuration.getStringList("disallowed-blocks");
@@ -117,8 +124,10 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         if (configuration.getBoolean("packet-handlers.set-editor-views")) {
             msg.registerIncomingPluginChannel(this, "axiom:set_editor_views", new SetEditorViewsPacketListener(this));
         }
-        if (configuration.getBoolean("packet-handlers.request-chunk-data")) {
-            msg.registerIncomingPluginChannel(this, "axiom:request_chunk_data", new RequestChunkDataPacketListener(this));
+        if (!allowLargeChunkDataRequest) {
+            if (configuration.getBoolean("packet-handlers.request-chunk-data")) {
+                msg.registerIncomingPluginChannel(this, "axiom:request_chunk_data", new RequestChunkDataPacketListener(this));
+            }
         }
         if (configuration.getBoolean("packet-handlers.spawn-entity")) {
             msg.registerIncomingPluginChannel(this, "axiom:spawn_entity", new SpawnEntityPacketListener(this));
@@ -132,9 +141,15 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         if (configuration.getBoolean("packet-handlers.marker-nbt-request")) {
             msg.registerIncomingPluginChannel(this, "axiom:marker_nbt_request", new MarkerNbtRequestPacketListener(this));
         }
+        if (configuration.getBoolean("packet-handlers.blueprint-request")) {
+            msg.registerIncomingPluginChannel(this, "axiom:request_blueprint", new BlueprintRequestPacketListener(this));
+        }
 
         if (configuration.getBoolean("packet-handlers.set-buffer")) {
             SetBlockBufferPacketListener setBlockBufferPacketListener = new SetBlockBufferPacketListener(this);
+            UploadBlueprintPacketListener uploadBlueprintPacketListener = new UploadBlueprintPacketListener(this);
+            RequestChunkDataPacketListener requestChunkDataPacketListener = allowLargeChunkDataRequest ?
+                new RequestChunkDataPacketListener(this) : null;
 
             ChannelInitializeListenerHolder.addListener(Key.key("axiom:handle_big_payload"), new ChannelInitializeListener() {
                 @Override
@@ -153,9 +168,18 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
                     Connection connection = (Connection) channel.pipeline().get("packet_handler");
                     channel.pipeline().addBefore("decoder", "axiom-big-payload-handler",
-                        new AxiomBigPayloadHandler(payloadId, connection, setBlockBufferPacketListener));
+                        new AxiomBigPayloadHandler(payloadId, connection, setBlockBufferPacketListener,
+                            uploadBlueprintPacketListener, requestChunkDataPacketListener));
                 }
             });
+        }
+
+        if (this.configuration.getBoolean("blueprint-sharing")) {
+            this.blueprintFolder = this.getDataFolder().toPath().resolve("blueprints");
+            try {
+                Files.createDirectories(this.blueprintFolder);
+            } catch (IOException ignored) {}
+            ServerBlueprintManager.initialize(this.blueprintFolder);
         }
 
         Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
@@ -170,7 +194,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
             for (Player player : Bukkit.getServer().getOnlinePlayers()) {
                 if (activeAxiomPlayers.contains(player.getUniqueId())) {
-                    if (!player.hasPermission("axiom.*")) {
+                    if (!this.hasAxiomPermission(player)) {
                         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
                         buf.writeBoolean(false);
                         byte[] bytes = new byte[buf.writerIndex()];
@@ -256,8 +280,12 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         return this.logLargeBlockBufferChanges;
     }
 
+    public boolean hasAxiomPermission(Player player) {
+        return player.hasPermission("axiom.*") || player.isOp();
+    }
+
     public boolean canUseAxiom(Player player) {
-        return player.hasPermission("axiom.*") && activeAxiomPlayers.contains(player.getUniqueId());
+        return hasAxiomPermission(player) && activeAxiomPlayers.contains(player.getUniqueId());
     }
 
     public @Nullable RateLimiter getBlockBufferRateLimiter(UUID uuid) {

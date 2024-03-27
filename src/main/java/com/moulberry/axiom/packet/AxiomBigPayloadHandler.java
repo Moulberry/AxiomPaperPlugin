@@ -1,5 +1,7 @@
 package com.moulberry.axiom.packet;
 
+import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.VersionHelper;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
@@ -14,14 +16,21 @@ import java.util.List;
 public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
 
     private static final ResourceLocation SET_BUFFER = new ResourceLocation("axiom", "set_buffer");
+    private static final ResourceLocation UPLOAD_BLUEPRINT = new ResourceLocation("axiom", "upload_blueprint");
+    private static final ResourceLocation REQUEST_CHUNK_DATA = new ResourceLocation("axiom", "request_chunk_data");
     private final int payloadId;
     private final Connection connection;
-    private final SetBlockBufferPacketListener listener;
+    private final SetBlockBufferPacketListener setBlockBuffer;
+    private final UploadBlueprintPacketListener uploadBlueprint;
+    private final RequestChunkDataPacketListener requestChunkDataPacketListener;
 
-    public AxiomBigPayloadHandler(int payloadId, Connection connection, SetBlockBufferPacketListener listener) {
+    public AxiomBigPayloadHandler(int payloadId, Connection connection, SetBlockBufferPacketListener setBlockBuffer,
+            UploadBlueprintPacketListener uploadBlueprint, RequestChunkDataPacketListener requestChunkDataPacketListener) {
         this.payloadId = payloadId;
         this.connection = connection;
-        this.listener = listener;
+        this.setBlockBuffer = setBlockBuffer;
+        this.uploadBlueprint = uploadBlueprint;
+        this.requestChunkDataPacketListener = requestChunkDataPacketListener;
     }
 
     @Override
@@ -44,12 +53,33 @@ public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
                     ResourceLocation identifier = buf.readResourceLocation();
                     if (identifier.equals(SET_BUFFER)) {
                         ServerPlayer player = connection.getPlayer();
-                        if (player != null && player.getBukkitEntity().hasPermission("axiom.*")) {
-                            if (listener.onReceive(player, buf)) {
-                                success = true;
-                                in.skipBytes(in.readableBytes());
-                                return;
-                            }
+                        if (AxiomPaper.PLUGIN.canUseAxiom(player.getBukkitEntity())) {
+                            setBlockBuffer.onReceive(player, buf);
+                            success = true;
+                            in.skipBytes(in.readableBytes());
+                            return;
+                        }
+                    } else if (identifier.equals(UPLOAD_BLUEPRINT)) {
+                        ServerPlayer player = connection.getPlayer();
+                        if (AxiomPaper.PLUGIN.canUseAxiom(player.getBukkitEntity())) {
+                            player.getServer().execute(() -> uploadBlueprint.onReceive(player, buf));
+
+                            success = true;
+                            in.skipBytes(in.readableBytes());
+                            return;
+                        }
+                    } else if (requestChunkDataPacketListener != null && identifier.equals(REQUEST_CHUNK_DATA)) {
+                        ServerPlayer player = connection.getPlayer();
+                        if (AxiomPaper.PLUGIN.canUseAxiom(player.getBukkitEntity())) {
+                            byte[] bytes = new byte[buf.writerIndex() - buf.readerIndex()];
+                            buf.getBytes(buf.readerIndex(), bytes);
+
+                            player.getServer().execute(() -> requestChunkDataPacketListener.onPluginMessageReceived(
+                                identifier.toString(), player.getBukkitEntity(), bytes));
+
+                            success = true;
+                            in.skipBytes(in.readableBytes());
+                            return;
                         }
                     }
                 }
@@ -74,7 +104,7 @@ public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
         if (evt == ConnectionEvent.COMPRESSION_THRESHOLD_SET || evt == ConnectionEvent.COMPRESSION_DISABLED) {
             ctx.channel().pipeline().remove("axiom-big-payload-handler");
             ctx.channel().pipeline().addBefore("decoder", "axiom-big-payload-handler",
-                                               new AxiomBigPayloadHandler(payloadId, connection, listener));
+                                               new AxiomBigPayloadHandler(payloadId, connection, setBlockBuffer, uploadBlueprint, requestChunkDataPacketListener));
         }
         super.userEventTriggered(ctx, evt);
     }

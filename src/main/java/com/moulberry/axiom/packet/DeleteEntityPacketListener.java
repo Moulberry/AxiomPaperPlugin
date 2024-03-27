@@ -1,25 +1,18 @@
 package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import io.netty.buffer.Unpooled;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.decoration.HangingEntity;
-import net.minecraft.world.entity.decoration.ItemFrame;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Rotation;
-import net.minecraft.world.phys.Vec3;
 import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -45,7 +38,8 @@ public class DeleteEntityPacketListener implements PluginMessageListener {
         }
 
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
-        List<UUID> delete = friendlyByteBuf.readList(FriendlyByteBuf::readUUID);
+        List<UUID> delete = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
+            FriendlyByteBuf::readUUID);
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();
 
@@ -60,6 +54,11 @@ public class DeleteEntityPacketListener implements PluginMessageListener {
 
             if (!whitelistedEntities.isEmpty() && !whitelistedEntities.contains(type)) continue;
             if (blacklistedEntities.contains(type)) continue;
+
+            if (!PlotSquaredIntegration.canBreakBlock(player,
+                    player.getWorld().getBlockAt(entity.getBlockX(), entity.getBlockY(), entity.getBlockZ()))) {
+                continue;
+            }
 
             entity.remove(Entity.RemovalReason.DISCARDED);
         }

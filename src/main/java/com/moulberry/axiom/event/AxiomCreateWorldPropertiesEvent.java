@@ -2,9 +2,7 @@ package com.moulberry.axiom.event;
 
 import com.moulberry.axiom.world_properties.WorldPropertyCategory;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
-import com.moulberry.axiom.world_properties.server.ServerWorldProperty;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertyBase;
-import com.moulberry.axiom.world_properties.server.ServerWorldPropertyHolder;
 import org.bukkit.World;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;

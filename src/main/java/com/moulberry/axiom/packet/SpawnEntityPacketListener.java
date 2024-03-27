@@ -2,15 +2,12 @@ package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
-import com.moulberry.axiom.event.AxiomTeleportEvent;
-import com.moulberry.axiom.event.AxiomUnknownTeleportEvent;
+import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -19,18 +16,14 @@ import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.phys.Vec3;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.NamespacedKey;
-import org.bukkit.World;
 import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
-import org.bukkit.craftbukkit.v1_20_R3.entity.CraftPlayer;
-import org.bukkit.craftbukkit.v1_20_R3.util.CraftNamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -67,7 +60,7 @@ public class SpawnEntityPacketListener implements PluginMessageListener {
         }
 
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
-        List<SpawnEntry> entries = friendlyByteBuf.readList(SpawnEntry::new);
+        List<SpawnEntry> entries = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000), SpawnEntry::new);
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();
 
@@ -79,6 +72,11 @@ public class SpawnEntityPacketListener implements PluginMessageListener {
 
             BlockPos blockPos = BlockPos.containing(position);
             if (!Level.isInSpawnableBounds(blockPos)) {
+                continue;
+            }
+
+            if (!PlotSquaredIntegration.canPlaceBlock(player, new Location(player.getWorld(),
+                    blockPos.getX(), blockPos.getY(), blockPos.getZ()))) {
                 continue;
             }
 

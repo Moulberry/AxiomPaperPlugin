@@ -5,21 +5,18 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.Marker;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.UUID;
 
 public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nullable Vec3 minRegion, @Nullable Vec3 maxRegion,
                          int lineArgb, float lineThickness, int faceArgb) {
     public static MarkerData read(FriendlyByteBuf friendlyByteBuf) {
         UUID uuid = friendlyByteBuf.readUUID();
-        Vec3 position = friendlyByteBuf.readVec3();
+        Vec3 position = new Vec3(friendlyByteBuf.readDouble(), friendlyByteBuf.readDouble(), friendlyByteBuf.readDouble());
         String name = friendlyByteBuf.readNullable(FriendlyByteBuf::readUtf);
 
         Vec3 minRegion = null;
@@ -31,8 +28,8 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
         byte flags = friendlyByteBuf.readByte();
 
         if (flags != 0) {
-            minRegion = friendlyByteBuf.readVec3();
-            maxRegion = friendlyByteBuf.readVec3();
+            minRegion = new Vec3(friendlyByteBuf.readDouble(), friendlyByteBuf.readDouble(), friendlyByteBuf.readDouble());
+            maxRegion = new Vec3(friendlyByteBuf.readDouble(), friendlyByteBuf.readDouble(), friendlyByteBuf.readDouble());
 
             if ((flags & 2) != 0) {
                 lineArgb = friendlyByteBuf.readInt();
