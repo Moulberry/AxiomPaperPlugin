@@ -26,6 +26,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SpawnEntityPacketListener implements PluginMessageListener {
 
@@ -99,12 +100,18 @@ public class SpawnEntityPacketListener implements PluginMessageListener {
 
             if (!tag.contains("id")) continue;
 
+            AtomicBoolean useNewUuid = new AtomicBoolean(true);
+
             Entity spawned = EntityType.loadEntityRecursive(tag, serverLevel, entity -> {
                 String type = EntityType.getKey(entity.getType()).toString();
                 if (!whitelistedEntities.isEmpty() && !whitelistedEntities.contains(type)) return null;
                 if (blacklistedEntities.contains(type)) return null;
 
-                entity.setUUID(entry.newUuid);
+                if (useNewUuid.getAndSet(false)) {
+                    entity.setUUID(entry.newUuid);
+                } else {
+                    entity.setUUID(UUID.randomUUID());
+                }
 
                 if (entity instanceof HangingEntity hangingEntity) {
                     float changedYaw = entry.yaw - entity.getYRot();
