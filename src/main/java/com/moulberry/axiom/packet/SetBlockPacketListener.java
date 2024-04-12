@@ -16,8 +16,7 @@ import net.minecraft.world.entity.ai.village.poi.PoiTypes;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -25,6 +24,8 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import org.bukkit.Location;
 import org.bukkit.block.BlockFace;
 import org.bukkit.craftbukkit.v1_20_R2.CraftWorld;
@@ -89,26 +90,29 @@ public class SetBlockPacketListener implements PluginMessageListener {
 
         ServerPlayer player = ((CraftPlayer)bukkitPlayer).getHandle();
 
-        org.bukkit.inventory.ItemStack heldItem;
-        if (hand == InteractionHand.MAIN_HAND) {
-            heldItem = bukkitPlayer.getInventory().getItemInMainHand();
-        } else {
-            heldItem = bukkitPlayer.getInventory().getItemInOffHand();
+        if (sequenceId >= 0) {
+            player.connection.ackBlockChangesUpTo(sequenceId);
         }
 
-        org.bukkit.block.Block blockClicked = bukkitPlayer.getWorld().getBlockAt(blockHit.getBlockPos().getX(),
-            blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
-
-        BlockFace blockFace = CraftBlock.notchToBlockFace(blockHit.getDirection());
-
-        // Call interact event
-        PlayerInteractEvent playerInteractEvent = new PlayerInteractEvent(bukkitPlayer,
-            breaking ? Action.LEFT_CLICK_BLOCK : Action.RIGHT_CLICK_BLOCK, heldItem, blockClicked, blockFace);
-        if (!playerInteractEvent.callEvent()) {
-            if (sequenceId >= 0) {
-                player.connection.ackBlockChangesUpTo(sequenceId);
+        if (!blockHit.getLocation().equals(Vec3.ZERO)) {
+            org.bukkit.inventory.ItemStack heldItem;
+            if (hand == InteractionHand.MAIN_HAND) {
+                heldItem = bukkitPlayer.getInventory().getItemInMainHand();
+            } else {
+                heldItem = bukkitPlayer.getInventory().getItemInOffHand();
             }
-            return;
+
+            org.bukkit.block.Block blockClicked = bukkitPlayer.getWorld().getBlockAt(blockHit.getBlockPos().getX(),
+                    blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
+
+            BlockFace blockFace = CraftBlock.notchToBlockFace(blockHit.getDirection());
+
+            // Call interact event
+            PlayerInteractEvent playerInteractEvent = new PlayerInteractEvent(bukkitPlayer,
+                    breaking ? Action.LEFT_CLICK_BLOCK : Action.RIGHT_CLICK_BLOCK, heldItem, blockClicked, blockFace);
+            if (!playerInteractEvent.callEvent()) {
+                return;
+            }
         }
 
         CraftWorld world = player.level().getWorld();
@@ -123,6 +127,11 @@ public class SetBlockPacketListener implements PluginMessageListener {
 
                 BlockPos blockPos = entry.getKey();
                 BlockState blockState = entry.getValue();
+
+                // Disallow in unloaded chunks
+                if (!player.level().isLoaded(blockPos)) {
+                    continue;
+                }
 
                 // Check PlotSquared
                 if (blockState.isAir()) {
@@ -143,6 +152,11 @@ public class SetBlockPacketListener implements PluginMessageListener {
 
                 BlockPos blockPos = entry.getKey();
                 BlockState blockState = entry.getValue();
+
+                // Disallow in unloaded chunks
+                if (!player.level().isLoaded(blockPos)) {
+                    continue;
+                }
 
                 // Check PlotSquared
                 if (blockState.isAir()) {
@@ -254,15 +268,32 @@ public class SetBlockPacketListener implements PluginMessageListener {
 
         if (!breaking) {
             BlockPos clickedPos = blockPlaceContext.getClickedPos();
+
+            // Disallow in unloaded chunks
+            if (!player.level().isLoaded(clickedPos)) {
+                return;
+            }
+
+            BlockState desiredBlockState = blocks.get(clickedPos);
+            BlockState actualBlockState = player.level().getBlockState(clickedPos);
+            Block actualBlock = actualBlockState.getBlock();
+
+            // Ensure block is correct
+            if (desiredBlockState == null || desiredBlockState.isAir() || actualBlockState.isAir()) return;
+            if (desiredBlockState.getBlock() != actualBlock) return;
+
+            // Check plot squared
+            if (!PlotSquaredIntegration.canPlaceBlock(bukkitPlayer, new Location(world, clickedPos.getX(), clickedPos.getY(), clickedPos.getZ()))) {
+                return;
+            }
+
             ItemStack inHand = player.getItemInHand(hand);
-            BlockState blockState = player.level().getBlockState(clickedPos);
 
             BlockItem.updateCustomBlockEntityTag(player.level(), player, clickedPos, inHand);
-            blockState.getBlock().setPlacedBy(player.level(), clickedPos, blockState, player, inHand);
-        }
 
-        if (sequenceId >= 0) {
-            player.connection.ackBlockChangesUpTo(sequenceId);
+            if (!(actualBlock instanceof BedBlock) && !(actualBlock instanceof DoublePlantBlock) && !(actualBlock instanceof DoorBlock)) {
+                actualBlock.setPlacedBy(player.level(), clickedPos, actualBlockState, player, inHand);
+            }
         }
     }
 
