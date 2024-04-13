@@ -6,6 +6,7 @@ import com.moulberry.axiom.WorldExtension;
 import com.moulberry.axiom.buffer.BiomeBuffer;
 import com.moulberry.axiom.buffer.BlockBuffer;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
+import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.SectionPermissionChecker;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -147,7 +148,7 @@ public class SetBlockBufferPacketListener {
                         continue;
                     }
 
-                    SectionPermissionChecker checker = PlotSquaredIntegration.checkSection(player.getBukkitEntity(), world.getWorld(), cx, cy, cz);
+                    SectionPermissionChecker checker = Integration.checkSection(player.getBukkitEntity(), world.getWorld(), cx, cy, cz);
                     if (checker != null && checker.noneAllowed()) {
                         continue;
                     }
@@ -347,7 +348,7 @@ public class SetBlockBufferPacketListener {
 
                     var holder = registry.getHolder(biome);
                     if (holder.isPresent()) {
-                        if (!PlotSquaredIntegration.canPlaceBlock(player.getBukkitEntity(),
+                        if (!Integration.canPlaceBlock(player.getBukkitEntity(),
                             new Location(player.getBukkitEntity().getWorld(), x+1, y+1, z+1))) return;
 
                         container.set(x & 3, y & 3, z & 3, holder.get());
