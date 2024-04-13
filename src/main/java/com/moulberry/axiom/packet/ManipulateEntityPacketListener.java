@@ -2,6 +2,7 @@ package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
+import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
@@ -111,7 +112,7 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
             Vec3 position = entity.position();
             BlockPos containing = BlockPos.containing(position.x, position.y, position.z);
 
-            if (!PlotSquaredIntegration.canPlaceBlock(player, new Location(player.getWorld(),
+            if (!Integration.canPlaceBlock(player, new Location(player.getWorld(),
                     containing.getX(), containing.getY(), containing.getZ()))) {
                 continue;
             }
@@ -146,7 +147,7 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
 
                 containing = BlockPos.containing(newX, newY, newZ);
 
-                if (PlotSquaredIntegration.canPlaceBlock(player, new Location(player.getWorld(),
+                if (Integration.canPlaceBlock(player, new Location(player.getWorld(),
                         containing.getX(), containing.getY(), containing.getZ()))) {
                     entity.teleportTo(serverLevel, newX, newY, newZ, Set.of(), newYaw, newPitch);
                 }
@@ -177,7 +178,7 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
                         position = passenger.position();
                         containing = BlockPos.containing(position.x, position.y, position.z);
 
-                        if (!PlotSquaredIntegration.canPlaceBlock(player, new Location(player.getWorld(),
+                        if (!Integration.canPlaceBlock(player, new Location(player.getWorld(),
                                 containing.getX(), containing.getY(), containing.getZ()))) {
                             continue;
                         }

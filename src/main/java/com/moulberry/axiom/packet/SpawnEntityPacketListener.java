@@ -2,6 +2,7 @@ package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
+import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
@@ -76,7 +77,7 @@ public class SpawnEntityPacketListener implements PluginMessageListener {
                 continue;
             }
 
-            if (!PlotSquaredIntegration.canPlaceBlock(player, new Location(player.getWorld(),
+            if (!Integration.canPlaceBlock(player, new Location(player.getWorld(),
                     blockPos.getX(), blockPos.getY(), blockPos.getZ()))) {
                 continue;
             }

@@ -3,6 +3,8 @@ package com.moulberry.axiom.integration;
 import net.minecraft.core.BlockPos;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
+
 public record Box(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
 
     @Nullable
@@ -44,6 +46,27 @@ public record Box(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
         return null; // Not able to combine
     }
 
+    public static void combineAll(List<Box> boxes) {
+        main:
+        while (boxes.size() >= 2) {
+            for (int i = 0; i < boxes.size() - 1; i++) {
+                Box first = boxes.get(i);
+                for (int j = i + 1; j < boxes.size(); j++) {
+                    Box second = boxes.get(j);
+
+                    Box combined = first.tryCombine(second);
+                    if (combined != null) {
+                        boxes.remove(j);
+                        boxes.remove(i);
+                        boxes.add(combined);
+                        continue main;
+                    }
+                }
+            }
+            break;
+        }
+    }
+
     public boolean completelyOverlaps(Box other) {
         return this.minX() <= other.minX() && this.minY() <= other.minY() && this.minZ() <= other.minZ() &&
                 this.maxX() >= other.maxX() && this.maxY() >= other.maxY() && this.maxZ() >= other.maxZ();
@@ -52,6 +75,24 @@ public record Box(int minX, int minY, int minZ, int maxX, int maxY, int maxZ) {
     public boolean contains(int x, int y, int z) {
         return this.minX() <= x && this.minY() <= y && this.minZ() <= z &&
                 this.maxX() >= x && this.maxY() >= y && this.maxZ() >= z;
+    }
+
+    @Nullable
+    public static Box intersection(Box first, Box second) {
+        if (first.minX > second.maxX || second.minX > first.maxX ||
+                first.minY > second.maxY || second.minY > first.maxY ||
+                first.minZ > second.maxZ || second.minZ > first.maxZ) {
+            return null;
+        }
+
+        return new Box(
+            Math.max(first.minX, second.minX),
+            Math.max(first.minY, second.minY),
+            Math.max(first.minZ, second.minZ),
+            Math.min(first.maxX, second.maxX),
+            Math.min(first.maxY, second.maxY),
+            Math.min(first.maxZ, second.maxZ)
+        );
     }
 
     private static boolean areLineSegmentsContinuous(int min1, int max1, int min2, int max2) {
