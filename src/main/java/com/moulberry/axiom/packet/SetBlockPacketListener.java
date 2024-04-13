@@ -2,6 +2,7 @@ package com.moulberry.axiom.packet;
 
 import com.google.common.collect.Maps;
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
@@ -135,10 +136,10 @@ public class SetBlockPacketListener implements PluginMessageListener {
 
                 // Check PlotSquared
                 if (blockState.isAir()) {
-                    if (!PlotSquaredIntegration.canBreakBlock(bukkitPlayer, world.getBlockAt(blockPos.getX(), blockPos.getY(), blockPos.getZ()))) {
+                    if (!Integration.canBreakBlock(bukkitPlayer, world.getBlockAt(blockPos.getX(), blockPos.getY(), blockPos.getZ()))) {
                         continue;
                     }
-                } else if (!PlotSquaredIntegration.canPlaceBlock(bukkitPlayer, new Location(world, blockPos.getX(), blockPos.getY(), blockPos.getZ()))) {
+                } else if (!Integration.canPlaceBlock(bukkitPlayer, new Location(world, blockPos.getX(), blockPos.getY(), blockPos.getZ()))) {
                     continue;
                 }
 
@@ -160,10 +161,10 @@ public class SetBlockPacketListener implements PluginMessageListener {
 
                 // Check PlotSquared
                 if (blockState.isAir()) {
-                    if (!PlotSquaredIntegration.canBreakBlock(bukkitPlayer, world.getBlockAt(blockPos.getX(), blockPos.getY(), blockPos.getZ()))) {
+                    if (!Integration.canBreakBlock(bukkitPlayer, world.getBlockAt(blockPos.getX(), blockPos.getY(), blockPos.getZ()))) {
                         continue;
                     }
-                } else if (!PlotSquaredIntegration.canPlaceBlock(bukkitPlayer, new Location(world, blockPos.getX(), blockPos.getY(), blockPos.getZ()))) {
+                } else if (!Integration.canPlaceBlock(bukkitPlayer, new Location(world, blockPos.getX(), blockPos.getY(), blockPos.getZ()))) {
                     continue;
                 }
 
@@ -283,7 +284,7 @@ public class SetBlockPacketListener implements PluginMessageListener {
             if (desiredBlockState.getBlock() != actualBlock) return;
 
             // Check plot squared
-            if (!PlotSquaredIntegration.canPlaceBlock(bukkitPlayer, new Location(world, clickedPos.getX(), clickedPos.getY(), clickedPos.getZ()))) {
+            if (!Integration.canPlaceBlock(bukkitPlayer, new Location(world, clickedPos.getX(), clickedPos.getY(), clickedPos.getZ()))) {
                 return;
             }
 

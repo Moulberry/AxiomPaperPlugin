@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
@@ -55,7 +56,7 @@ public class DeleteEntityPacketListener implements PluginMessageListener {
             if (!whitelistedEntities.isEmpty() && !whitelistedEntities.contains(type)) continue;
             if (blacklistedEntities.contains(type)) continue;
 
-            if (!PlotSquaredIntegration.canBreakBlock(player,
+            if (!Integration.canBreakBlock(player,
                     player.getWorld().getBlockAt(entity.getBlockX(), entity.getBlockY(), entity.getBlockZ()))) {
                 continue;
             }

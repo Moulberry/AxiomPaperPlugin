@@ -245,24 +245,7 @@ public class PlotSquaredIntegrationImpl {
         }
 
         // Combine
-        main:
-        while (allowed.size() >= 2) {
-            for (int i = 0; i < allowed.size() - 1; i++) {
-                Box first = allowed.get(i);
-                for (int j = i + 1; j < allowed.size(); j++) {
-                    Box second = allowed.get(j);
-
-                    Box combined = first.tryCombine(second);
-                    if (combined != null) {
-                        allowed.remove(j);
-                        allowed.remove(i);
-                        allowed.add(combined);
-                        continue main;
-                    }
-                }
-            }
-            break;
-        }
+        Box.combineAll(allowed);
 
         return SectionPermissionChecker.fromAllowedBoxes(allowed);
     }
