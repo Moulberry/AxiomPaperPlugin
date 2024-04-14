@@ -19,8 +19,8 @@ public class Integration {
     }
 
     public static SectionPermissionChecker checkSection(Player player, World world, int cx, int cy, int cz) {
-        SectionPermissionChecker plotSquared = PlotSquaredIntegration.checkSection(player, world, cz, cy, cz);
-        SectionPermissionChecker worldGuard = WorldGuardIntegration.checkSection(player, world, cz, cy, cz);
+        SectionPermissionChecker plotSquared = PlotSquaredIntegration.checkSection(player, world, cx, cy, cz);
+        SectionPermissionChecker worldGuard = WorldGuardIntegration.checkSection(player, world, cx, cy, cz);
 
         return SectionPermissionChecker.combine(plotSquared, worldGuard);
     }
