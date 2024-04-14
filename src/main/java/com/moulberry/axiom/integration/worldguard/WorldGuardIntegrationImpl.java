@@ -17,6 +17,7 @@ import com.sk89q.worldguard.protection.managers.RegionManager;
 import com.sk89q.worldguard.protection.regions.*;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 
@@ -86,44 +87,14 @@ public class WorldGuardIntegrationImpl {
 
         List<BoxWithBoolean> finalRegions = new ArrayList<>();
 
-        region_loop:
         for (ProtectedRegion region : regions) {
             int priority = FlagValueCalculator.getPriorityOf(region);
 
             if (priority != lastPriority) {
                 lastPriority = priority;
 
-                if (!denyRegions.isEmpty()) {
-                    Box.combineAll(denyRegions);
-
-                    boolean finalRegionsWasEmpty = finalRegions.isEmpty();
-
-                    for (Box denyRegion : denyRegions) {
-                        finalRegions.add(new BoxWithBoolean(denyRegion, false));
-
-                        if (denyRegion.completelyOverlaps(sectionBox)) {
-                            if (finalRegionsWasEmpty) {
-                                return SectionPermissionChecker.NONE_ALLOWED;
-                            } else {
-                                break region_loop;
-                            }
-                        }
-                    }
-                }
-                if (!allowRegions.isEmpty()) {
-                    Box.combineAll(allowRegions);
-
-                    for (Box allowRegion : allowRegions) {
-                        finalRegions.add(new BoxWithBoolean(allowRegion, true));
-
-                        if (allowRegion.completelyOverlaps(sectionBox)) {
-                            if (finalRegions.size() == 1) {
-                                return SectionPermissionChecker.ALL_ALLOWED;
-                            } else {
-                                break region_loop;
-                            }
-                        }
-                    }
+                if (addRegions(sectionBox, denyRegions, allowRegions, finalRegions)) {
+                    break;
                 }
             }
 
@@ -164,6 +135,8 @@ public class WorldGuardIntegrationImpl {
                 continue;
             }
 
+            // todo: handle membership
+
             // The BUILD flag is implicitly set on every region where
             // PASSTHROUGH is not set to ALLOW
             // todo: handle passthrough
@@ -171,9 +144,42 @@ public class WorldGuardIntegrationImpl {
 //            }
         }
 
-        // todo: handle membership
+        addRegions(sectionBox, denyRegions, allowRegions, finalRegions);
 
         return SectionPermissionChecker.fromBoxWithBooleans(finalRegions, Flags.BUILD.getDefault() == StateFlag.State.ALLOW);
+    }
+
+    private static boolean addRegions(Box sectionBox, List<Box> denyRegions, List<Box> allowRegions, List<BoxWithBoolean> finalRegions) {
+        List<Box> denyRegionsCopy = new ArrayList<>(denyRegions);
+        denyRegions.clear();
+
+        List<Box> allowRegionsCopy = new ArrayList<>(allowRegions);
+        allowRegions.clear();
+
+        if (!denyRegionsCopy.isEmpty()) {
+            Box.combineAll(denyRegionsCopy);
+
+            for (Box denyRegion : denyRegionsCopy) {
+                finalRegions.add(new BoxWithBoolean(denyRegion, false));
+
+                if (denyRegion.completelyOverlaps(sectionBox)) {
+                    return true;
+                }
+            }
+        }
+        if (!allowRegionsCopy.isEmpty()) {
+            Box.combineAll(allowRegionsCopy);
+
+            for (Box allowRegion : allowRegionsCopy) {
+                finalRegions.add(new BoxWithBoolean(allowRegion, true));
+
+                if (allowRegion.completelyOverlaps(sectionBox)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
 }
