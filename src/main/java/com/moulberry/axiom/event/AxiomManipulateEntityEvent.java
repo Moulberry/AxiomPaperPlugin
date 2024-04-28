@@ -19,18 +19,31 @@ public class AxiomManipulateEntityEvent extends Event implements Cancellable {
 
     private final Player player;
     private final UUID entityUUID;
+    private final Location fromLocation;
     private final Location toLocation;
 
     private boolean cancelled = false;
 
-    public AxiomManipulateEntityEvent(Player player, UUID entityUUID, Location toLocation) {
+    public AxiomManipulateEntityEvent(Player player, Entity entity, Location toLocation) {
+        this.player = player;
+        this.entityUUID = entity.getUniqueId();
+        this.fromLocation = entity.getLocation();
+        this.toLocation = toLocation;
+    }
+
+    public AxiomManipulateEntityEvent(Player player, UUID entityUUID, Location fromLocation, Location toLocation) {
         this.player = player;
         this.entityUUID = entityUUID;
+        this.fromLocation = fromLocation;
         this.toLocation = toLocation;
     }
 
     public Player getPlayer() {
         return player;
+    }
+
+    public Location getFromLocation() {
+        return fromLocation;
     }
 
     public Location getToLocation() {

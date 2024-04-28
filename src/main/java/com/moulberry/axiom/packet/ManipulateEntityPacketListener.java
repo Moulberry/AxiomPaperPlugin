@@ -120,11 +120,16 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
             }
 
             if (entry.merge != null && !entry.merge.isEmpty()) {
+                final Location oldLocation = entity.getBukkitEntity().getLocation();
                 NbtSanitization.sanitizeEntity(entry.merge);
 
                 CompoundTag compoundTag = entity.saveWithoutId(new CompoundTag());
                 compoundTag = merge(compoundTag, entry.merge);
                 entity.load(compoundTag);
+
+                Location newLocation = new Location(serverLevel.getWorld(), position.x, position.y, position.z, entity.getBukkitYaw(), entity.getXRot());
+                AxiomManipulateEntityEvent manipulateEvent = new AxiomManipulateEntityEvent(player, entry.uuid, oldLocation, newLocation);
+                if (!manipulateEvent.callEvent()) continue;
             }
 
             entity.setPosRaw(position.x, position.y, position.z);
@@ -138,7 +143,7 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
                 float newPitch = entry.relativeMovementSet.contains(RelativeMovement.X_ROT) ? entity.getXRot() + entry.pitch : entry.pitch;
                 Location newLocation = new Location(serverLevel.getWorld(), newX, newY, newZ, newYaw, newPitch);
 
-                AxiomManipulateEntityEvent manipulateEvent = new AxiomManipulateEntityEvent(player, entity.getUUID(), newLocation);
+                AxiomManipulateEntityEvent manipulateEvent = new AxiomManipulateEntityEvent(player, entity.getBukkitEntity(), newLocation);
                 if (!manipulateEvent.callEvent()) continue;
 
                 if (entity instanceof HangingEntity hangingEntity) {
