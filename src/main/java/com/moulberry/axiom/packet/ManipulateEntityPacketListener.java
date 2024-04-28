@@ -4,9 +4,7 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.event.AxiomManipulateEntityEvent;
 import com.moulberry.axiom.integration.Integration;
-import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import io.netty.buffer.Unpooled;
-import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -119,17 +117,15 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
                 continue;
             }
 
+            AxiomManipulateEntityEvent manipulateEvent = new AxiomManipulateEntityEvent(player, entity.getBukkitEntity());
+            if (!manipulateEvent.callEvent()) continue;
+
             if (entry.merge != null && !entry.merge.isEmpty()) {
-                final Location oldLocation = entity.getBukkitEntity().getLocation();
                 NbtSanitization.sanitizeEntity(entry.merge);
 
                 CompoundTag compoundTag = entity.saveWithoutId(new CompoundTag());
                 compoundTag = merge(compoundTag, entry.merge);
                 entity.load(compoundTag);
-
-                Location newLocation = new Location(serverLevel.getWorld(), position.x, position.y, position.z, entity.getBukkitYaw(), entity.getXRot());
-                AxiomManipulateEntityEvent manipulateEvent = new AxiomManipulateEntityEvent(player, entry.uuid, oldLocation, newLocation);
-                if (!manipulateEvent.callEvent()) continue;
             }
 
             entity.setPosRaw(position.x, position.y, position.z);
@@ -141,10 +137,6 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
                 double newZ = entry.relativeMovementSet.contains(RelativeMovement.Z) ? entity.position().z + entryPos.z : entryPos.z;
                 float newYaw = entry.relativeMovementSet.contains(RelativeMovement.Y_ROT) ? entity.getYRot() + entry.yaw : entry.yaw;
                 float newPitch = entry.relativeMovementSet.contains(RelativeMovement.X_ROT) ? entity.getXRot() + entry.pitch : entry.pitch;
-                Location newLocation = new Location(serverLevel.getWorld(), newX, newY, newZ, newYaw, newPitch);
-
-                AxiomManipulateEntityEvent manipulateEvent = new AxiomManipulateEntityEvent(player, entity.getBukkitEntity(), newLocation);
-                if (!manipulateEvent.callEvent()) continue;
 
                 if (entity instanceof HangingEntity hangingEntity) {
                     float changedYaw = newYaw - entity.getYRot();
