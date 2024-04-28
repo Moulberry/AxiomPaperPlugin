@@ -2,9 +2,11 @@ package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
+import com.moulberry.axiom.event.AxiomManipulateEntityEvent;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import io.netty.buffer.Unpooled;
+import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -134,6 +136,10 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
                 double newZ = entry.relativeMovementSet.contains(RelativeMovement.Z) ? entity.position().z + entryPos.z : entryPos.z;
                 float newYaw = entry.relativeMovementSet.contains(RelativeMovement.Y_ROT) ? entity.getYRot() + entry.yaw : entry.yaw;
                 float newPitch = entry.relativeMovementSet.contains(RelativeMovement.X_ROT) ? entity.getXRot() + entry.pitch : entry.pitch;
+                Location newLocation = new Location(serverLevel.getWorld(), newX, newY, newZ, newYaw, newPitch);
+
+                AxiomManipulateEntityEvent manipulateEvent = new AxiomManipulateEntityEvent(player, entity.getUUID(), newLocation);
+                if (!manipulateEvent.callEvent()) continue;
 
                 if (entity instanceof HangingEntity hangingEntity) {
                     float changedYaw = newYaw - entity.getYRot();
@@ -149,7 +155,7 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
 
                 if (Integration.canPlaceBlock(player, new Location(player.getWorld(),
                         containing.getX(), containing.getY(), containing.getZ()))) {
-                    entity.teleportTo(serverLevel, newX, newY, newZ, Set.of(), newYaw, newPitch);
+                        entity.teleportTo(serverLevel, newX, newY, newZ, Set.of(), newYaw, newPitch);
                 }
 
                 entity.setYHeadRot(newYaw);
