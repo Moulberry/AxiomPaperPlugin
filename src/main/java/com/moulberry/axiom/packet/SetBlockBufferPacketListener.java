@@ -85,7 +85,7 @@ public class SetBlockBufferPacketListener {
         byte type = friendlyByteBuf.readByte();
         if (type == 0) {
             AtomicBoolean reachedRateLimit = new AtomicBoolean(false);
-            BlockBuffer buffer = BlockBuffer.load(friendlyByteBuf, rateLimiter, reachedRateLimit);
+            BlockBuffer buffer = BlockBuffer.load(friendlyByteBuf, rateLimiter, reachedRateLimit, this.plugin.getBlockRegistry(player.getUUID()));
             if (reachedRateLimit.get()) {
                 player.sendSystemMessage(Component.literal("[Axiom] Exceeded server rate-limit of " + (int)rateLimiter.getRate() + " sections per second")
                     .withStyle(ChatFormatting.RED));

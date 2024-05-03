@@ -4,6 +4,7 @@ import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
+import com.viaversion.viaversion.api.Via;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.*;
 import net.minecraft.core.BlockPos;
@@ -45,7 +46,7 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         long id = friendlyByteBuf.readLong();
 
-        if (!this.plugin.canUseAxiom(bukkitPlayer)) {
+        if (!this.plugin.canUseAxiom(bukkitPlayer) || this.plugin.hasCustomBlockRegistry(bukkitPlayer.getUniqueId())) {
             // We always send an 'empty' response in order to make the client happy
             sendEmptyResponse(player, id);
             return;
