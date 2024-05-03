@@ -7,6 +7,7 @@ import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.IdMapper;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
@@ -79,8 +80,9 @@ public class SetBlockPacketListener implements PluginMessageListener {
         // Read packet
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         IntFunction<Map<BlockPos, BlockState>> mapFunction = FriendlyByteBuf.limitValue(Maps::newLinkedHashMapWithExpectedSize, 512);
+        IdMapper<BlockState> registry = this.plugin.getBlockRegistry(bukkitPlayer.getUniqueId());
         Map<BlockPos, BlockState> blocks = friendlyByteBuf.readMap(mapFunction,
-                FriendlyByteBuf::readBlockPos, buf -> buf.readById(this.plugin.allowedBlockRegistry));
+                FriendlyByteBuf::readBlockPos, buf -> buf.readById(registry));
         boolean updateNeighbors = friendlyByteBuf.readBoolean();
 
         int reason = friendlyByteBuf.readVarInt();
@@ -129,6 +131,10 @@ public class SetBlockPacketListener implements PluginMessageListener {
                 BlockPos blockPos = entry.getKey();
                 BlockState blockState = entry.getValue();
 
+                if (blockState == null) {
+                    continue;
+                }
+
                 // Disallow in unloaded chunks
                 if (!player.level().isLoaded(blockPos)) {
                     continue;
@@ -153,6 +159,10 @@ public class SetBlockPacketListener implements PluginMessageListener {
 
                 BlockPos blockPos = entry.getKey();
                 BlockState blockState = entry.getValue();
+
+                if (blockState == null) {
+                    continue;
+                }
 
                 // Disallow in unloaded chunks
                 if (!player.level().isLoaded(blockPos)) {

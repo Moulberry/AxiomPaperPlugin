@@ -18,6 +18,7 @@ java {
 
 repositories {
     mavenCentral()
+    maven("https://repo.viaversion.com")
     maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
     maven("https://jitpack.io")
     maven("https://repo.papermc.io/repository/maven-public/")
@@ -30,6 +31,9 @@ dependencies {
 
     // Zstd Compression Library
     implementation("com.github.luben:zstd-jni:1.5.5-4")
+
+    // ViaVersion support
+    compileOnly("com.viaversion:viaversion-api:4.9.4-SNAPSHOT")
 
     // WorldGuard support
     compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.1.0-SNAPSHOT")

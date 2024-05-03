@@ -36,6 +36,7 @@ import org.bukkit.plugin.messaging.Messenger;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -49,6 +50,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     public final Set<UUID> activeAxiomPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
     public final Map<UUID, RateLimiter> playerBlockBufferRateLimiters = new ConcurrentHashMap<>();
     public final Map<UUID, Restrictions> playerRestrictions = new ConcurrentHashMap<>();
+    public final Map<UUID, IdMapper<BlockState>> playerBlockRegistry = new ConcurrentHashMap<>();
     public Configuration configuration;
 
     public IdMapper<BlockState> allowedBlockRegistry = null;
@@ -265,6 +267,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             activeAxiomPlayers.retainAll(stillActiveAxiomPlayers);
             playerBlockBufferRateLimiters.keySet().retainAll(stillActiveAxiomPlayers);
             playerRestrictions.keySet().retainAll(stillActiveAxiomPlayers);
+            playerBlockRegistry.keySet().retainAll(stillActiveAxiomPlayers);
         }, 20, 20);
 
         boolean sendMarkers = configuration.getBoolean("send-markers");
@@ -290,6 +293,14 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     public @Nullable RateLimiter getBlockBufferRateLimiter(UUID uuid) {
         return this.playerBlockBufferRateLimiters.get(uuid);
+    }
+
+    public boolean hasCustomBlockRegistry(UUID uuid) {
+        return this.playerBlockRegistry.containsKey(uuid);
+    }
+
+    public IdMapper<BlockState> getBlockRegistry(UUID uuid) {
+        return this.playerBlockRegistry.getOrDefault(uuid, this.allowedBlockRegistry);
     }
 
     private final WeakHashMap<World, ServerWorldPropertiesRegistry> worldProperties = new WeakHashMap<>();

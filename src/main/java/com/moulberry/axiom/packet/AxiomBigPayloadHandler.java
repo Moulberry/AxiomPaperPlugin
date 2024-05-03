@@ -62,8 +62,7 @@ public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
                     } else if (identifier.equals(UPLOAD_BLUEPRINT)) {
                         ServerPlayer player = connection.getPlayer();
                         if (AxiomPaper.PLUGIN.canUseAxiom(player.getBukkitEntity())) {
-                            player.getServer().execute(() -> uploadBlueprint.onReceive(player, buf));
-
+                            uploadBlueprint.onReceive(player, buf);
                             success = true;
                             in.skipBytes(in.readableBytes());
                             return;
@@ -74,8 +73,15 @@ public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
                             byte[] bytes = new byte[buf.writerIndex() - buf.readerIndex()];
                             buf.getBytes(buf.readerIndex(), bytes);
 
-                            player.getServer().execute(() -> requestChunkDataPacketListener.onPluginMessageReceived(
-                                identifier.toString(), player.getBukkitEntity(), bytes));
+                            player.getServer().execute(() -> {
+                                try {
+                                    requestChunkDataPacketListener.onPluginMessageReceived(
+                                            identifier.toString(), player.getBukkitEntity(), bytes);
+                                } catch (Throwable t) {
+                                    player.getBukkitEntity().kick(net.kyori.adventure.text.Component.text(
+                                            "An error occured while requesting chunk data: " + t.getMessage()));
+                                }
+                            });
 
                             success = true;
                             in.skipBytes(in.readableBytes());

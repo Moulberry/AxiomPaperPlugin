@@ -9,6 +9,7 @@ import it.unimi.dsi.fastutil.objects.ObjectSet;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.IdMapper;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -23,18 +24,16 @@ public class BlockBuffer {
 
     private final Long2ObjectMap<PalettedContainer<BlockState>> values;
 
+    private IdMapper<BlockState> registry;
     private PalettedContainer<BlockState> last = null;
     private long lastId = AxiomConstants.MIN_POSITION_LONG;
     private final Long2ObjectMap<Short2ObjectMap<CompressedBlockEntity>> blockEntities = new Long2ObjectOpenHashMap<>();
     private long totalBlockEntities = 0;
     private long totalBlockEntityBytes = 0;
 
-    public BlockBuffer() {
+    public BlockBuffer(IdMapper<BlockState> registry) {
         this.values = new Long2ObjectOpenHashMap<>();
-    }
-
-    public BlockBuffer(Long2ObjectMap<PalettedContainer<BlockState>> values) {
-        this.values = values;
+        this.registry = registry;
     }
 
     public void save(FriendlyByteBuf friendlyByteBuf) {
@@ -57,8 +56,9 @@ public class BlockBuffer {
         friendlyByteBuf.writeLong(AxiomConstants.MIN_POSITION_LONG);
     }
 
-    public static BlockBuffer load(FriendlyByteBuf friendlyByteBuf, @Nullable RateLimiter rateLimiter, AtomicBoolean reachedRateLimit) {
-        BlockBuffer buffer = new BlockBuffer();
+    public static BlockBuffer load(FriendlyByteBuf friendlyByteBuf, @Nullable RateLimiter rateLimiter, AtomicBoolean reachedRateLimit,
+                                   IdMapper<BlockState> registry) {
+        BlockBuffer buffer = new BlockBuffer(registry);
 
         long totalBlockEntities = 0;
         long totalBlockEntityBytes = 0;
@@ -177,7 +177,7 @@ public class BlockBuffer {
     public PalettedContainer<BlockState> getOrCreateSection(long id) {
         if (this.last == null || id != this.lastId) {
             this.lastId = id;
-            this.last = this.values.computeIfAbsent(id, k -> new PalettedContainer<>(AxiomPaper.PLUGIN.allowedBlockRegistry,
+            this.last = this.values.computeIfAbsent(id, k -> new PalettedContainer<>(this.registry,
                              EMPTY_STATE, PalettedContainer.Strategy.SECTION_STATES));
         }
 

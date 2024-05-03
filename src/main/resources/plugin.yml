@@ -8,7 +8,7 @@ api-version: "$apiVersion"
 permissions:
   axiom.*:
     description: Allows use of all default Axiom features
-    default: op
+    default: true # op
 
   axiom.entity.*:
     description: Allows use of all entity-related features (spawning, manipulating, deleting)
@@ -22,7 +22,7 @@ permissions:
 
   axiom.allow_copying_other_plots:
     description: This permission allows users to copy other user's plots
-    default: true
+    default: false # true
   axiom.can_import_blocks:
     description: Allows players to import schematics/blueprints into Axiom
     default: true

@@ -1,15 +1,17 @@
 package com.moulberry.axiom.packet;
 
 import com.google.common.util.concurrent.RateLimiter;
-import com.moulberry.axiom.AxiomConstants;
-import com.moulberry.axiom.AxiomPaper;
-import com.moulberry.axiom.View;
-import com.moulberry.axiom.WorldExtension;
+import com.moulberry.axiom.*;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.event.AxiomHandshakeEvent;
 import com.moulberry.axiom.persistence.ItemStackDataType;
 import com.moulberry.axiom.persistence.UUIDDataType;
+import com.moulberry.axiom.viaversion.ViaVersionHelper;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
+import com.viaversion.viaversion.api.Via;
+import com.viaversion.viaversion.api.data.*;
+import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
+import com.viaversion.viaversion.libs.opennbt.tag.builtin.CompoundTag;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -52,18 +54,52 @@ public class HelloPacketListener implements PluginMessageListener {
 
         int serverDataVersion = SharedConstants.getCurrentVersion().getDataVersion().getVersion();
         if (dataVersion != serverDataVersion) {
-            Component text = Component.text("Axiom: Incompatible data version detected (client " + dataVersion +
-                ", server " + serverDataVersion  + "), are you using ViaVersion?");
+            if (!Bukkit.getPluginManager().isPluginEnabled("ViaVersion")) {
+                Component text = Component.text("Axiom: Incompatible data version detected (client " + dataVersion +
+                    ", server " + serverDataVersion  + ")");
 
-            String incompatibleDataVersion = plugin.configuration.getString("incompatible-data-version");
-            if (incompatibleDataVersion == null) incompatibleDataVersion = "kick";
-            if (incompatibleDataVersion.equals("warn")) {
+                String incompatibleDataVersion = plugin.configuration.getString("incompatible-data-version");
+                if (incompatibleDataVersion == null) incompatibleDataVersion = "kick";
+                if (incompatibleDataVersion.equals("warn")) {
+                    player.sendMessage(text.color(NamedTextColor.RED));
+                    return;
+                } else if (!incompatibleDataVersion.equals("ignore")) {
+                    player.kick(text);
+                    return;
+                }
+            } else {
+//                int playerVersion = Via.getAPI().getPlayerVersion(player.getUniqueId());
+//                if (ProtocolVersion.isRegistered(playerVersion)) {
+//                    ProtocolVersion version = ProtocolVersion.getProtocol(playerVersion);
+//                    String name = version.getName().split("/")[0];
+//
+//
+//                }
+
+                CompoundTag tag = MappingDataLoader.loadNBT("mappings-1.20.2to1.20.3.nbt");
+
+                if (tag == null) {
+                    player.kick(Component.text("Axiom+ViaVersion: Failed to load mappings (1.20.2 <-> 1.20.3)"));
+                    return;
+                }
+
+                Mappings mappings = MappingDataLoader.loadMappings(tag, "blockstates");
+
+                if (mappings == null) {
+                    player.kick(Component.text("Axiom+ViaVersion: Failed to load mapped blockstates (1.20.2 <-> 1.20.3"));
+                    return;
+                }
+
+                this.plugin.playerBlockRegistry.put(player.getUniqueId(), ViaVersionHelper.applyMappings(this.plugin.allowedBlockRegistry,
+                        BiMappings.of(mappings).inverse()));
+
+                Component text = Component.text("Axiom: Warning, client and server versions don't match. " +
+                        "Axiom will try to use ViaVersion conversions, but this process may cause problems");
                 player.sendMessage(text.color(NamedTextColor.RED));
-                return;
-            } else if (!incompatibleDataVersion.equals("ignore")) {
-                player.kick(text);
-                return;
             }
+//            inverse.getNewIdOrDefault()
+
+
         }
 
         if (apiVersion != AxiomConstants.API_VERSION) {
