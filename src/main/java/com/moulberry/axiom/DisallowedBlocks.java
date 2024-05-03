@@ -3,6 +3,7 @@ package com.moulberry.axiom;
 import com.mojang.brigadier.StringReader;
 import com.mojang.datafixers.util.Either;
 import com.moulberry.axiom.buffer.BlockBuffer;
+import com.viaversion.viaversion.api.data.Mappings;
 import net.minecraft.commands.arguments.blocks.BlockPredicateArgument;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.core.IdMapper;

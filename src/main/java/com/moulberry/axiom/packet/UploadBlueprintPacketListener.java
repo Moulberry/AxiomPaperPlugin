@@ -47,25 +47,34 @@ public class UploadBlueprintPacketListener  {
             return;
         }
 
-        Path path = this.plugin.blueprintFolder.resolve(relative);
+        String pathName = pathStr.substring(0, pathStr.length()-3);
 
-        // Write file
-        try {
-            Files.createDirectories(path.getParent());
-        } catch (IOException e) {
-            return;
-        }
-        try (OutputStream outputStream = new BufferedOutputStream(Files.newOutputStream(path))) {
-            BlueprintIo.writeRaw(outputStream, rawBlueprint);
-        } catch (IOException e) {
-            return;
-        }
+        serverPlayer.getServer().execute(() -> {
+            try {
+                Path path = this.plugin.blueprintFolder.resolve(relative);
 
-        // Update registry
-        registry.blueprints().put("/" + pathStr.substring(0, pathStr.length()-3), rawBlueprint);
+                // Write file
+                try {
+                    Files.createDirectories(path.getParent());
+                } catch (IOException e) {
+                    return;
+                }
+                try (OutputStream outputStream = new BufferedOutputStream(Files.newOutputStream(path))) {
+                    BlueprintIo.writeRaw(outputStream, rawBlueprint);
+                } catch (IOException e) {
+                    return;
+                }
 
-        // Resend manifest
-        ServerBlueprintManager.sendManifest(serverPlayer.getServer().getPlayerList().getPlayers());
+                // Update registry
+                registry.blueprints().put("/" + pathName, rawBlueprint);
+
+                // Resend manifest
+                ServerBlueprintManager.sendManifest(serverPlayer.getServer().getPlayerList().getPlayers());
+            } catch (Throwable t) {
+                serverPlayer.getBukkitEntity().kick(net.kyori.adventure.text.Component.text(
+                        "An error occured while uploading blueprint: " + t.getMessage()));
+            }
+        });
     }
 
 }
