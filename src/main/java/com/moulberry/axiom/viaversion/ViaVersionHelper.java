@@ -1,8 +1,8 @@
 package com.moulberry.axiom.viaversion;
 
+import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.buffer.BlockBuffer;
 import com.viaversion.viaversion.api.Via;
-import com.viaversion.viaversion.api.data.BiMappings;
 import com.viaversion.viaversion.api.data.MappingData;
 import com.viaversion.viaversion.api.data.Mappings;
 import com.viaversion.viaversion.api.protocol.ProtocolPathEntry;
@@ -11,18 +11,12 @@ import com.viaversion.viaversion.api.type.Type;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.IdMapper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -104,7 +98,7 @@ public class ViaVersionHelper {
     private static final int UNNAMED_COMPOUND_TAG_CHANGE_VERSION = ProtocolVersion.v1_20_2.getVersion();
 
     public static void skipTagUnknown(FriendlyByteBuf friendlyByteBuf, Player player) {
-        if (Bukkit.getPluginManager().isPluginEnabled("ViaVersion")) {
+        if (AxiomPaper.PLUGIN.isMismatchedDataVersion(player.getUniqueId())) {
             int playerVersion = Via.getAPI().getPlayerVersion(player.getUniqueId());
             try {
                 ViaVersionHelper.skipTagViaVersion(friendlyByteBuf, playerVersion);
@@ -117,7 +111,7 @@ public class ViaVersionHelper {
     }
 
     public static CompoundTag readTagUnknown(FriendlyByteBuf friendlyByteBuf, Player player) {
-        if (Bukkit.getPluginManager().isPluginEnabled("ViaVersion")) {
+        if (AxiomPaper.PLUGIN.isMismatchedDataVersion(player.getUniqueId())) {
             int playerVersion = Via.getAPI().getPlayerVersion(player.getUniqueId());
             try {
                 return ViaVersionHelper.readTagViaVersion(friendlyByteBuf, playerVersion);
