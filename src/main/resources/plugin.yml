@@ -8,8 +8,10 @@ api-version: "$apiVersion"
 permissions:
   axiom.*:
     description: Allows use of all default Axiom features
-    default: true # op
-
+    default: op
+  axiom.debug:
+    description: Allows use of the /axiompaperdebug command
+    default: op
   axiom.entity.*:
     description: Allows use of all entity-related features (spawning, manipulating, deleting)
     default: op

@@ -34,15 +34,19 @@ public class WorldGuardIntegrationImpl {
     private static boolean testBuild(Player player, org.bukkit.Location loc, StateFlag flag) {
         WorldGuardPlatform platform = WorldGuard.getInstance().getPlatform();
 
+        com.sk89q.worldedit.world.World worldEditWorld = BukkitAdapter.adapt(loc.getWorld());
+        LocalPlayer worldGuardPlayer = WorldGuardPlugin.inst().wrapPlayer(player);
+
+        if (platform.getSessionManager().hasBypass(worldGuardPlayer, worldEditWorld)) {
+            return true;
+        }
+
         RegionContainer regionContainer = platform.getRegionContainer();
         if (regionContainer == null) {
             return true;
         }
 
         RegionQuery query = regionContainer.createQuery();
-
-        LocalPlayer worldGuardPlayer = WorldGuardPlugin.inst().wrapPlayer(player);
-
         return query.testBuild(BukkitAdapter.adapt(loc), worldGuardPlayer, flag);
     }
 
@@ -118,12 +122,12 @@ public class WorldGuardIntegrationImpl {
                     BlockVector3 regionMin = region.getMinimumPoint();
                     BlockVector3 regionMax = region.getMaximumPoint();
 
-                    int regionMinX = Math.max(regionMin.getBlockX(), cx*16) - minX;
-                    int regionMinY = Math.max(regionMin.getBlockY(), cy*16) - minY;
-                    int regionMinZ = Math.max(regionMin.getBlockZ(), cz*16) - minZ;
-                    int regionMaxX = Math.min(regionMax.getBlockX(), cx*16+15) - minX;
-                    int regionMaxY = Math.min(regionMax.getBlockY(), cy*16+15) - minY;
-                    int regionMaxZ = Math.min(regionMax.getBlockZ(), cz*16+15) - minZ;
+                    int regionMinX = Math.max(regionMin.getX(), cx*16) - minX;
+                    int regionMinY = Math.max(regionMin.getY(), cy*16) - minY;
+                    int regionMinZ = Math.max(regionMin.getZ(), cz*16) - minZ;
+                    int regionMaxX = Math.min(regionMax.getX(), cx*16+15) - minX;
+                    int regionMaxY = Math.min(regionMax.getY(), cy*16+15) - minY;
+                    int regionMaxZ = Math.min(regionMax.getZ(), cz*16+15) - minZ;
 
                     Box box = new Box(regionMinX, regionMinY, regionMinZ, regionMaxX, regionMaxY, regionMaxZ);
                     if (value == StateFlag.State.DENY) {

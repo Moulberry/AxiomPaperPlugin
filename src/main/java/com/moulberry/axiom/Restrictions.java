@@ -61,4 +61,16 @@ public class Restrictions {
         }
     }
 
+    @Override
+    public String toString() {
+        return "Restrictions{" +
+            "canImportBlocks=" + canImportBlocks +
+            ", canUseEditor=" + canUseEditor +
+            ", canEditDisplayEntities=" + canEditDisplayEntities +
+            ", maxSectionsPerSecond=" + maxSectionsPerSecond +
+            ", boundsMin=" + boundsMin +
+            ", boundsMax=" + boundsMax +
+            ", lastPlotBounds=" + lastPlotBounds +
+            '}';
+    }
 }
