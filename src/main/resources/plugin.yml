@@ -24,7 +24,7 @@ permissions:
 
   axiom.allow_copying_other_plots:
     description: This permission allows users to copy other user's plots
-    default: false # true
+    default: true
   axiom.can_import_blocks:
     description: Allows players to import schematics/blueprints into Axiom
     default: true
