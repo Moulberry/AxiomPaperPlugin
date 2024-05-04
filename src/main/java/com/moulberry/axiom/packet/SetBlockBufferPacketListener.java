@@ -340,14 +340,14 @@ public class SetBlockBufferPacketListener {
                         return;
                     }
 
-                    var chunk = (LevelChunk) world.getChunk(x >> 2, z >> 2, ChunkStatus.FULL, false);
-                    if (chunk == null) return;
-
-                    var section = chunk.getSection(cy - minSection);
-                    PalettedContainer<Holder<Biome>> container = (PalettedContainer<Holder<Biome>>) section.getBiomes();
-
                     var holder = registry.getHolder(biome);
                     if (holder.isPresent()) {
+                        var chunk = (LevelChunk) world.getChunk(x >> 2, z >> 2, ChunkStatus.FULL, false);
+                        if (chunk == null) return;
+
+                        var section = chunk.getSection(cy - minSection);
+                        PalettedContainer<Holder<Biome>> container = (PalettedContainer<Holder<Biome>>) section.getBiomes();
+
                         if (!Integration.canPlaceBlock(player.getBukkitEntity(),
                             new Location(player.getBukkitEntity().getWorld(), x+1, y+1, z+1))) return;
 

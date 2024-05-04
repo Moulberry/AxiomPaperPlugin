@@ -3,6 +3,7 @@ package com.moulberry.axiom.packet;
 import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.persistence.ItemStackDataType;
+import com.viaversion.viaversion.api.Via;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import org.bukkit.NamespacedKey;
@@ -22,7 +23,7 @@ public class SetHotbarSlotPacketListener implements PluginMessageListener {
 
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        if (!this.plugin.canUseAxiom(player)) {
+        if (!this.plugin.canUseAxiom(player) || this.plugin.isMismatchedDataVersion(player.getUniqueId())) {
             return;
         }
 

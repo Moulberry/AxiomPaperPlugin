@@ -5,7 +5,9 @@ import com.moulberry.axiom.blueprint.BlueprintIo;
 import com.moulberry.axiom.blueprint.RawBlueprint;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.blueprint.ServerBlueprintRegistry;
+import net.minecraft.SharedConstants;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.io.BufferedOutputStream;
@@ -23,6 +25,11 @@ public class UploadBlueprintPacketListener  {
 
     public void onReceive(ServerPlayer serverPlayer, FriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(serverPlayer.getBukkitEntity())) {
+            return;
+        }
+
+        if (this.plugin.isMismatchedDataVersion(serverPlayer.getUUID())) {
+            serverPlayer.sendSystemMessage(Component.literal("Axiom+ViaVersion: This feature isn't supported. Switch your client version to " + SharedConstants.VERSION_STRING + " to use this"));
             return;
         }
 

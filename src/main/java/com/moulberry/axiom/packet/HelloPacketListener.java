@@ -10,13 +10,16 @@ import com.moulberry.axiom.viaversion.ViaVersionHelper;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import com.viaversion.viaversion.api.Via;
 import com.viaversion.viaversion.api.data.*;
+import com.viaversion.viaversion.api.protocol.ProtocolPathEntry;
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
 import com.viaversion.viaversion.libs.opennbt.tag.builtin.CompoundTag;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minecraft.SharedConstants;
+import net.minecraft.core.IdMapper;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
@@ -54,12 +57,13 @@ public class HelloPacketListener implements PluginMessageListener {
 
         int serverDataVersion = SharedConstants.getCurrentVersion().getDataVersion().getVersion();
         if (dataVersion != serverDataVersion) {
+            String incompatibleDataVersion = plugin.configuration.getString("incompatible-data-version");
+            if (incompatibleDataVersion == null) incompatibleDataVersion = "warn";
+
             if (!Bukkit.getPluginManager().isPluginEnabled("ViaVersion")) {
                 Component text = Component.text("Axiom: Incompatible data version detected (client " + dataVersion +
                     ", server " + serverDataVersion  + ")");
 
-                String incompatibleDataVersion = plugin.configuration.getString("incompatible-data-version");
-                if (incompatibleDataVersion == null) incompatibleDataVersion = "kick";
                 if (incompatibleDataVersion.equals("warn")) {
                     player.sendMessage(text.color(NamedTextColor.RED));
                     return;
@@ -68,38 +72,32 @@ public class HelloPacketListener implements PluginMessageListener {
                     return;
                 }
             } else {
-//                int playerVersion = Via.getAPI().getPlayerVersion(player.getUniqueId());
-//                if (ProtocolVersion.isRegistered(playerVersion)) {
-//                    ProtocolVersion version = ProtocolVersion.getProtocol(playerVersion);
-//                    String name = version.getName().split("/")[0];
-//
-//
-//                }
+                int playerVersion = Via.getAPI().getPlayerVersion(player.getUniqueId());
 
-                CompoundTag tag = MappingDataLoader.loadNBT("mappings-1.20.2to1.20.3.nbt");
+                IdMapper<BlockState> mapper;
+                try {
+                    mapper = ViaVersionHelper.getBlockRegistryForVersion(this.plugin.allowedBlockRegistry, playerVersion);
+                } catch (Exception e) {
+                    String clientDescription = "client: " + ProtocolVersion.getProtocol(playerVersion);
+                    String serverDescription = "server: " + ProtocolVersion.getProtocol(SharedConstants.getProtocolVersion());
+                    String description = clientDescription + " <-> " + serverDescription;
+                    Component text = Component.text("Axiom+ViaVersion: " + e.getMessage() + " (" + description + ")");
 
-                if (tag == null) {
-                    player.kick(Component.text("Axiom+ViaVersion: Failed to load mappings (1.20.2 <-> 1.20.3)"));
+                    if (incompatibleDataVersion.equals("warn")) {
+                        player.sendMessage(text.color(NamedTextColor.RED));
+                    } else {
+                        player.kick(text);
+                    }
                     return;
                 }
 
-                Mappings mappings = MappingDataLoader.loadMappings(tag, "blockstates");
-
-                if (mappings == null) {
-                    player.kick(Component.text("Axiom+ViaVersion: Failed to load mapped blockstates (1.20.2 <-> 1.20.3"));
-                    return;
-                }
-
-                this.plugin.playerBlockRegistry.put(player.getUniqueId(), ViaVersionHelper.applyMappings(this.plugin.allowedBlockRegistry,
-                        BiMappings.of(mappings).inverse()));
+                this.plugin.playerBlockRegistry.put(player.getUniqueId(), mapper);
+                this.plugin.mismatchedDataVersionUsingViaVersion.add(player.getUniqueId());
 
                 Component text = Component.text("Axiom: Warning, client and server versions don't match. " +
                         "Axiom will try to use ViaVersion conversions, but this process may cause problems");
                 player.sendMessage(text.color(NamedTextColor.RED));
             }
-//            inverse.getNewIdOrDefault()
-
-
         }
 
         if (apiVersion != AxiomConstants.API_VERSION) {
@@ -121,7 +119,7 @@ public class HelloPacketListener implements PluginMessageListener {
             Component text = Component.text("This server requires the use of Axiom 2.3 or later. Contact the server administrator if you believe this is unintentional");
 
             String unsupportedRestrictions = plugin.configuration.getString("client-doesnt-support-restrictions");
-            if (unsupportedRestrictions == null) unsupportedRestrictions = "kick";
+            if (unsupportedRestrictions == null) unsupportedRestrictions = "warn";
             if (unsupportedRestrictions.equals("warn")) {
                 player.sendMessage(text.color(NamedTextColor.RED));
                 return;
@@ -161,24 +159,26 @@ public class HelloPacketListener implements PluginMessageListener {
 
         // Initialize Hotbars
         PersistentDataContainer container = player.getPersistentDataContainer();
-        int activeHotbarIndex = container.getOrDefault(AxiomConstants.ACTIVE_HOTBAR_INDEX, PersistentDataType.BYTE, (byte) 0);
-        PersistentDataContainer hotbarItems = container.get(AxiomConstants.HOTBAR_DATA, PersistentDataType.TAG_CONTAINER);
-        if (hotbarItems != null) {
-            buf = new FriendlyByteBuf(Unpooled.buffer());
-            buf.writeByte((byte) activeHotbarIndex);
-            for (int i=0; i<9*9; i++) {
-                // Ignore selected hotbar
-                if (i / 9 == activeHotbarIndex) {
-                    buf.writeItem(net.minecraft.world.item.ItemStack.EMPTY);
-                } else {
-                    ItemStack stack = hotbarItems.get(new NamespacedKey("axiom", "slot_"+i), ItemStackDataType.INSTANCE);
-                    buf.writeItem(CraftItemStack.asNMSCopy(stack));
+        if (!this.plugin.isMismatchedDataVersion(player.getUniqueId())) {
+            int activeHotbarIndex = container.getOrDefault(AxiomConstants.ACTIVE_HOTBAR_INDEX, PersistentDataType.BYTE, (byte) 0);
+            PersistentDataContainer hotbarItems = container.get(AxiomConstants.HOTBAR_DATA, PersistentDataType.TAG_CONTAINER);
+            if (hotbarItems != null) {
+                buf = new FriendlyByteBuf(Unpooled.buffer());
+                buf.writeByte((byte) activeHotbarIndex);
+                for (int i=0; i<9*9; i++) {
+                    // Ignore selected hotbar
+                    if (i / 9 == activeHotbarIndex) {
+                        buf.writeItem(net.minecraft.world.item.ItemStack.EMPTY);
+                    } else {
+                        ItemStack stack = hotbarItems.get(new NamespacedKey("axiom", "slot_"+i), ItemStackDataType.INSTANCE);
+                        buf.writeItem(CraftItemStack.asNMSCopy(stack));
+                    }
                 }
-            }
 
-            byte[] bytes = new byte[buf.writerIndex()];
-            buf.getBytes(0, bytes);
-            player.sendPluginMessage(this.plugin, "axiom:initialize_hotbars", bytes);
+                byte[] bytes = new byte[buf.writerIndex()];
+                buf.getBytes(0, bytes);
+                player.sendPluginMessage(this.plugin, "axiom:initialize_hotbars", bytes);
+            }
         }
 
         // Initialize Views
