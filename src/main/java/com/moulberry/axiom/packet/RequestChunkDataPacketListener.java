@@ -7,6 +7,7 @@ import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.viaversion.viaversion.api.Via;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.*;
+import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
@@ -41,7 +42,15 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
     }
 
     @Override
-    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player bukkitPlayer, @NotNull byte[] message) {
+    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
+        try {
+            this.process(player, message);
+        } catch (Throwable t) {
+            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
+        }
+    }
+
+    private void process(Player bukkitPlayer, byte[] message) {
         ServerPlayer player = ((CraftPlayer)bukkitPlayer).getHandle();
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         long id = friendlyByteBuf.readLong();
