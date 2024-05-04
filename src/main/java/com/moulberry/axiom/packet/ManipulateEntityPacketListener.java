@@ -4,6 +4,7 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
+import com.moulberry.axiom.viaversion.ViaVersionHelper;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -46,7 +47,7 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
 
     public record ManipulateEntry(UUID uuid, @Nullable Set<RelativeMovement> relativeMovementSet, @Nullable Vec3 position,
                                   float yaw, float pitch, CompoundTag merge, PassengerManipulation passengerManipulation, List<UUID> passengers) {
-        public static ManipulateEntry read(FriendlyByteBuf friendlyByteBuf) {
+        public static ManipulateEntry read(FriendlyByteBuf friendlyByteBuf, Player player) {
             UUID uuid = friendlyByteBuf.readUUID();
 
             int flags = friendlyByteBuf.readByte();
@@ -61,7 +62,7 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
                 pitch = friendlyByteBuf.readFloat();
             }
 
-            CompoundTag nbt = friendlyByteBuf.readNbt();
+            CompoundTag nbt = ViaVersionHelper.readTagUnknown(friendlyByteBuf, player);
 
             PassengerManipulation passengerManipulation = friendlyByteBuf.readEnum(PassengerManipulation.class);
             List<UUID> passengers = List.of();
@@ -93,7 +94,7 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
 
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         List<ManipulateEntry> entries = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
-            ManipulateEntry::read);
+            buf -> ManipulateEntry.read(buf, player));
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();
 
