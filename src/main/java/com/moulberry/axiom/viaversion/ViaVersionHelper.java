@@ -6,13 +6,22 @@ import com.viaversion.viaversion.api.data.BiMappings;
 import com.viaversion.viaversion.api.data.MappingData;
 import com.viaversion.viaversion.api.data.Mappings;
 import com.viaversion.viaversion.api.protocol.ProtocolPathEntry;
+import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
+import com.viaversion.viaversion.api.type.Type;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.IdMapper;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
@@ -90,6 +99,66 @@ public class ViaVersionHelper {
         }
 
         return newBlockRegistry;
+    }
+
+    private static final int UNNAMED_COMPOUND_TAG_CHANGE_VERSION = ProtocolVersion.v1_20_2.getVersion();
+
+    public static void skipTagUnknown(FriendlyByteBuf friendlyByteBuf, Player player) {
+        if (Bukkit.getPluginManager().isPluginEnabled("ViaVersion")) {
+            int playerVersion = Via.getAPI().getPlayerVersion(player.getUniqueId());
+            try {
+                ViaVersionHelper.skipTagViaVersion(friendlyByteBuf, playerVersion);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            friendlyByteBuf.readNbt(); // Discard
+        }
+    }
+
+    public static CompoundTag readTagUnknown(FriendlyByteBuf friendlyByteBuf, Player player) {
+        if (Bukkit.getPluginManager().isPluginEnabled("ViaVersion")) {
+            int playerVersion = Via.getAPI().getPlayerVersion(player.getUniqueId());
+            try {
+                return ViaVersionHelper.readTagViaVersion(friendlyByteBuf, playerVersion);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        } else {
+            return friendlyByteBuf.readNbt();
+        }
+    }
+
+    public static void skipTagViaVersion(FriendlyByteBuf friendlyByteBuf, int playerVersion) throws Exception {
+        getTagType(playerVersion).read(friendlyByteBuf);
+    }
+
+    public static CompoundTag readTagViaVersion(FriendlyByteBuf friendlyByteBuf, int playerVersion) throws Exception {
+        Type<com.viaversion.viaversion.libs.opennbt.tag.builtin.CompoundTag> from = getTagType(playerVersion);
+        Type<com.viaversion.viaversion.libs.opennbt.tag.builtin.CompoundTag> to = getTagType(SharedConstants.getProtocolVersion());
+
+        return readTagViaVersion(friendlyByteBuf, from, to);
+    }
+
+    private static Type<com.viaversion.viaversion.libs.opennbt.tag.builtin.CompoundTag> getTagType(int version) {
+        if (version < UNNAMED_COMPOUND_TAG_CHANGE_VERSION) {
+            return Type.NAMED_COMPOUND_TAG;
+        } else {
+            return Type.COMPOUND_TAG;
+        }
+    }
+
+    private static CompoundTag readTagViaVersion(FriendlyByteBuf friendlyByteBuf,
+            Type<com.viaversion.viaversion.libs.opennbt.tag.builtin.CompoundTag> from,
+            Type<com.viaversion.viaversion.libs.opennbt.tag.builtin.CompoundTag> to) throws Exception {
+        if (from == to) {
+            return friendlyByteBuf.readNbt();
+        }
+
+        com.viaversion.viaversion.libs.opennbt.tag.builtin.CompoundTag tag = from.read(friendlyByteBuf);
+        ByteBuf buffer = Unpooled.buffer();
+        to.write(buffer, tag);
+        return new FriendlyByteBuf(buffer).readNbt();
     }
 
 }
