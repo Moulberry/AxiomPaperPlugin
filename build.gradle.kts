@@ -34,7 +34,7 @@ dependencies {
     implementation("com.github.luben:zstd-jni:1.5.5-4")
 
     // ViaVersion support
-    compileOnly("com.viaversion:viaversion-api:4.9.4-SNAPSHOT")
+    compileOnly("com.viaversion:viaversion-api:4.10.1-SNAPSHOT")
 
     // WorldGuard support
     compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.1.0-SNAPSHOT")

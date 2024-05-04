@@ -56,7 +56,7 @@ public class HelloPacketListener implements PluginMessageListener {
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         int apiVersion = friendlyByteBuf.readVarInt();
         int dataVersion = friendlyByteBuf.readVarInt();
-        ViaVersionHelper.skipTagUnknown(friendlyByteBuf, player);
+        // note - skipping NBT here. friendlyByteBuf.readNBT();
 
         int serverDataVersion = SharedConstants.getCurrentVersion().getDataVersion().getVersion();
         if (dataVersion != serverDataVersion) {
