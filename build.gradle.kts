@@ -28,6 +28,7 @@ repositories {
 dependencies {
     paperweight.paperDevBundle("1.20.4-R0.1-SNAPSHOT")
     implementation("xyz.jpenilla:reflection-remapper:0.1.0-SNAPSHOT")
+    implementation("org.incendo:cloud-paper:2.0.0-beta.2")
 
     // Zstd Compression Library
     implementation("com.github.luben:zstd-jni:1.5.5-4")
