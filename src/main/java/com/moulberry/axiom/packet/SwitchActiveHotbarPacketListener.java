@@ -25,7 +25,7 @@ public class SwitchActiveHotbarPacketListener implements PluginMessageListener {
 
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        if (!this.plugin.canUseAxiom(player)) {
+        if (!this.plugin.canUseAxiom(player) || this.plugin.isMismatchedDataVersion(player.getUniqueId())) {
             return;
         }
 

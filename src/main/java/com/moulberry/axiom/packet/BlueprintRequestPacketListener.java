@@ -6,6 +6,8 @@ import com.moulberry.axiom.blueprint.RawBlueprint;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.blueprint.ServerBlueprintRegistry;
 import io.netty.buffer.Unpooled;
+import net.kyori.adventure.text.Component;
+import net.minecraft.SharedConstants;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
@@ -27,6 +29,11 @@ public class BlueprintRequestPacketListener implements PluginMessageListener {
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
         if (!this.plugin.canUseAxiom(player)) {
+            return;
+        }
+
+        if (this.plugin.isMismatchedDataVersion(player.getUniqueId())) {
+            player.sendMessage(Component.text("Axiom+ViaVersion: This feature isn't supported. Switch your client version to " + SharedConstants.VERSION_STRING + " to use this"));
             return;
         }
 

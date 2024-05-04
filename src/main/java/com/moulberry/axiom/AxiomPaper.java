@@ -51,6 +51,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     public final Map<UUID, RateLimiter> playerBlockBufferRateLimiters = new ConcurrentHashMap<>();
     public final Map<UUID, Restrictions> playerRestrictions = new ConcurrentHashMap<>();
     public final Map<UUID, IdMapper<BlockState>> playerBlockRegistry = new ConcurrentHashMap<>();
+    public final Set<UUID> mismatchedDataVersionUsingViaVersion = Collections.newSetFromMap(new ConcurrentHashMap<>());
     public Configuration configuration;
 
     public IdMapper<BlockState> allowedBlockRegistry = null;
@@ -268,6 +269,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             playerBlockBufferRateLimiters.keySet().retainAll(stillActiveAxiomPlayers);
             playerRestrictions.keySet().retainAll(stillActiveAxiomPlayers);
             playerBlockRegistry.keySet().retainAll(stillActiveAxiomPlayers);
+            mismatchedDataVersionUsingViaVersion.retainAll(stillActiveAxiomPlayers);
         }, 20, 20);
 
         boolean sendMarkers = configuration.getBoolean("send-markers");
@@ -295,8 +297,8 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         return this.playerBlockBufferRateLimiters.get(uuid);
     }
 
-    public boolean hasCustomBlockRegistry(UUID uuid) {
-        return this.playerBlockRegistry.containsKey(uuid);
+    public boolean isMismatchedDataVersion(UUID uuid) {
+        return this.mismatchedDataVersionUsingViaVersion.contains(uuid);
     }
 
     public IdMapper<BlockState> getBlockRegistry(UUID uuid) {
