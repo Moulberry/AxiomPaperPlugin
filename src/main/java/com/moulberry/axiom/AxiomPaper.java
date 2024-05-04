@@ -9,6 +9,7 @@ import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.*;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.papermc.paper.event.player.PlayerFailMoveEvent;
@@ -18,12 +19,15 @@ import io.papermc.paper.network.ChannelInitializeListenerHolder;
 import net.kyori.adventure.key.Key;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.IdMapper;
-import net.minecraft.network.Connection;
-import net.minecraft.network.ConnectionProtocol;
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.*;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.network.protocol.common.custom.DiscardedPayload;
+import net.minecraft.network.protocol.game.GameProtocols;
+import net.minecraft.network.protocol.game.ServerGamePacketListener;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.*;
@@ -159,21 +163,16 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             RequestChunkDataPacketListener requestChunkDataPacketListener = allowLargeChunkDataRequest ?
                 new RequestChunkDataPacketListener(this) : null;
 
+            // Hack to figure out the id of the CustomPayload packet
+            ProtocolInfo<ServerGamePacketListener> protocol = GameProtocols.SERVERBOUND.bind(k -> new RegistryFriendlyByteBuf(k,
+                MinecraftServer.getServer().registryAccess()));
+            RegistryFriendlyByteBuf friendlyByteBuf = new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
+            protocol.codec().encode(friendlyByteBuf, new ServerboundCustomPayloadPacket(new DiscardedPayload(new ResourceLocation("dummy"), Unpooled.buffer())));
+            int payloadId = friendlyByteBuf.readVarInt();
+
             ChannelInitializeListenerHolder.addListener(Key.key("axiom:handle_big_payload"), new ChannelInitializeListener() {
                 @Override
                 public void afterInitChannel(@NonNull Channel channel) {
-                    var packets = ConnectionProtocol.PLAY.getPacketsByIds(PacketFlow.SERVERBOUND);
-                    int payloadId = -1;
-                    for (Map.Entry<Integer, Class<? extends Packet<?>>> entry : packets.entrySet()) {
-                        if (entry.getValue() == ServerboundCustomPayloadPacket.class) {
-                            payloadId = entry.getKey();
-                            break;
-                        }
-                    }
-                    if (payloadId < 0) {
-                        throw new RuntimeException("Failed to find ServerboundCustomPayloadPacket id");
-                    }
-
                     Connection connection = (Connection) channel.pipeline().get("packet_handler");
                     channel.pipeline().addBefore("decoder", "axiom-big-payload-handler",
                         new AxiomBigPayloadHandler(payloadId, connection, setBlockBufferPacketListener,
@@ -285,16 +284,20 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             WorldExtension.tick(MinecraftServer.getServer(), sendMarkers, maxChunkRelightsPerTick, maxChunkSendsPerTick);
         }, 1, 1);
 
-        PaperCommandManager<CommandSender> manager = PaperCommandManager.createNative(
-            this,
-            ExecutionCoordinator.simpleCoordinator()
-        );
+        try {
+            PaperCommandManager<CommandSender> manager = PaperCommandManager.createNative(
+                this,
+                ExecutionCoordinator.simpleCoordinator()
+            );
 
-        if (manager.hasCapability(CloudBukkitCapabilities.NATIVE_BRIGADIER)) {
-            manager.registerBrigadier();
+            if (manager.hasCapability(CloudBukkitCapabilities.NATIVE_BRIGADIER)) {
+                manager.registerBrigadier();
+            }
+
+            AxiomDebugCommand.register(this, manager);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-        AxiomDebugCommand.register(this, manager);
     }
 
     public boolean logLargeBlockBufferChanges() {

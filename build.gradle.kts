@@ -1,10 +1,10 @@
 plugins {
     `java-library`
-    id("io.papermc.paperweight.userdev") version "1.5.11"
-    id("xyz.jpenilla.run-paper") version "2.2.2" // Adds runServer and runMojangMappedServer tasks for testing
+    id("io.papermc.paperweight.userdev") version "1.6.3"
+    id("xyz.jpenilla.run-paper") version "2.2.4" // Adds runServer and runMojangMappedServer tasks for testing
 
     // Shades and relocates dependencies into our plugin jar. See https://imperceptiblethoughts.com/shadow/introduction/
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("io.github.goooler.shadow") version "8.1.7"
 }
 
 group = "com.moulberry.axiom"
@@ -12,8 +12,8 @@ version = "1.5.9"
 description = "Serverside component for Axiom on Paper"
 
 java {
-    // Configure the java toolchain. This allows gradle to auto-provision JDK 17 on systems that only have JDK 8 installed for example.
-    toolchain.languageVersion.set(JavaLanguageVersion.of(17))
+    // Configure the java toolchain. This allows gradle to auto-provision JDK 21 on systems that only have JDK 11 installed for example.
+    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
 }
 
 repositories {
@@ -26,9 +26,9 @@ repositories {
 }
 
 dependencies {
-    paperweight.paperDevBundle("1.20.4-R0.1-SNAPSHOT")
+    paperweight.paperDevBundle("1.20.6-R0.1-SNAPSHOT")
     implementation("xyz.jpenilla:reflection-remapper:0.1.0-SNAPSHOT")
-    implementation("org.incendo:cloud-paper:2.0.0-beta.2")
+    implementation("org.incendo:cloud-paper:2.0.0-SNAPSHOT")
 
     // Zstd Compression Library
     implementation("com.github.luben:zstd-jni:1.5.5-4")
@@ -56,7 +56,7 @@ tasks {
 
         // Set the release flag. This configures what version bytecode the compiler will emit, as well as what JDK APIs are usable.
         // See https://openjdk.java.net/jeps/247 for more information.
-        options.release.set(17)
+        options.release.set(21)
     }
     javadoc {
         options.encoding = Charsets.UTF_8.name() // We want UTF-8 for everything

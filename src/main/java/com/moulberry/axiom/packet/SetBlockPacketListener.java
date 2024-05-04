@@ -31,9 +31,9 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Location;
 import org.bukkit.block.BlockFace;
-import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
-import org.bukkit.craftbukkit.v1_20_R3.block.CraftBlock;
-import org.bukkit.craftbukkit.v1_20_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.block.CraftBlock;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -91,7 +91,7 @@ public class SetBlockPacketListener implements PluginMessageListener {
         IntFunction<Map<BlockPos, BlockState>> mapFunction = FriendlyByteBuf.limitValue(Maps::newLinkedHashMapWithExpectedSize, 512);
         IdMapper<BlockState> registry = this.plugin.getBlockRegistry(bukkitPlayer.getUniqueId());
         Map<BlockPos, BlockState> blocks = friendlyByteBuf.readMap(mapFunction,
-                FriendlyByteBuf::readBlockPos, buf -> buf.readById(registry));
+                buf -> buf.readBlockPos(), buf -> buf.readById(registry::byIdOrThrow));
         boolean updateNeighbors = friendlyByteBuf.readBoolean();
 
         int reason = friendlyByteBuf.readVarInt();

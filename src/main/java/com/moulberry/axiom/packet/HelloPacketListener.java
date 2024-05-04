@@ -22,12 +22,14 @@ import net.minecraft.SharedConstants;
 import net.minecraft.core.IdMapper;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_20_R3.entity.CraftPlayer;
-import org.bukkit.craftbukkit.v1_20_R3.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -155,7 +157,7 @@ public class HelloPacketListener implements PluginMessageListener {
         }
 
         // Enable
-        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+        RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
         buf.writeBoolean(true);
         buf.writeInt(handshakeEvent.getMaxBufferSize()); // Max Buffer Size
         buf.writeBoolean(false); // No source info
@@ -174,15 +176,15 @@ public class HelloPacketListener implements PluginMessageListener {
             int activeHotbarIndex = container.getOrDefault(AxiomConstants.ACTIVE_HOTBAR_INDEX, PersistentDataType.BYTE, (byte) 0);
             PersistentDataContainer hotbarItems = container.get(AxiomConstants.HOTBAR_DATA, PersistentDataType.TAG_CONTAINER);
             if (hotbarItems != null) {
-                buf = new FriendlyByteBuf(Unpooled.buffer());
+                buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
                 buf.writeByte((byte) activeHotbarIndex);
                 for (int i=0; i<9*9; i++) {
                     // Ignore selected hotbar
                     if (i / 9 == activeHotbarIndex) {
-                        buf.writeItem(net.minecraft.world.item.ItemStack.EMPTY);
+                        net.minecraft.world.item.ItemStack.OPTIONAL_STREAM_CODEC.encode(buf, net.minecraft.world.item.ItemStack.EMPTY);
                     } else {
                         ItemStack stack = hotbarItems.get(new NamespacedKey("axiom", "slot_"+i), ItemStackDataType.INSTANCE);
-                        buf.writeItem(CraftItemStack.asNMSCopy(stack));
+                        net.minecraft.world.item.ItemStack.OPTIONAL_STREAM_CODEC.encode(buf, CraftItemStack.asNMSCopy(stack));
                     }
                 }
 
@@ -195,7 +197,7 @@ public class HelloPacketListener implements PluginMessageListener {
         // Initialize Views
         UUID activeView = container.get(AxiomConstants.ACTIVE_VIEW, UUIDDataType.INSTANCE);
         if (activeView != null) {
-            buf = new FriendlyByteBuf(Unpooled.buffer());
+            buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
             buf.writeUUID(activeView);
 
             PersistentDataContainer[] views = container.get(AxiomConstants.VIEWS, PersistentDataType.TAG_CONTAINER_ARRAY);

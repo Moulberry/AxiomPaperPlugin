@@ -34,7 +34,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.ChunkStatus;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
@@ -282,7 +282,7 @@ public class SetBlockBufferPacketListener {
                                         int key = x | (y << 4) | (z << 8);
                                         CompressedBlockEntity savedBlockEntity = blockEntityChunkMap.get((short) key);
                                         if (savedBlockEntity != null) {
-                                            blockEntity.load(savedBlockEntity.decompress());
+                                            blockEntity.loadWithComponents(savedBlockEntity.decompress(), player.registryAccess());
                                         }
                                     }
                                 } else if (old.hasBlockEntity()) {

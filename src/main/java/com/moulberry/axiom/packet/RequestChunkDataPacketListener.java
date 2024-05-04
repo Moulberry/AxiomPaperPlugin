@@ -22,11 +22,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.ChunkStatus;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
-import org.bukkit.craftbukkit.v1_20_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
@@ -115,7 +115,7 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
 
             BlockEntity blockEntity = chunk.getBlockEntity(mutableBlockPos, LevelChunk.EntityCreationType.IMMEDIATE);
             if (blockEntity != null) {
-                CompoundTag tag = blockEntity.saveWithoutMetadata();
+                CompoundTag tag = blockEntity.saveWithoutMetadata(player.registryAccess());
                 blockEntityMap.put(pos, CompressedBlockEntity.compress(tag, baos));
             }
         }
@@ -154,7 +154,7 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
                                         mutableBlockPos.set(sx*16 + x, sy*16 + y, sz*16 + z);
                                         BlockEntity blockEntity = chunk.getBlockEntity(mutableBlockPos, LevelChunk.EntityCreationType.CHECK);
                                         if (blockEntity != null) {
-                                            CompoundTag tag = blockEntity.saveWithoutMetadata();
+                                            CompoundTag tag = blockEntity.saveWithoutMetadata(player.registryAccess());
                                             blockEntityMap.put(mutableBlockPos.asLong(), CompressedBlockEntity.compress(tag, baos));
                                         }
                                     }

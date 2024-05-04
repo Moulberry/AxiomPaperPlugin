@@ -21,7 +21,7 @@ import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
+import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
@@ -69,7 +69,7 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
             List<UUID> passengers = List.of();
             if (passengerManipulation == PassengerManipulation.ADD_LIST || passengerManipulation == PassengerManipulation.REMOVE_LIST) {
                 passengers = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
-                    FriendlyByteBuf::readUUID);
+                    buffer -> buffer.readUUID());
             }
 
             return new ManipulateEntry(uuid, relativeMovementSet, position, yaw, pitch, nbt,

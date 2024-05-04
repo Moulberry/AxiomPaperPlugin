@@ -20,7 +20,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
+import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
@@ -70,7 +70,7 @@ public class SpawnEntityPacketListener implements PluginMessageListener {
         List<SpawnEntry> entries = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
             buf -> new SpawnEntry(buf.readUUID(), buf.readDouble(), buf.readDouble(),
                 buf.readDouble(), buf.readFloat(), buf.readFloat(),
-                buf.readNullable(FriendlyByteBuf::readUUID), ViaVersionHelper.readTagUnknown(buf, player)));
+                buf.readNullable(buffer -> buffer.readUUID()), ViaVersionHelper.readTagUnknown(buf, player)));
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();
 

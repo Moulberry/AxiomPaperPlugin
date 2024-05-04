@@ -6,10 +6,12 @@ import com.moulberry.axiom.persistence.ItemStackDataType;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.craftbukkit.v1_20_R3.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -38,13 +40,13 @@ public class SwitchActiveHotbarPacketListener implements PluginMessageListener {
             return;
         }
 
-        FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
+        RegistryFriendlyByteBuf friendlyByteBuf = new RegistryFriendlyByteBuf(Unpooled.wrappedBuffer(message), ((CraftPlayer)player).getHandle().registryAccess());
         int oldHotbarIndex = friendlyByteBuf.readByte();
         int activeHotbarIndex = friendlyByteBuf.readByte();
 
         ItemStack[] hotbarItems = new ItemStack[9];
         for (int i=0; i<9; i++) {
-            hotbarItems[i] = CraftItemStack.asCraftMirror(friendlyByteBuf.readItem());
+            hotbarItems[i] = CraftItemStack.asCraftMirror(net.minecraft.world.item.ItemStack.OPTIONAL_STREAM_CODEC.decode(friendlyByteBuf));
         }
 
         PersistentDataContainer container = player.getPersistentDataContainer();
