@@ -5,6 +5,7 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.persistence.ItemStackDataType;
 import com.viaversion.viaversion.api.Via;
 import io.netty.buffer.Unpooled;
+import net.kyori.adventure.text.Component;
 import net.minecraft.network.FriendlyByteBuf;
 import org.bukkit.NamespacedKey;
 import org.bukkit.craftbukkit.v1_20_R3.inventory.CraftItemStack;
@@ -23,6 +24,14 @@ public class SetHotbarSlotPacketListener implements PluginMessageListener {
 
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
+        try {
+            this.process(player, message);
+        } catch (Throwable t) {
+            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
+        }
+    }
+
+    private void process(Player player, byte[] message) {
         if (!this.plugin.canUseAxiom(player) || this.plugin.isMismatchedDataVersion(player.getUniqueId())) {
             return;
         }
