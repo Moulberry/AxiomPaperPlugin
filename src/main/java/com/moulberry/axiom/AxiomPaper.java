@@ -3,6 +3,7 @@ package com.moulberry.axiom;
 import com.google.common.util.concurrent.RateLimiter;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
+import com.moulberry.axiom.commands.AxiomDebugCommand;
 import com.moulberry.axiom.event.AxiomCreateWorldPropertiesEvent;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
@@ -26,6 +27,7 @@ import net.minecraft.network.protocol.game.ServerboundCustomPayloadPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.*;
+import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -34,6 +36,9 @@ import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.Messenger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.incendo.cloud.bukkit.CloudBukkitCapabilities;
+import org.incendo.cloud.execution.ExecutionCoordinator;
+import org.incendo.cloud.paper.PaperCommandManager;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.FileReader;
@@ -279,6 +284,17 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
             WorldExtension.tick(MinecraftServer.getServer(), sendMarkers, maxChunkRelightsPerTick, maxChunkSendsPerTick);
         }, 1, 1);
+
+        PaperCommandManager<CommandSender> manager = PaperCommandManager.createNative(
+            this,
+            ExecutionCoordinator.simpleCoordinator()
+        );
+
+        if (manager.hasCapability(CloudBukkitCapabilities.NATIVE_BRIGADIER)) {
+            manager.registerBrigadier();
+        }
+
+        AxiomDebugCommand.register(this, manager);
     }
 
     public boolean logLargeBlockBufferChanges() {
