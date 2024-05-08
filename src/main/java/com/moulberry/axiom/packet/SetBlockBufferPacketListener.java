@@ -8,8 +8,7 @@ import com.moulberry.axiom.buffer.BlockBuffer;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.SectionPermissionChecker;
-import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
-import com.moulberry.axiom.viaversion.ViaVersionHelper;
+import com.moulberry.axiom.viaversion.UnknownVersionHelper;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
 import net.minecraft.ChatFormatting;
@@ -78,7 +77,7 @@ public class SetBlockBufferPacketListener {
         boolean continuation = friendlyByteBuf.readBoolean();
 
         if (!continuation) {
-            ViaVersionHelper.skipTagUnknown(friendlyByteBuf, player.getBukkitEntity());
+            UnknownVersionHelper.skipTagUnknown(friendlyByteBuf, player.getBukkitEntity());
         }
 
         RateLimiter rateLimiter = this.plugin.getBlockBufferRateLimiter(player.getUUID());

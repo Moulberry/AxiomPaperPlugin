@@ -4,6 +4,7 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
+import com.moulberry.axiom.viaversion.UnknownVersionHelper;
 import com.moulberry.axiom.viaversion.ViaVersionHelper;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
@@ -70,7 +71,7 @@ public class SpawnEntityPacketListener implements PluginMessageListener {
         List<SpawnEntry> entries = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
             buf -> new SpawnEntry(buf.readUUID(), buf.readDouble(), buf.readDouble(),
                 buf.readDouble(), buf.readFloat(), buf.readFloat(),
-                buf.readNullable(buffer -> buffer.readUUID()), ViaVersionHelper.readTagUnknown(buf, player)));
+                buf.readNullable(buffer -> buffer.readUUID()), UnknownVersionHelper.readTagUnknown(buf, player)));
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();
 
