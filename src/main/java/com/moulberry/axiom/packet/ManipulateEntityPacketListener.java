@@ -4,6 +4,7 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
+import com.moulberry.axiom.viaversion.UnknownVersionHelper;
 import com.moulberry.axiom.viaversion.ViaVersionHelper;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
@@ -63,7 +64,7 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
                 pitch = friendlyByteBuf.readFloat();
             }
 
-            CompoundTag nbt = ViaVersionHelper.readTagUnknown(friendlyByteBuf, player);
+            CompoundTag nbt = UnknownVersionHelper.readTagUnknown(friendlyByteBuf, player);
 
             PassengerManipulation passengerManipulation = friendlyByteBuf.readEnum(PassengerManipulation.class);
             List<UUID> passengers = List.of();
