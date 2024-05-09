@@ -97,7 +97,7 @@ public class ViaVersionHelper {
     private static final int UNNAMED_COMPOUND_TAG_CHANGE_VERSION = 764; // 1.20.2
 
     public static void skipTagViaVersion(FriendlyByteBuf friendlyByteBuf, Player player) throws Exception {
-        skipTagViaVersion(friendlyByteBuf, Via.getAPI().getPlayerVersion(player.getUniqueId()));
+        skipTagViaVersion(friendlyByteBuf, AxiomPaper.PLUGIN.getProtocolVersionFor(player.getUniqueId()));
     }
 
     public static void skipTagViaVersion(FriendlyByteBuf friendlyByteBuf, int playerVersion) throws Exception {
@@ -105,7 +105,7 @@ public class ViaVersionHelper {
     }
 
     public static CompoundTag readTagViaVersion(FriendlyByteBuf friendlyByteBuf, Player player) throws Exception {
-        return readTagViaVersion(friendlyByteBuf, Via.getAPI().getPlayerVersion(player.getUniqueId()));
+        return readTagViaVersion(friendlyByteBuf, AxiomPaper.PLUGIN.getProtocolVersionFor(player.getUniqueId()));
     }
 
     public static CompoundTag readTagViaVersion(FriendlyByteBuf friendlyByteBuf, int playerVersion) throws Exception {

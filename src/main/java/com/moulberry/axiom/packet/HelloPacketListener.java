@@ -64,19 +64,39 @@ public class HelloPacketListener implements PluginMessageListener {
             String incompatibleDataVersion = plugin.configuration.getString("incompatible-data-version");
             if (incompatibleDataVersion == null) incompatibleDataVersion = "warn";
 
-            if (!Bukkit.getPluginManager().isPluginEnabled("ViaVersion")) {
-                Component text = Component.text("Axiom: Incompatible data version detected (client " + dataVersion +
-                    ", server " + serverDataVersion  + ")");
+            Component incompatibleWarning = Component.text("Axiom: Incompatible data version detected (client " + dataVersion +
+                ", server " + serverDataVersion  + ")");
 
+            if (!Bukkit.getPluginManager().isPluginEnabled("ViaVersion")) {
                 if (incompatibleDataVersion.equals("warn")) {
-                    player.sendMessage(text.color(NamedTextColor.RED));
+                    player.sendMessage(incompatibleWarning.color(NamedTextColor.RED));
                     return;
                 } else if (!incompatibleDataVersion.equals("ignore")) {
-                    player.kick(text);
+                    player.kick(incompatibleWarning);
                     return;
                 }
             } else {
                 int playerVersion = Via.getAPI().getPlayerVersion(player.getUniqueId());
+                if (playerVersion == SharedConstants.getProtocolVersion()) {
+                    // Likely using via on the proxy, try to get protocol version from data version
+                    if (dataVersion < 3337) {
+                        player.sendMessage(incompatibleWarning.color(NamedTextColor.RED));
+                        return;
+                    } else if (dataVersion == 3337) {
+                        playerVersion = 762; // 1.19.4
+                    } else if (dataVersion <= 3465) {
+                        playerVersion = 763; // 1.20.1
+                    } else if (dataVersion <= 3578) {
+                        playerVersion = 764; // 1.20.2
+                    } else if (dataVersion <= 3700) {
+                        playerVersion = 765; // 1.20.3 / 1.20.4
+                    } else if (dataVersion <= 3837) {
+                        playerVersion = 766; // 1.20.3 / 1.20.4
+                    } else {
+                        player.sendMessage(incompatibleWarning.color(NamedTextColor.RED));
+                        return;
+                    }
+                }
 
                 IdMapper<BlockState> mapper;
                 try {
@@ -96,7 +116,7 @@ public class HelloPacketListener implements PluginMessageListener {
                 }
 
                 this.plugin.playerBlockRegistry.put(player.getUniqueId(), mapper);
-                this.plugin.mismatchedDataVersionUsingViaVersion.add(player.getUniqueId());
+                this.plugin.playerProtocolVersion.put(player.getUniqueId(), playerVersion);
 
                 Component text = Component.text("Axiom: Warning, client and server versions don't match. " +
                         "Axiom will try to use ViaVersion conversions, but this process may cause problems");
