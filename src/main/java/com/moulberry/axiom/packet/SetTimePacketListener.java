@@ -34,7 +34,7 @@ public class SetTimePacketListener implements PluginMessageListener {
     }
 
     private void process(Player player, byte[] message) {
-        if (!this.plugin.canUseAxiom(player)) {
+        if (!this.plugin.canUseAxiom(player, "axiom.world.time")) {
             return;
         }
 

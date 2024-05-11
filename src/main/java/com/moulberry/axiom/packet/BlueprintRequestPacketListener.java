@@ -36,7 +36,7 @@ public class BlueprintRequestPacketListener implements PluginMessageListener {
     }
 
     private void process(Player player, byte[] message) {
-        if (!this.plugin.canUseAxiom(player)) {
+        if (!this.plugin.canUseAxiom(player, "axiom.blueprint.request")) {
             return;
         }
 

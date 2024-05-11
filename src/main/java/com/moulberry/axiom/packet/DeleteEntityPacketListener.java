@@ -35,11 +35,7 @@ public class DeleteEntityPacketListener implements PluginMessageListener {
     }
 
     private void process(Player player, byte[] message) {
-        if (!this.plugin.canUseAxiom(player)) {
-            return;
-        }
-
-        if (!player.hasPermission("axiom.entity.*") && !player.hasPermission("axiom.entity.delete")) {
+        if (!this.plugin.canUseAxiom(player, "axiom.entity.delete")) {
             return;
         }
 
