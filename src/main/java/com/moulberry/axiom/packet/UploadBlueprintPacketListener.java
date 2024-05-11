@@ -24,7 +24,7 @@ public class UploadBlueprintPacketListener  {
     }
 
     public void onReceive(ServerPlayer serverPlayer, FriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.canUseAxiom(serverPlayer.getBukkitEntity())) {
+        if (!this.plugin.canUseAxiom(serverPlayer.getBukkitEntity(), "axiom.blueprint.upload")) {
             return;
         }
 

@@ -56,7 +56,7 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         long id = friendlyByteBuf.readLong();
 
-        if (!this.plugin.canUseAxiom(bukkitPlayer) || this.plugin.isMismatchedDataVersion(bukkitPlayer.getUniqueId())) {
+        if (!this.plugin.canUseAxiom(bukkitPlayer, "axiom.chunk.request") || this.plugin.isMismatchedDataVersion(bukkitPlayer.getUniqueId())) {
             // We always send an 'empty' response in order to make the client happy
             sendEmptyResponse(player, id);
             return;

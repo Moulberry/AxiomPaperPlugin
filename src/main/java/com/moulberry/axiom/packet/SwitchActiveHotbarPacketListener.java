@@ -36,7 +36,7 @@ public class SwitchActiveHotbarPacketListener implements PluginMessageListener {
     }
 
     private void process(Player player, byte[] message) {
-        if (!this.plugin.canUseAxiom(player) || this.plugin.isMismatchedDataVersion(player.getUniqueId())) {
+        if (!this.plugin.canUseAxiom(player, "axiom.player.hotbar") || this.plugin.isMismatchedDataVersion(player.getUniqueId())) {
             return;
         }
 

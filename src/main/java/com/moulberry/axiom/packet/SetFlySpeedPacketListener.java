@@ -28,7 +28,7 @@ public class SetFlySpeedPacketListener implements PluginMessageListener {
     }
 
     private void process(Player player, byte[] message) {
-        if (!this.plugin.canUseAxiom(player)) {
+        if (!this.plugin.canUseAxiom(player, "axiom.player.speed")) {
             return;
         }
 
