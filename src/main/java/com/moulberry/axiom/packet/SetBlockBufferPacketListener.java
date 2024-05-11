@@ -124,7 +124,7 @@ public class SetBlockBufferPacketListener {
                 ServerLevel world = player.serverLevel();
                 if (!world.dimension().equals(worldKey)) return;
 
-                if (!this.plugin.canUseAxiom(player.getBukkitEntity())) {
+                if (!this.plugin.canUseAxiom(player.getBukkitEntity(), "axiom.build.section")) {
                     return;
                 }
 
@@ -316,7 +316,7 @@ public class SetBlockBufferPacketListener {
                 ServerLevel world = player.serverLevel();
                 if (!world.dimension().equals(worldKey)) return;
 
-                if (!this.plugin.canUseAxiom(player.getBukkitEntity())) {
+                if (!this.plugin.canUseAxiom(player.getBukkitEntity(), "axiom.build.section")) {
                     return;
                 }
 

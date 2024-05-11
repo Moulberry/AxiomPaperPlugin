@@ -5,9 +5,16 @@ description: $description
 authors:
   - Moulberry
 api-version: "$apiVersion"
+softdepend:
+  - ViaVersion
+  - WorldGuard
+  - PlotSquared
 permissions:
   axiom.*:
     description: Allows use of all default Axiom features
+    default: op
+  axiom.use:
+    description: Allows basic use of axiom
     default: op
   axiom.debug:
     description: Allows use of the /axiompaperdebug command
@@ -15,12 +22,47 @@ permissions:
   axiom.entity.*:
     description: Allows use of all entity-related features (spawning, manipulating, deleting)
     default: op
-  axiom.entity.spawn:
-    description: Allows entity spawning
-  axiom.entity.manipulate:
-    description: Allows entity manipulation
-  axiom.entity.delete:
-    description: Allows entity deletion
+    children:
+      axiom.entity.spawn: true
+      axiom.entity.manipulate: true
+      axiom.entity.delete: true
+  axiom.blueprint.*:
+    description: Allows use of all blueprint-related features
+    default: op
+    children:
+      axiom.blueprint.upload: true
+      axiom.blueprint.request: true
+      axiom.blueprint.manifest: true
+  axiom.chunk.*:
+    description: Allows use of all chunk-related features
+    default: op
+    children:
+      axiom.chunk.request: true
+  axiom.build.*:
+    description: Allows use of all build-related features
+    default: op
+    children:
+      axiom.build.place: true
+      axiom.build.section: true
+  axiom.editor.*:
+    description: Allows use of all editor-related features
+    default: op
+    children:
+      axiom.editor.views: true
+  axiom.player.*:
+    description: Allows use of all player-related features
+    default: op
+    children:
+      axiom.player.speed: true
+      axiom.player.gamemode: true
+      axiom.player.hotbar: true
+  axiom.world.*:
+    description: Allows use of all world-related features
+    default: op
+    children:
+      axiom.world.time: true
+      axiom.world.property: true
+      axiom.world.teleport: true
 
   axiom.allow_copying_other_plots:
     description: This permission allows users to copy other user's plots

@@ -78,7 +78,7 @@ public class SetBlockPacketListener implements PluginMessageListener {
     }
 
     private void process(Player bukkitPlayer, byte[] message) {
-        if (!this.plugin.canUseAxiom(bukkitPlayer)) {
+        if (!this.plugin.canUseAxiom(bukkitPlayer, "axiom.build.place")) {
             return;
         }
 
