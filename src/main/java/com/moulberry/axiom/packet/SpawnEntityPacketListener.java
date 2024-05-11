@@ -55,11 +55,7 @@ public class SpawnEntityPacketListener implements PluginMessageListener {
     }
 
     private void process(Player player, byte[] message) {
-        if (!this.plugin.canUseAxiom(player)) {
-            return;
-        }
-
-        if (!player.hasPermission("axiom.entity.*") && !player.hasPermission("axiom.entity.spawn")) {
+        if (!this.plugin.canUseAxiom(player, "axiom.entity.spawn")) {
             return;
         }
 

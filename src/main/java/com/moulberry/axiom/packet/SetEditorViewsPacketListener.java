@@ -35,7 +35,7 @@ public class SetEditorViewsPacketListener implements PluginMessageListener {
     }
 
     private void process(Player player, byte[] message) {
-        if (!this.plugin.canUseAxiom(player)) {
+        if (!this.plugin.canUseAxiom(player, "axiom.editor.views")) {
             return;
         }
 
