@@ -221,9 +221,6 @@ public class SetBlockBufferPacketListener {
 
                                 BlockState old = section.setBlockState(x, y, z, blockState, true);
                                 if (blockState != old) {
-                                    CoreProtectIntegration.logRemoval(player.getBukkitEntity().getName(), old, world.getWorld(), bx, by, bz);
-                                    CoreProtectIntegration.logPlacement(player.getBukkitEntity().getName(), blockState, world.getWorld(), bx, by, bz);
-
                                     sectionChanged = true;
                                     blockPos.set(bx, by, bz);
 
@@ -290,6 +287,14 @@ public class SetBlockBufferPacketListener {
                                     }
                                 } else if (old.hasBlockEntity()) {
                                     chunk.removeBlockEntity(blockPos);
+                                }
+
+                                if (CoreProtectIntegration.isEnabled() && old != blockState) {
+                                    String changedBy = player.getBukkitEntity().getName();
+                                    BlockPos changedPos = new BlockPos(bx, by, bz);
+
+                                    CoreProtectIntegration.logRemoval(changedBy, old, world.getWorld(), changedPos);
+                                    CoreProtectIntegration.logPlacement(changedBy, blockState, world.getWorld(), changedPos);
                                 }
                             }
                         }

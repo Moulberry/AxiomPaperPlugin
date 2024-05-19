@@ -4,7 +4,6 @@ import com.moulberry.axiom.AxiomPaper;
 import net.coreprotect.CoreProtect;
 import net.coreprotect.CoreProtectAPI;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -40,12 +39,12 @@ public class CoreProtectIntegrationImpl {
     private static CoreProtectAPI getCoreProtect() {
         Plugin plugin = Bukkit.getPluginManager().getPlugin("CoreProtect");
 
-        if (plugin == null || !(plugin instanceof CoreProtect)) {
+        if (!(plugin instanceof CoreProtect)) {
             return null;
         }
 
         CoreProtectAPI coreProtect = ((CoreProtect) plugin).getAPI();
-        if (coreProtect.isEnabled() == false) {
+        if (!coreProtect.isEnabled()) {
             return null;
         }
 
@@ -58,7 +57,7 @@ public class CoreProtectIntegrationImpl {
 
     private static CraftBlockState createCraftBlockState(World world, BlockPos pos, BlockState blockState) {
         try {
-            return (CraftBlockState) CRAFT_BLOCK_STATE_CONSTRUCTOR.newInstance(world, pos, blockState);
+            return CRAFT_BLOCK_STATE_CONSTRUCTOR.newInstance(world, pos, blockState);
         } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
             AxiomPaper.PLUGIN.getLogger().warning("Failed to create CraftBlockState for CoreProtect: " + e);
             return null;
@@ -69,31 +68,16 @@ public class CoreProtectIntegrationImpl {
         return COREPROTECT_ENABLED;
     }
 
-    static boolean logPlacement(String name, BlockState blockState, CraftWorld world, BlockPos pos) {
+    static void logPlacement(String name, BlockState blockState, CraftWorld world, BlockPos pos) {
         if (blockState.isAir()) {
-            return false;
+            return;
         }
 
-        return COREPROTECT_API.logPlacement(name, createCraftBlockState(world, pos, blockState));
+        COREPROTECT_API.logPlacement(name, createCraftBlockState(world, pos, blockState));
     }
 
-    static boolean logPlacement(String name, BlockState blockState, CraftWorld world, int x, int y, int z) {
-        return logPlacement(name, blockState, world, new BlockPos(x, y, z));
+    static void logRemoval(String name, BlockState blockState, CraftWorld world, BlockPos pos) {
+        COREPROTECT_API.logRemoval(name, createCraftBlockState(world, pos, blockState));
     }
 
-    static boolean logPlacement(String name, Level level, CraftWorld world, BlockPos pos) {
-        return logPlacement(name, level.getBlockState(pos), world, pos);
-    }
-
-    static boolean logRemoval(String name, BlockState blockState, CraftWorld world, BlockPos pos) {
-        return COREPROTECT_API.logRemoval(name, createCraftBlockState(world, pos, blockState));
-    }
-
-    static boolean logRemoval(String name, BlockState blockState, CraftWorld world, int x, int y, int z) {
-        return logRemoval(name, blockState, world, new BlockPos(x, y, z));
-    }
-
-    static boolean logRemoval(String name, Level level, CraftWorld world, BlockPos pos) {
-        return logRemoval(name, level.getBlockState(pos), world, pos);
-    }
 }
