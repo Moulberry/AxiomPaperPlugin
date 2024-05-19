@@ -10,9 +10,11 @@ softdepend:
   - WorldGuard
   - PlotSquared
 permissions:
-  axiom.*:
+  axiom.all:
     description: Allows use of all default Axiom features
     default: op
+    children:
+      axiom.*: true
   axiom.use:
     description: Allows basic use of axiom
     default: op
