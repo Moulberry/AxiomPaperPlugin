@@ -306,12 +306,12 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     }
 
     public boolean hasAxiomPermission(Player player) {
-        return hasAxiomPermission(player, null);
+        return hasAxiomPermission(player, null, false);
     }
 
-    public boolean hasAxiomPermission(Player player, String permission) {
+    public boolean hasAxiomPermission(Player player, String permission, boolean strict) {
         if (player.hasPermission("axiom.*") || player.isOp()) {
-            return true;
+            return !strict || permission == null || player.hasPermission("axiom.all") || player.hasPermission(permission);
         } else if (permission != null && !player.hasPermission(permission)) {
             return false;
         }
@@ -319,11 +319,15 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     }
 
     public boolean canUseAxiom(Player player) {
-        return canUseAxiom(player, null);
+        return canUseAxiom(player, null, false);
     }
 
     public boolean canUseAxiom(Player player, String permission) {
-        return activeAxiomPlayers.contains(player.getUniqueId()) && hasAxiomPermission(player, permission);
+        return canUseAxiom(player, permission, false);
+    }
+
+    public boolean canUseAxiom(Player player, String permission, boolean strict) {
+        return activeAxiomPlayers.contains(player.getUniqueId()) && hasAxiomPermission(player, permission, strict);
     }
 
     public @Nullable RateLimiter getBlockBufferRateLimiter(UUID uuid) {
