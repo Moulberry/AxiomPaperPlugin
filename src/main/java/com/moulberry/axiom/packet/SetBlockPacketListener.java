@@ -159,7 +159,10 @@ public class SetBlockPacketListener implements PluginMessageListener {
                     continue;
                 }
 
-                CoreProtectIntegration.logRemoval(bukkitPlayer.getName(), player.level(), world, blockPos);
+                if (CoreProtectIntegration.isEnabled()) {
+                    BlockState old = player.level().getBlockState(blockPos);
+                    CoreProtectIntegration.logRemoval(bukkitPlayer.getName(), old, world, blockPos);
+                }
 
                 // Place block
                 player.level().setBlock(blockPos, blockState, 3);
@@ -225,9 +228,6 @@ public class SetBlockPacketListener implements PluginMessageListener {
 
                 BlockState old = section.setBlockState(x, y, z, blockState, true);
                 if (blockState != old) {
-                    CoreProtectIntegration.logRemoval(bukkitPlayer.getName(), old, world, blockPos);
-                    CoreProtectIntegration.logPlacement(bukkitPlayer.getName(), blockState, world, blockPos);
-
                     Block block = blockState.getBlock();
                     motionBlocking.update(x, by, z, blockState);
                     motionBlockingNoLeaves.update(x, by, z, blockState);
@@ -283,6 +283,14 @@ public class SetBlockPacketListener implements PluginMessageListener {
                     if (!Objects.equals(oldPoi, newPoi)) {
                         if (oldPoi.isPresent()) level.getPoiManager().remove(blockPos);
                         if (newPoi.isPresent()) level.getPoiManager().add(blockPos, newPoi.get());
+                    }
+
+                    if (CoreProtectIntegration.isEnabled()) {
+                        String changedBy = player.getBukkitEntity().getName();
+                        BlockPos changedPos = new BlockPos(bx, by, bz);
+
+                        CoreProtectIntegration.logRemoval(changedBy, old, world, changedPos);
+                        CoreProtectIntegration.logPlacement(changedBy, blockState, world, changedPos);
                     }
                 }
 
