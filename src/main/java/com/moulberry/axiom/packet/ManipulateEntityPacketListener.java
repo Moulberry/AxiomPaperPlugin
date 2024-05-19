@@ -90,7 +90,7 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
     }
 
     private void process(Player player, byte[] message) {
-        if (!this.plugin.canUseAxiom(player, "axiom.entity.manipulate")) {
+        if (!this.plugin.canUseAxiom(player, "axiom.entity.manipulate", true)) {
             return;
         }
 
