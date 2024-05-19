@@ -3,6 +3,7 @@ package com.moulberry.axiom.packet;
 import com.google.common.collect.Maps;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.integration.Integration;
+import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
@@ -158,8 +159,11 @@ public class SetBlockPacketListener implements PluginMessageListener {
                     continue;
                 }
 
+                CoreProtectIntegration.logRemoval(bukkitPlayer.getName(), player.level(), world, blockPos);
+
                 // Place block
                 player.level().setBlock(blockPos, blockState, 3);
+                CoreProtectIntegration.logPlacement(bukkitPlayer.getName(), blockState, world, blockPos);
             }
         } else {
             int count = 0;
@@ -221,6 +225,9 @@ public class SetBlockPacketListener implements PluginMessageListener {
 
                 BlockState old = section.setBlockState(x, y, z, blockState, true);
                 if (blockState != old) {
+                    CoreProtectIntegration.logRemoval(bukkitPlayer.getName(), old, world, blockPos);
+                    CoreProtectIntegration.logPlacement(bukkitPlayer.getName(), blockState, world, blockPos);
+
                     Block block = blockState.getBlock();
                     motionBlocking.update(x, by, z, blockState);
                     motionBlockingNoLeaves.update(x, by, z, blockState);

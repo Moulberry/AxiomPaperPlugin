@@ -1,0 +1,32 @@
+[versions]
+# Dependencies
+bom-newest = "1.37"
+cloud-paper = "2.0.0-20240516.054251-69"
+coreprotect = "22.4"
+paper = "1.20.2-R0.1-SNAPSHOT"
+plotsquared = "7.3.9-20240513.192211-13"
+reflection-remapper = "0.1.2-20240315.033304-2"
+viaversion-api = "4.10.1-20240505.124211-22"
+worldguard-bukkit = "7.1.0-20240503.180049-12"
+zstd-jni = "1.5.5-4"
+
+# Plugins
+paperweight-userdev = "1.5.11"
+run-paper = "2.2.2"
+shadow = "8.1.1"
+
+[libraries]
+bom-newest = { group = "com.intellectualsites.bom", name = "bom-newest", version.ref = "bom-newest" }
+cloud-paper = { group = "org.incendo", name = "cloud-paper", version.ref = "cloud-paper" }
+coreprotect = { group = "net.coreprotect", name = "coreprotect", version.ref = "coreprotect" }
+plotsquared-bukkit = { group = "com.intellectualsites.plotsquared", name = "plotsquared-bukkit", version.ref = "plotsquared" }
+plotsquared-core = { group = "com.intellectualsites.plotsquared", name = "plotsquared-core", version.ref = "plotsquared" }
+reflection-remapper = { group = "xyz.jpenilla", name = "reflection-remapper", version.ref = "reflection-remapper" }
+viaversion-api = { group = "com.viaversion", name = "viaversion-api", version.ref = "viaversion-api" }
+worldguard-bukkit = { group = "com.sk89q.worldguard", name = "worldguard-bukkit", version.ref = "worldguard-bukkit" }
+zstd-jni = { group = "com.github.luben", name = "zstd-jni", version = "1.5.5-4" }
+
+[plugins]
+paperweight-userdev = { id = "io.papermc.paperweight.userdev", version.ref = "paperweight-userdev" }
+run-paper = { id = "xyz.jpenilla.run-paper", version.ref = "run-paper" }
+shadow = { id = "com.github.johnrengelman.shadow", version.ref = "shadow" }

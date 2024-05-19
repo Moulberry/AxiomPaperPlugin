@@ -8,6 +8,7 @@ import com.moulberry.axiom.buffer.BlockBuffer;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.SectionPermissionChecker;
+import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
 import com.moulberry.axiom.viaversion.UnknownVersionHelper;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
@@ -220,6 +221,9 @@ public class SetBlockBufferPacketListener {
 
                                 BlockState old = section.setBlockState(x, y, z, blockState, true);
                                 if (blockState != old) {
+                                    CoreProtectIntegration.logRemoval(player.getBukkitEntity().getName(), old, world.getWorld(), bx, by, bz);
+                                    CoreProtectIntegration.logPlacement(player.getBukkitEntity().getName(), blockState, world.getWorld(), bx, by, bz);
+
                                     sectionChanged = true;
                                     blockPos.set(bx, by, bz);
 
