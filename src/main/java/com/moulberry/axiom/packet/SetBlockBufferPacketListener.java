@@ -8,6 +8,7 @@ import com.moulberry.axiom.buffer.BlockBuffer;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.SectionPermissionChecker;
+import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
 import com.moulberry.axiom.viaversion.UnknownVersionHelper;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
@@ -286,6 +287,14 @@ public class SetBlockBufferPacketListener {
                                     }
                                 } else if (old.hasBlockEntity()) {
                                     chunk.removeBlockEntity(blockPos);
+                                }
+
+                                if (CoreProtectIntegration.isEnabled() && old != blockState) {
+                                    String changedBy = player.getBukkitEntity().getName();
+                                    BlockPos changedPos = new BlockPos(bx, by, bz);
+
+                                    CoreProtectIntegration.logRemoval(changedBy, old, world.getWorld(), changedPos);
+                                    CoreProtectIntegration.logPlacement(changedBy, blockState, world.getWorld(), changedPos);
                                 }
                             }
                         }

@@ -3,6 +3,7 @@ package com.moulberry.axiom.packet;
 import com.google.common.collect.Maps;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.integration.Integration;
+import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
@@ -158,8 +159,14 @@ public class SetBlockPacketListener implements PluginMessageListener {
                     continue;
                 }
 
+                if (CoreProtectIntegration.isEnabled()) {
+                    BlockState old = player.level().getBlockState(blockPos);
+                    CoreProtectIntegration.logRemoval(bukkitPlayer.getName(), old, world, blockPos);
+                }
+
                 // Place block
                 player.level().setBlock(blockPos, blockState, 3);
+                CoreProtectIntegration.logPlacement(bukkitPlayer.getName(), blockState, world, blockPos);
             }
         } else {
             int count = 0;
@@ -276,6 +283,14 @@ public class SetBlockPacketListener implements PluginMessageListener {
                     if (!Objects.equals(oldPoi, newPoi)) {
                         if (oldPoi.isPresent()) level.getPoiManager().remove(blockPos);
                         if (newPoi.isPresent()) level.getPoiManager().add(blockPos, newPoi.get());
+                    }
+
+                    if (CoreProtectIntegration.isEnabled()) {
+                        String changedBy = player.getBukkitEntity().getName();
+                        BlockPos changedPos = new BlockPos(bx, by, bz);
+
+                        CoreProtectIntegration.logRemoval(changedBy, old, world, changedPos);
+                        CoreProtectIntegration.logPlacement(changedBy, blockState, world, changedPos);
                     }
                 }
 
