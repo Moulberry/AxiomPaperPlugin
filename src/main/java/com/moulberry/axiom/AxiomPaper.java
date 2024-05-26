@@ -44,6 +44,7 @@ import org.incendo.cloud.paper.LegacyPaperCommandManager;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -400,7 +401,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     }
 
     private ServerWorldPropertiesRegistry createWorldProperties(World world) {
-        ServerWorldPropertiesRegistry registry = new ServerWorldPropertiesRegistry(world);
+        ServerWorldPropertiesRegistry registry = new ServerWorldPropertiesRegistry(new WeakReference<>(world));
 
         AxiomCreateWorldPropertiesEvent createEvent = new AxiomCreateWorldPropertiesEvent(world, registry);
         Bukkit.getPluginManager().callEvent(createEvent);
