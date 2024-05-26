@@ -31,32 +31,37 @@ public class AxiomDebugCommand {
     public static void register(AxiomPaper axiomPaper, BukkitCommandManager<CommandSender> manager) {
         manager.command(
             base(manager, "hasAxiomPermission").handler(context -> {
-                boolean hasAxiomPermission = axiomPaper.hasAxiomPermission(context.sender());
+                if (!(context.sender() instanceof Player player)) return;
+                boolean hasAxiomPermission = axiomPaper.hasAxiomPermission(player);
                 context.sender().sendMessage(Component.text("hasAxiomPermission: " + hasAxiomPermission));
             })
         );
         manager.command(
             base(manager, "canUseAxiom").handler(context -> {
-                boolean canUseAxiom = axiomPaper.canUseAxiom(context.sender());
+                if (!(context.sender() instanceof Player player)) return;
+                boolean canUseAxiom = axiomPaper.canUseAxiom(player);
                 context.sender().sendMessage(Component.text("canUseAxiom: " + canUseAxiom));
             })
         );
         manager.command(
             base(manager, "isMismatchedDataVersion").handler(context -> {
-                boolean isMismatchedDataVersion = axiomPaper.isMismatchedDataVersion(context.sender().getUniqueId());
+                if (!(context.sender() instanceof Player player)) return;
+                boolean isMismatchedDataVersion = axiomPaper.isMismatchedDataVersion(player.getUniqueId());
                 context.sender().sendMessage(Component.text("isMismatchedDataVersion: " + isMismatchedDataVersion));
             })
         );
         manager.command(
             base(manager, "canModifyWorld").handler(context -> {
-                boolean canModifyWorld = axiomPaper.canModifyWorld(context.sender(), context.sender().getWorld());
+                if (!(context.sender() instanceof Player player)) return;
+                boolean canModifyWorld = axiomPaper.canModifyWorld(player, player.getWorld());
                 context.sender().sendMessage(Component.text("canModifyWorld: " + canModifyWorld));
             })
         );
         manager.command(
             base(manager, "isClientListening").required("channel", StringParser.greedyStringParser()).handler(context -> {
+                if (!(context.sender() instanceof Player player)) return;
                 String channel = context.get("channel");
-                boolean isClientListening = context.sender().getListeningPluginChannels().contains(channel);
+                boolean isClientListening = player.getListeningPluginChannels().contains(channel);
                 context.sender().sendMessage(Component.text("listening to " + channel +": " + isClientListening));
             })
         );
@@ -69,7 +74,8 @@ public class AxiomDebugCommand {
         );
         manager.command(
             base(manager, "getRestrictions").handler(context -> {
-                Restrictions restrictions = axiomPaper.playerRestrictions.get(context.sender().getUniqueId());
+                if (!(context.sender() instanceof Player player)) return;
+                Restrictions restrictions = axiomPaper.playerRestrictions.get(player.getUniqueId());
                 if (restrictions == null) {
                     context.sender().sendMessage(Component.text("no restrictions"));
                 } else {
@@ -83,55 +89,65 @@ public class AxiomDebugCommand {
         }
         manager.command(
             base(manager, "canBreakBlockAtCurrentPosition").optional("type", EnumParser.enumParser(IntegrationType.class)).handler(context -> {
+                if (!(context.sender() instanceof Player player)) return;
                 IntegrationType integrationType = (IntegrationType) context.optional("type").orElse(null);
 
-                Block block = context.sender().getWorld().getBlockAt(context.sender().getLocation());
+                Block block = player.getWorld().getBlockAt(player.getLocation());
 
                 boolean canBreakBlock;
                 if (integrationType == IntegrationType.PLOT_SQUARED) {
-                    canBreakBlock = PlotSquaredIntegration.canBreakBlock(context.sender(), block);
+                    canBreakBlock = PlotSquaredIntegration.canBreakBlock(player, block);
                 } else if (integrationType == IntegrationType.WORLD_GUARD) {
-                    canBreakBlock = WorldGuardIntegration.canBreakBlock(context.sender(), block.getLocation());
+                    canBreakBlock = WorldGuardIntegration.canBreakBlock(player, block.getLocation());
                 } else {
-                    canBreakBlock = Integration.canBreakBlock(context.sender(), block);
+                    canBreakBlock = Integration.canBreakBlock(player, block);
                 }
                 context.sender().sendMessage(Component.text("canBreakBlock: " + canBreakBlock));
             })
         );
         manager.command(
             base(manager, "canPlaceBlockAtCurrentPosition").optional("type", EnumParser.enumParser(IntegrationType.class)).handler(context -> {
+                if (!(context.sender() instanceof Player player)) return;
                 IntegrationType integrationType = (IntegrationType) context.optional("type").orElse(null);
 
                 boolean canPlaceBlock;
                 if (integrationType == IntegrationType.PLOT_SQUARED) {
-                    canPlaceBlock = PlotSquaredIntegration.canPlaceBlock(context.sender(), context.sender().getLocation());
+                    canPlaceBlock = PlotSquaredIntegration.canPlaceBlock(player, player.getLocation());
                 } else if (integrationType == IntegrationType.WORLD_GUARD) {
-                    canPlaceBlock = WorldGuardIntegration.canPlaceBlock(context.sender(), context.sender().getLocation());
+                    canPlaceBlock = WorldGuardIntegration.canPlaceBlock(player, player.getLocation());
                 } else {
-                    canPlaceBlock = Integration.canPlaceBlock(context.sender(), context.sender().getLocation());
+                    canPlaceBlock = Integration.canPlaceBlock(player, player.getLocation());
                 }
                 context.sender().sendMessage(Component.text("canPlaceBlock: " + canPlaceBlock));
             })
         );
         manager.command(
             base(manager, "isPlotWorld").handler(context -> {
-                boolean isPlotWorld = PlotSquaredIntegration.isPlotWorld(context.sender().getWorld());
+                if (!(context.sender() instanceof Player player)) return;
+                boolean isPlotWorld = PlotSquaredIntegration.isPlotWorld(player.getWorld());
                 context.sender().sendMessage(Component.text("isPlotWorld: " + isPlotWorld));
             })
         );
         manager.command(
             base(manager, "getCurrentEditablePlot").handler(context -> {
-                PlotSquaredIntegration.PlotBounds plotBounds = PlotSquaredIntegration.getCurrentEditablePlot(context.sender());
+                if (!(context.sender() instanceof Player player)) return;
+                PlotSquaredIntegration.PlotBounds plotBounds = PlotSquaredIntegration.getCurrentEditablePlot(player);
                 context.sender().sendMessage(Component.text("plotBounds: " + plotBounds));
             })
         );
     }
 
-    private static Command.Builder<Player> base(BukkitCommandManager<CommandSender> manager, String subcommand) {
+    private static Command.Builder<CommandSender> base(BukkitCommandManager<CommandSender> manager, String subcommand) {
         return manager.commandBuilder("axiompaperdebug")
               .literal(subcommand)
-              .senderType(Player.class)
-              .permission(PredicatePermission.of(sender -> sender.hasPermission("axiom.debug") || sender.getUniqueId().equals(MOULBERRY_UUID)));
+              .senderType(CommandSender.class)
+              .permission(PredicatePermission.of(sender -> {
+                  if (sender instanceof Player player) {
+                      return player.hasPermission("axiom.debug") || player.getUniqueId().equals(MOULBERRY_UUID);
+                  } else {
+                      return false;
+                  }
+              }));
     }
 
 
