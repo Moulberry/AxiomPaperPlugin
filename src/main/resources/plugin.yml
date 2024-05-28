@@ -5,10 +5,7 @@ description: $description
 authors:
   - Moulberry
 api-version: "$apiVersion"
-softdepend:
-  - ViaVersion
-  - WorldGuard
-  - PlotSquared
+softdepend: ["CoreProtect", "ViaVersion", "WorldGuard", "PlotSquared"]
 permissions:
   axiom.all:
     description: Allows use of all default Axiom features
