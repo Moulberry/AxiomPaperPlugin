@@ -6,14 +6,15 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import org.bukkit.entity.Player;
 
+import java.util.Set;
+
 public class Restrictions {
 
     public boolean canImportBlocks = true;
     public boolean canUseEditor = true;
     public boolean canEditDisplayEntities = true;
     public int maxSectionsPerSecond = 0;
-    public BlockPos boundsMin = null;
-    public BlockPos boundsMax = null;
+    public Set<PlotSquaredIntegration.PlotBox> bounds = Set.of();
 
     public PlotSquaredIntegration.PlotBounds lastPlotBounds = null;
 
@@ -26,16 +27,21 @@ public class Restrictions {
 
             buf.writeVarInt(this.maxSectionsPerSecond);
 
-            if (this.boundsMin == null || this.boundsMax == null) {
-                buf.writeBoolean(false);
-            } else {
-                buf.writeBoolean(true);
-                int minX = this.boundsMin.getX();
-                int minY = this.boundsMin.getY();
-                int minZ = this.boundsMin.getZ();
-                int maxX = this.boundsMax.getX();
-                int maxY = this.boundsMax.getY();
-                int maxZ = this.boundsMax.getZ();
+            int count = Math.min(64, bounds.size());
+            buf.writeVarInt(count);
+            for (PlotSquaredIntegration.PlotBox bound : this.bounds) {
+                if (count > 0) {
+                    count -= 1;
+                } else {
+                    break;
+                }
+
+                int minX = bound.min().getX();
+                int minY = bound.min().getY();
+                int minZ = bound.min().getZ();
+                int maxX = bound.max().getX();
+                int maxY = bound.max().getY();
+                int maxZ = bound.max().getZ();
 
                 if (minX < -33554431) minX = -33554431;
                 if (minX > 33554431) minX = 33554431;
@@ -68,8 +74,7 @@ public class Restrictions {
             ", canUseEditor=" + canUseEditor +
             ", canEditDisplayEntities=" + canEditDisplayEntities +
             ", maxSectionsPerSecond=" + maxSectionsPerSecond +
-            ", boundsMin=" + boundsMin +
-            ", boundsMax=" + boundsMax +
+            ", bounds=" + bounds +
             ", lastPlotBounds=" + lastPlotBounds +
             '}';
     }

@@ -10,26 +10,13 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 
+import java.util.Set;
+
 
 public class PlotSquaredIntegration {
 
-    public record PlotBounds(BlockPos min, BlockPos max, String worldName) {
-        public PlotBounds(CuboidRegion cuboidRegion, String worldName) {
-            this(
-                new BlockPos(
-                    cuboidRegion.getMinimumPoint().getBlockX(),
-                    cuboidRegion.getMinimumPoint().getBlockY(),
-                    cuboidRegion.getMinimumPoint().getBlockZ()
-                ),
-                new BlockPos(
-                    cuboidRegion.getMaximumPoint().getBlockX(),
-                    cuboidRegion.getMaximumPoint().getBlockY(),
-                    cuboidRegion.getMaximumPoint().getBlockZ()
-                ),
-                worldName
-            );
-        }
-    }
+    public record PlotBox(BlockPos min, BlockPos max) {}
+    public record PlotBounds(Set<PlotBox> boxes, String worldName) {}
 
     public static boolean canBreakBlock(Player player, Block block) {
         if (!Bukkit.getPluginManager().isPluginEnabled("PlotSquared")) {
