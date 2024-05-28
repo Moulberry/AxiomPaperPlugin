@@ -223,32 +223,31 @@ public class AxiomPaper extends JavaPlugin implements Listener {
                             send = true;
                         }
 
-                        BlockPos boundsMin = null;
-                        BlockPos boundsMax = null;
+                        Set<PlotSquaredIntegration.PlotBox> bounds = Set.of();
 
                         if (!player.hasPermission("axiom.allow_copying_other_plots")) {
                             if (PlotSquaredIntegration.isPlotWorld(player.getWorld())) {
                                 PlotSquaredIntegration.PlotBounds editable = PlotSquaredIntegration.getCurrentEditablePlot(player);
                                 if (editable != null) {
                                     restrictions.lastPlotBounds = editable;
-                                    boundsMin = editable.min();
-                                    boundsMax = editable.max();
+                                    bounds = editable.boxes();
                                 } else if (restrictions.lastPlotBounds != null && restrictions.lastPlotBounds.worldName().equals(player.getWorld().getName())) {
-                                    boundsMin = restrictions.lastPlotBounds.min();
-                                    boundsMax = restrictions.lastPlotBounds.max();
+                                    bounds = restrictions.lastPlotBounds.boxes();
                                 } else {
-                                    boundsMin = BlockPos.ZERO;
-                                    boundsMax = BlockPos.ZERO;
+                                    bounds = Set.of(new PlotSquaredIntegration.PlotBox(BlockPos.ZERO, BlockPos.ZERO));
                                 }
                             }
 
-                            int min = Integer.MIN_VALUE;
-                            int max = Integer.MAX_VALUE;
-                            if (boundsMin != null && boundsMax != null &&
-                                    boundsMin.getX() == min && boundsMin.getY() == min && boundsMin.getZ() == min &&
-                                    boundsMax.getX() == max && boundsMax.getY() == max && boundsMax.getZ() == max) {
-                                boundsMin = null;
-                                boundsMax = null;
+                            if (bounds.size() == 1) {
+                                PlotSquaredIntegration.PlotBox plotBounds = bounds.iterator().next();
+
+                                int min = Integer.MIN_VALUE;
+                                int max = Integer.MAX_VALUE;
+
+                                if (plotBounds.min().getX() == min && plotBounds.min().getY() == min && plotBounds.min().getZ() == min &&
+                                        plotBounds.max().getX() == max && plotBounds.max().getY() == max && plotBounds.max().getZ() == max) {
+                                    bounds = Set.of();
+                                }
                             }
                         }
 
@@ -256,12 +255,10 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
                         if (restrictions.maxSectionsPerSecond != rateLimit ||
                                 restrictions.canImportBlocks != allowImportingBlocks ||
-                                !Objects.equals(restrictions.boundsMin, boundsMin) ||
-                                !Objects.equals(restrictions.boundsMax, boundsMax)) {
+                                !Objects.equals(restrictions.bounds, bounds)) {
                             restrictions.maxSectionsPerSecond = rateLimit;
                             restrictions.canImportBlocks = allowImportingBlocks;
-                            restrictions.boundsMin = boundsMin;
-                            restrictions.boundsMax = boundsMax;
+                            restrictions.bounds = bounds;
                             send = true;
                         }
 
