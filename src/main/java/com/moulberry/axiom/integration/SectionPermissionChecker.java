@@ -9,6 +9,16 @@ public interface SectionPermissionChecker {
     boolean allowed(int x, int y, int z);
     Box bounds();
 
+    static SectionPermissionChecker combine(List<SectionPermissionChecker> checkers) {
+        if (checkers.isEmpty()) return NONE_ALLOWED;
+
+        SectionPermissionChecker combined = checkers.get(0);
+        for (int i = 1; i < checkers.size(); i++) {
+            combined = combine(combined, checkers.get(i));
+        }
+        return combined;
+    }
+
     static SectionPermissionChecker combine(SectionPermissionChecker first, SectionPermissionChecker second) {
         if (first.noneAllowed() || second.noneAllowed()) {
             return NONE_ALLOWED;

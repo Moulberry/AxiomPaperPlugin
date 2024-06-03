@@ -9,6 +9,7 @@ reflection-remapper = "0.1.2-20240315.033304-2"
 viaversion-api = "4.10.1-20240505.124211-22"
 worldguard-bukkit = "7.1.0-20240503.180049-12"
 zstd-jni = "1.5.5-4"
+griefdefender = "2.1.0-20240112.231634-8"
 
 # Plugins
 paperweight-userdev = "1.7.1"
@@ -25,6 +26,7 @@ reflection-remapper = { group = "xyz.jpenilla", name = "reflection-remapper", ve
 viaversion-api = { group = "com.viaversion", name = "viaversion-api", version.ref = "viaversion-api" }
 worldguard-bukkit = { group = "com.sk89q.worldguard", name = "worldguard-bukkit", version.ref = "worldguard-bukkit" }
 zstd-jni = { group = "com.github.luben", name = "zstd-jni", version = "1.5.5-4" }
+griefdefender = { group = "com.griefdefender", name = "api", version.ref = "griefdefender" }
 
 [plugins]
 paperweight-userdev = { id = "io.papermc.paperweight.userdev", version.ref = "paperweight-userdev" }
