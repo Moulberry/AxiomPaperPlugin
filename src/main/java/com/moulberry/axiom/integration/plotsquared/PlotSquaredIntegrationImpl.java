@@ -22,7 +22,6 @@ import net.minecraft.core.BlockPos;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
-import org.checkerframework.checker.nullness.qual.NonNull;
 
 import java.util.*;
 
@@ -183,14 +182,14 @@ public class PlotSquaredIntegrationImpl {
 
         for (CuboidRegion region : plot.getRegions()) {
             BlockPos min = new BlockPos(
-                region.getMinimumPoint().getBlockX(),
-                region.getMinimumPoint().getBlockY(),
-                region.getMinimumPoint().getBlockZ()
+                    region.getMinimumPoint().x(),
+                    region.getMinimumPoint().y(),
+                    region.getMinimumPoint().z()
             );
             BlockPos max = new BlockPos(
-                region.getMaximumPoint().getBlockX(),
-                region.getMaximumPoint().getBlockY(),
-                region.getMaximumPoint().getBlockZ()
+                    region.getMaximumPoint().x(),
+                    region.getMaximumPoint().y(),
+                    region.getMaximumPoint().z()
             );
             boxes.add(new PlotSquaredIntegration.PlotBox(min, max));
         }
