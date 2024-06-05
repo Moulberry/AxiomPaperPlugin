@@ -358,7 +358,7 @@ public class SetBlockBufferPacketListener {
                         PalettedContainer<Holder<Biome>> container = (PalettedContainer<Holder<Biome>>) section.getBiomes();
 
                         if (!Integration.canPlaceBlock(player.getBukkitEntity(),
-                            new Location(player.getBukkitEntity().getWorld(), x+1, y+1, z+1))) return;
+                            new Location(player.getBukkitEntity().getWorld(), (x<<2)+1, (y<<2)+1, (z<<2)+1))) return;
 
                         container.set(x & 3, y & 3, z & 3, holder.get());
                         changedChunks.add(chunk);
