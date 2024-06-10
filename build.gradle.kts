@@ -1,43 +1,52 @@
 plugins {
     `java-library`
-    id("io.papermc.paperweight.userdev") version "1.5.11"
-    id("xyz.jpenilla.run-paper") version "2.2.2" // Adds runServer and runMojangMappedServer tasks for testing
+    alias(libs.plugins.paperweight.userdev)
+    alias(libs.plugins.run.paper) // Adds runServer and runMojangMappedServer tasks for testing
 
     // Shades and relocates dependencies into our plugin jar. See https://imperceptiblethoughts.com/shadow/introduction/
-    id("com.github.johnrengelman.shadow") version "8.1.1"
+    alias(libs.plugins.shadow)
 }
 
 group = "com.moulberry.axiom"
-version = "1.5.9"
+version = "1.5.11"
 description = "Serverside component for Axiom on Paper"
 
 java {
-    // Configure the java toolchain. This allows gradle to auto-provision JDK 17 on systems that only have JDK 8 installed for example.
-    toolchain.languageVersion.set(JavaLanguageVersion.of(17))
+    // Configure the java toolchain. This allows gradle to auto-provision JDK 21 on systems that only have JDK 11 installed for example.
+    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
 }
 
 repositories {
     mavenCentral()
+    maven("https://repo.viaversion.com")
     maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
     maven("https://jitpack.io")
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://maven.enginehub.org/repo/")
+    maven("https://maven.playpro.com")
 }
 
 dependencies {
-    paperweight.paperDevBundle("1.20.4-R0.1-SNAPSHOT")
-    implementation("xyz.jpenilla:reflection-remapper:0.1.0-SNAPSHOT")
+    paperweight.paperDevBundle(libs.versions.paper)
+    implementation(libs.reflection.remapper)
+    implementation(libs.cloud.paper)
 
     // Zstd Compression Library
-    implementation("com.github.luben:zstd-jni:1.5.5-4")
+    implementation(libs.zstd.jni)
+
+    // ViaVersion support
+    compileOnly(libs.viaversion.api)
 
     // WorldGuard support
-    compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.1.0-SNAPSHOT")
+    compileOnly(libs.worldguard.bukkit)
 
     // PlotSquared support
-    implementation(platform("com.intellectualsites.bom:bom-newest:1.37"))
-    compileOnly("com.intellectualsites.plotsquared:plotsquared-core")
-    compileOnly("com.intellectualsites.plotsquared:plotsquared-bukkit") { isTransitive = false }
+    implementation(platform(libs.bom.newest))
+    compileOnly(libs.plotsquared.core)
+    compileOnly(libs.plotsquared.bukkit) { isTransitive = false }
+
+    // CoreProtect support
+    compileOnly(libs.coreprotect)
 }
 
 tasks {
@@ -51,7 +60,7 @@ tasks {
 
         // Set the release flag. This configures what version bytecode the compiler will emit, as well as what JDK APIs are usable.
         // See https://openjdk.java.net/jeps/247 for more information.
-        options.release.set(17)
+        options.release.set(21)
     }
     javadoc {
         options.encoding = Charsets.UTF_8.name() // We want UTF-8 for everything

@@ -3,10 +3,13 @@ package com.moulberry.axiom.packet;
 import com.google.common.collect.Maps;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.integration.Integration;
+import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import io.netty.buffer.Unpooled;
+import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.IdMapper;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
@@ -29,9 +32,9 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Location;
 import org.bukkit.block.BlockFace;
-import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
-import org.bukkit.craftbukkit.v1_20_R3.block.CraftBlock;
-import org.bukkit.craftbukkit.v1_20_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.block.CraftBlock;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
@@ -67,8 +70,16 @@ public class SetBlockPacketListener implements PluginMessageListener {
     }
 
     @Override
-    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player bukkitPlayer, @NotNull byte[] message) {
-        if (!this.plugin.canUseAxiom(bukkitPlayer)) {
+    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
+        try {
+            this.process(player, message);
+        } catch (Throwable t) {
+            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
+        }
+    }
+
+    private void process(Player bukkitPlayer, byte[] message) {
+        if (!this.plugin.canUseAxiom(bukkitPlayer, "axiom.build.place")) {
             return;
         }
 
@@ -79,8 +90,9 @@ public class SetBlockPacketListener implements PluginMessageListener {
         // Read packet
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         IntFunction<Map<BlockPos, BlockState>> mapFunction = FriendlyByteBuf.limitValue(Maps::newLinkedHashMapWithExpectedSize, 512);
+        IdMapper<BlockState> registry = this.plugin.getBlockRegistry(bukkitPlayer.getUniqueId());
         Map<BlockPos, BlockState> blocks = friendlyByteBuf.readMap(mapFunction,
-                FriendlyByteBuf::readBlockPos, buf -> buf.readById(this.plugin.allowedBlockRegistry));
+                buf -> buf.readBlockPos(), buf -> buf.readById(registry::byIdOrThrow));
         boolean updateNeighbors = friendlyByteBuf.readBoolean();
 
         int reason = friendlyByteBuf.readVarInt();
@@ -129,6 +141,10 @@ public class SetBlockPacketListener implements PluginMessageListener {
                 BlockPos blockPos = entry.getKey();
                 BlockState blockState = entry.getValue();
 
+                if (blockState == null) {
+                    continue;
+                }
+
                 // Disallow in unloaded chunks
                 if (!player.level().isLoaded(blockPos)) {
                     continue;
@@ -143,8 +159,14 @@ public class SetBlockPacketListener implements PluginMessageListener {
                     continue;
                 }
 
+                if (CoreProtectIntegration.isEnabled()) {
+                    BlockState old = player.level().getBlockState(blockPos);
+                    CoreProtectIntegration.logRemoval(bukkitPlayer.getName(), old, world, blockPos);
+                }
+
                 // Place block
                 player.level().setBlock(blockPos, blockState, 3);
+                CoreProtectIntegration.logPlacement(bukkitPlayer.getName(), blockState, world, blockPos);
             }
         } else {
             int count = 0;
@@ -153,6 +175,10 @@ public class SetBlockPacketListener implements PluginMessageListener {
 
                 BlockPos blockPos = entry.getKey();
                 BlockState blockState = entry.getValue();
+
+                if (blockState == null) {
+                    continue;
+                }
 
                 // Disallow in unloaded chunks
                 if (!player.level().isLoaded(blockPos)) {
@@ -257,6 +283,14 @@ public class SetBlockPacketListener implements PluginMessageListener {
                     if (!Objects.equals(oldPoi, newPoi)) {
                         if (oldPoi.isPresent()) level.getPoiManager().remove(blockPos);
                         if (newPoi.isPresent()) level.getPoiManager().add(blockPos, newPoi.get());
+                    }
+
+                    if (CoreProtectIntegration.isEnabled()) {
+                        String changedBy = player.getBukkitEntity().getName();
+                        BlockPos changedPos = new BlockPos(bx, by, bz);
+
+                        CoreProtectIntegration.logRemoval(changedBy, old, world, changedPos);
+                        CoreProtectIntegration.logPlacement(changedBy, blockState, world, changedPos);
                     }
                 }
 

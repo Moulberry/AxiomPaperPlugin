@@ -18,6 +18,7 @@ import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.regions.CuboidRegion;
 import com.sk89q.worldedit.world.block.BlockType;
+import net.minecraft.core.BlockPos;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -147,16 +148,12 @@ public class PlotSquaredIntegrationImpl {
         BukkitPlayer pp = BukkitUtil.adapt(player);
         Plot plot = area.getPlot(location);
         if (plot != null) {
-            Location bottom = plot.getExtendedBottomAbs();
-            Location top = plot.getExtendedTopAbs();
-            CuboidRegion cuboidRegion = new CuboidRegion(bottom.getBlockVector3(), top.getBlockVector3());
-
             // check unowned plots
             if (!plot.hasOwner()) {
                 if (!pp.hasPermission(Permission.PERMISSION_ADMIN_BUILD_UNOWNED, false)) {
                     return null;
                 } else {
-                    return new PlotSquaredIntegration.PlotBounds(cuboidRegion, player.getWorld().getName());
+                    return createBounds(plot, player.getWorld().getName());
                 }
             }
             // player is breaking another player's plot
@@ -164,7 +161,7 @@ public class PlotSquaredIntegrationImpl {
                 if (!pp.hasPermission(Permission.PERMISSION_ADMIN_BUILD_OTHER, false)) {
                     return null;
                 } else {
-                    return new PlotSquaredIntegration.PlotBounds(cuboidRegion, player.getWorld().getName());
+                    return createBounds(plot, player.getWorld().getName());
                 }
             }
             // plot is 'done'
@@ -172,13 +169,33 @@ public class PlotSquaredIntegrationImpl {
                 if (!pp.hasPermission(Permission.PERMISSION_ADMIN_BUILD_OTHER, false)) {
                     return null;
                 } else {
-                    return new PlotSquaredIntegration.PlotBounds(cuboidRegion, player.getWorld().getName());
+                    return createBounds(plot, player.getWorld().getName());
                 }
             }
-            return new PlotSquaredIntegration.PlotBounds(cuboidRegion, player.getWorld().getName());
+            return createBounds(plot, player.getWorld().getName());
         }
 
         return null;
+    }
+
+    private static PlotSquaredIntegration.PlotBounds createBounds(Plot plot, String worldName) {
+        Set<PlotSquaredIntegration.PlotBox> boxes = new HashSet<>();
+
+        for (CuboidRegion region : plot.getRegions()) {
+            BlockPos min = new BlockPos(
+                region.getMinimumPoint().getBlockX(),
+                region.getMinimumPoint().getBlockY(),
+                region.getMinimumPoint().getBlockZ()
+            );
+            BlockPos max = new BlockPos(
+                region.getMaximumPoint().getBlockX(),
+                region.getMaximumPoint().getBlockY(),
+                region.getMaximumPoint().getBlockZ()
+            );
+            boxes.add(new PlotSquaredIntegration.PlotBox(min, max));
+        }
+
+        return new PlotSquaredIntegration.PlotBounds(boxes, worldName);
     }
 
     static SectionPermissionChecker checkSection(Player player, World world, int sectionX, int sectionY, int sectionZ) {
@@ -220,12 +237,12 @@ public class PlotSquaredIntegrationImpl {
                             BlockVector3 minPoint = region.getMinimumPoint();
                             BlockVector3 maxPoint = region.getMaximumPoint();
 
-                            int minPlotX = Math.max(minPoint.getX(), minX);
-                            int minPlotY = Math.max(minPoint.getY(), minY);
-                            int minPlotZ = Math.max(minPoint.getZ(), minZ);
-                            int maxPlotX = Math.min(maxPoint.getX(), maxX);
-                            int maxPlotY = Math.min(maxPoint.getY(), maxY);
-                            int maxPlotZ = Math.min(maxPoint.getZ(), maxZ);
+                            int minPlotX = Math.max(minPoint.x(), minX);
+                            int minPlotY = Math.max(minPoint.y(), minY);
+                            int minPlotZ = Math.max(minPoint.z(), minZ);
+                            int maxPlotX = Math.min(maxPoint.x(), maxX);
+                            int maxPlotY = Math.min(maxPoint.y(), maxY);
+                            int maxPlotZ = Math.min(maxPoint.z(), maxZ);
 
                             if (minPlotX > maxPlotX) continue;
                             if (minPlotY > maxPlotY) continue;

@@ -1,8 +1,9 @@
 package com.moulberry.axiom.persistence;
 
 import net.minecraft.nbt.CompoundTag;
-import org.bukkit.craftbukkit.v1_20_R3.inventory.CraftItemStack;
-import org.bukkit.craftbukkit.v1_20_R3.persistence.CraftPersistentDataContainer;
+import net.minecraft.server.MinecraftServer;
+import org.bukkit.craftbukkit.inventory.CraftItemStack;
+import org.bukkit.craftbukkit.persistence.CraftPersistentDataContainer;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -28,8 +29,7 @@ public class ItemStackDataType implements PersistentDataType<PersistentDataConta
     public @NotNull PersistentDataContainer toPrimitive(@NotNull ItemStack complex, @NotNull PersistentDataAdapterContext context) {
         net.minecraft.world.item.ItemStack nmsStack = CraftItemStack.asNMSCopy(complex);
         if (nmsStack == null) nmsStack = net.minecraft.world.item.ItemStack.EMPTY;
-        CompoundTag tag = new CompoundTag();
-        nmsStack.save(tag);
+        CompoundTag tag = (CompoundTag) nmsStack.save(MinecraftServer.getServer().registryAccess());
 
         PersistentDataContainer container = context.newPersistentDataContainer();
         ((CraftPersistentDataContainer)container).putAll(tag);
@@ -39,7 +39,7 @@ public class ItemStackDataType implements PersistentDataType<PersistentDataConta
     @Override
     public @NotNull ItemStack fromPrimitive(@NotNull PersistentDataContainer primitive, @NotNull PersistentDataAdapterContext context) {
         CompoundTag tag = ((CraftPersistentDataContainer)primitive).toTagCompound();
-        net.minecraft.world.item.ItemStack nmsStack = net.minecraft.world.item.ItemStack.of(tag);
+        net.minecraft.world.item.ItemStack nmsStack = net.minecraft.world.item.ItemStack.parseOptional(MinecraftServer.getServer().registryAccess(), tag);
 
         return CraftItemStack.asCraftMirror(nmsStack);
     }

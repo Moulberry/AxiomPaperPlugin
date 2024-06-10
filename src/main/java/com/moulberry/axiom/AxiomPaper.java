@@ -3,8 +3,10 @@ package com.moulberry.axiom;
 import com.google.common.util.concurrent.RateLimiter;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
+import com.moulberry.axiom.commands.AxiomDebugCommand;
 import com.moulberry.axiom.event.AxiomCreateWorldPropertiesEvent;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
+import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.*;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
@@ -15,17 +17,19 @@ import io.papermc.paper.event.world.WorldGameRuleChangeEvent;
 import io.papermc.paper.network.ChannelInitializeListener;
 import io.papermc.paper.network.ChannelInitializeListenerHolder;
 import net.kyori.adventure.key.Key;
+import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.IdMapper;
-import net.minecraft.network.Connection;
-import net.minecraft.network.ConnectionProtocol;
-import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.protocol.Packet;
-import net.minecraft.network.protocol.PacketFlow;
+import net.minecraft.network.*;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
+import net.minecraft.network.protocol.common.custom.DiscardedPayload;
+import net.minecraft.network.protocol.game.GameProtocols;
+import net.minecraft.network.protocol.game.ServerGamePacketListener;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.*;
+import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -34,9 +38,13 @@ import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.Messenger;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.incendo.cloud.bukkit.CloudBukkitCapabilities;
+import org.incendo.cloud.execution.ExecutionCoordinator;
+import org.incendo.cloud.paper.LegacyPaperCommandManager;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -49,6 +57,8 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     public final Set<UUID> activeAxiomPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
     public final Map<UUID, RateLimiter> playerBlockBufferRateLimiters = new ConcurrentHashMap<>();
     public final Map<UUID, Restrictions> playerRestrictions = new ConcurrentHashMap<>();
+    public final Map<UUID, IdMapper<BlockState>> playerBlockRegistry = new ConcurrentHashMap<>();
+    public final Map<UUID, Integer> playerProtocolVersion = new ConcurrentHashMap<>();
     public Configuration configuration;
 
     public IdMapper<BlockState> allowedBlockRegistry = null;
@@ -151,21 +161,16 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             RequestChunkDataPacketListener requestChunkDataPacketListener = allowLargeChunkDataRequest ?
                 new RequestChunkDataPacketListener(this) : null;
 
+            // Hack to figure out the id of the CustomPayload packet
+            ProtocolInfo<ServerGamePacketListener> protocol = GameProtocols.SERVERBOUND.bind(k -> new RegistryFriendlyByteBuf(k,
+                MinecraftServer.getServer().registryAccess()));
+            RegistryFriendlyByteBuf friendlyByteBuf = new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
+            protocol.codec().encode(friendlyByteBuf, new ServerboundCustomPayloadPacket(new DiscardedPayload(new ResourceLocation("dummy"), Unpooled.buffer())));
+            int payloadId = friendlyByteBuf.readVarInt();
+
             ChannelInitializeListenerHolder.addListener(Key.key("axiom:handle_big_payload"), new ChannelInitializeListener() {
                 @Override
                 public void afterInitChannel(@NonNull Channel channel) {
-                    var packets = ConnectionProtocol.PLAY.getPacketsByIds(PacketFlow.SERVERBOUND);
-                    int payloadId = -1;
-                    for (Map.Entry<Integer, Class<? extends Packet<?>>> entry : packets.entrySet()) {
-                        if (entry.getValue() == ServerboundCustomPayloadPacket.class) {
-                            payloadId = entry.getKey();
-                            break;
-                        }
-                    }
-                    if (payloadId < 0) {
-                        throw new RuntimeException("Failed to find ServerboundCustomPayloadPacket id");
-                    }
-
                     Connection connection = (Connection) channel.pipeline().get("packet_handler");
                     channel.pipeline().addBefore("decoder", "axiom-big-payload-handler",
                         new AxiomBigPayloadHandler(payloadId, connection, setBlockBufferPacketListener,
@@ -213,32 +218,31 @@ public class AxiomPaper extends JavaPlugin implements Listener {
                             send = true;
                         }
 
-                        BlockPos boundsMin = null;
-                        BlockPos boundsMax = null;
+                        Set<PlotSquaredIntegration.PlotBox> bounds = Set.of();
 
                         if (!player.hasPermission("axiom.allow_copying_other_plots")) {
                             if (PlotSquaredIntegration.isPlotWorld(player.getWorld())) {
                                 PlotSquaredIntegration.PlotBounds editable = PlotSquaredIntegration.getCurrentEditablePlot(player);
                                 if (editable != null) {
                                     restrictions.lastPlotBounds = editable;
-                                    boundsMin = editable.min();
-                                    boundsMax = editable.max();
+                                    bounds = editable.boxes();
                                 } else if (restrictions.lastPlotBounds != null && restrictions.lastPlotBounds.worldName().equals(player.getWorld().getName())) {
-                                    boundsMin = restrictions.lastPlotBounds.min();
-                                    boundsMax = restrictions.lastPlotBounds.max();
+                                    bounds = restrictions.lastPlotBounds.boxes();
                                 } else {
-                                    boundsMin = BlockPos.ZERO;
-                                    boundsMax = BlockPos.ZERO;
+                                    bounds = Set.of(new PlotSquaredIntegration.PlotBox(BlockPos.ZERO, BlockPos.ZERO));
                                 }
                             }
 
-                            int min = Integer.MIN_VALUE;
-                            int max = Integer.MAX_VALUE;
-                            if (boundsMin != null && boundsMax != null &&
-                                    boundsMin.getX() == min && boundsMin.getY() == min && boundsMin.getZ() == min &&
-                                    boundsMax.getX() == max && boundsMax.getY() == max && boundsMax.getZ() == max) {
-                                boundsMin = null;
-                                boundsMax = null;
+                            if (bounds.size() == 1) {
+                                PlotSquaredIntegration.PlotBox plotBounds = bounds.iterator().next();
+
+                                int min = Integer.MIN_VALUE;
+                                int max = Integer.MAX_VALUE;
+
+                                if (plotBounds.min().getX() == min && plotBounds.min().getY() == min && plotBounds.min().getZ() == min &&
+                                        plotBounds.max().getX() == max && plotBounds.max().getY() == max && plotBounds.max().getZ() == max) {
+                                    bounds = Set.of();
+                                }
                             }
                         }
 
@@ -246,12 +250,10 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
                         if (restrictions.maxSectionsPerSecond != rateLimit ||
                                 restrictions.canImportBlocks != allowImportingBlocks ||
-                                !Objects.equals(restrictions.boundsMin, boundsMin) ||
-                                !Objects.equals(restrictions.boundsMax, boundsMax)) {
+                                !Objects.equals(restrictions.bounds, bounds)) {
                             restrictions.maxSectionsPerSecond = rateLimit;
                             restrictions.canImportBlocks = allowImportingBlocks;
-                            restrictions.boundsMin = boundsMin;
-                            restrictions.boundsMax = boundsMax;
+                            restrictions.bounds = bounds;
                             send = true;
                         }
 
@@ -265,6 +267,8 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             activeAxiomPlayers.retainAll(stillActiveAxiomPlayers);
             playerBlockBufferRateLimiters.keySet().retainAll(stillActiveAxiomPlayers);
             playerRestrictions.keySet().retainAll(stillActiveAxiomPlayers);
+            playerBlockRegistry.keySet().retainAll(stillActiveAxiomPlayers);
+            playerProtocolVersion.keySet().retainAll(stillActiveAxiomPlayers);
         }, 20, 20);
 
         boolean sendMarkers = configuration.getBoolean("send-markers");
@@ -274,6 +278,25 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
             WorldExtension.tick(MinecraftServer.getServer(), sendMarkers, maxChunkRelightsPerTick, maxChunkSendsPerTick);
         }, 1, 1);
+
+        try {
+            LegacyPaperCommandManager<CommandSender> manager = LegacyPaperCommandManager.createNative(
+                this,
+                ExecutionCoordinator.simpleCoordinator()
+            );
+
+            if (manager.hasCapability(CloudBukkitCapabilities.NATIVE_BRIGADIER)) {
+                manager.registerBrigadier();
+            }
+
+            AxiomDebugCommand.register(this, manager);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        if (CoreProtectIntegration.isEnabled()) {
+            this.getLogger().info("CoreProtect integration enabled");
+        }
     }
 
     public boolean logLargeBlockBufferChanges() {
@@ -281,15 +304,44 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     }
 
     public boolean hasAxiomPermission(Player player) {
-        return player.hasPermission("axiom.*") || player.isOp();
+        return hasAxiomPermission(player, null, false);
+    }
+
+    public boolean hasAxiomPermission(Player player, String permission, boolean strict) {
+        if (player.hasPermission("axiom.*") || player.isOp()) {
+            return !strict || permission == null || player.hasPermission("axiom.all") || player.hasPermission(permission);
+        } else if (permission != null && !player.hasPermission(permission)) {
+            return false;
+        }
+        return player.hasPermission("axiom.use");
     }
 
     public boolean canUseAxiom(Player player) {
-        return hasAxiomPermission(player) && activeAxiomPlayers.contains(player.getUniqueId());
+        return canUseAxiom(player, null, false);
+    }
+
+    public boolean canUseAxiom(Player player, String permission) {
+        return canUseAxiom(player, permission, false);
+    }
+
+    public boolean canUseAxiom(Player player, String permission, boolean strict) {
+        return activeAxiomPlayers.contains(player.getUniqueId()) && hasAxiomPermission(player, permission, strict);
     }
 
     public @Nullable RateLimiter getBlockBufferRateLimiter(UUID uuid) {
         return this.playerBlockBufferRateLimiters.get(uuid);
+    }
+
+    public boolean isMismatchedDataVersion(UUID uuid) {
+        return this.playerProtocolVersion.containsKey(uuid);
+    }
+
+    public int getProtocolVersionFor(UUID uuid) {
+        return this.playerProtocolVersion.getOrDefault(uuid, SharedConstants.getProtocolVersion());
+    }
+
+    public IdMapper<BlockState> getBlockRegistry(UUID uuid) {
+        return this.playerBlockRegistry.getOrDefault(uuid, this.allowedBlockRegistry);
     }
 
     private final WeakHashMap<World, ServerWorldPropertiesRegistry> worldProperties = new WeakHashMap<>();
@@ -363,7 +415,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     }
 
     private ServerWorldPropertiesRegistry createWorldProperties(World world) {
-        ServerWorldPropertiesRegistry registry = new ServerWorldPropertiesRegistry(world);
+        ServerWorldPropertiesRegistry registry = new ServerWorldPropertiesRegistry(new WeakReference<>(world));
 
         AxiomCreateWorldPropertiesEvent createEvent = new AxiomCreateWorldPropertiesEvent(world, registry);
         Bukkit.getPluginManager().callEvent(createEvent);

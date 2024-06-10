@@ -3,12 +3,13 @@ package com.moulberry.axiom.packet;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.marker.MarkerData;
 import io.netty.buffer.Unpooled;
+import net.kyori.adventure.text.Component;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Marker;
-import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
+import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
@@ -24,11 +25,15 @@ public class MarkerNbtRequestPacketListener implements PluginMessageListener {
 
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        if (!this.plugin.canUseAxiom(player)) {
-            return;
+        try {
+            this.process(player, message);
+        } catch (Throwable t) {
+            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
         }
+    }
 
-        if (!player.hasPermission("axiom.entity.*") && !player.hasPermission("axiom.entity.manipulate")) {
+    private void process(Player player, byte[] message) {
+        if (!this.plugin.canUseAxiom(player, "axiom.entity.manipulate", true)) {
             return;
         }
 

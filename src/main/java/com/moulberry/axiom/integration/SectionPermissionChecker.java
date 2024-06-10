@@ -13,16 +13,20 @@ public interface SectionPermissionChecker {
         if (first.noneAllowed() || second.noneAllowed()) {
             return NONE_ALLOWED;
         }
-        if (first.allAllowed()) {
+        if (first == ALL_ALLOWED) {
             return second;
         }
-        if (second.allAllowed()) {
+        if (second == ALL_ALLOWED) {
             return first;
         }
 
         Box intersect = Box.intersection(first.bounds(), second.bounds());
         if (intersect == null) {
             return NONE_ALLOWED;
+        }
+
+        if (first.allAllowed() && second.allAllowed()) {
+            return new AllAllowedInBox(intersect);
         }
 
         return new SectionPermissionChecker() {

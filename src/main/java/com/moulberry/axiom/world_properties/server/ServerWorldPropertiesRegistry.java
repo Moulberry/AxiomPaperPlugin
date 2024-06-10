@@ -9,19 +9,20 @@ import net.minecraft.server.level.ServerLevel;
 import org.bukkit.GameRule;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
+import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
+import java.lang.ref.Reference;
 import java.util.*;
 
 public class ServerWorldPropertiesRegistry {
 
     private final LinkedHashMap<WorldPropertyCategory, List<ServerWorldPropertyHolder<?>>> propertyList = new LinkedHashMap<>();
     private final Map<ResourceLocation, ServerWorldPropertyHolder<?>> propertyMap = new HashMap<>();
-    private final World world;
+    private final Reference<World> world;
 
-    public ServerWorldPropertiesRegistry(World world) {
+    public ServerWorldPropertiesRegistry(Reference<World> world) {
         this.world = world;
         this.registerDefault();
     }
@@ -32,9 +33,14 @@ public class ServerWorldPropertiesRegistry {
 
     @SuppressWarnings("unchecked")
     public void addCategory(WorldPropertyCategory category, List<ServerWorldPropertyBase<?>> properties) {
+        World world = this.world.get();
+        if (world == null) {
+            return;
+        }
+
         List<ServerWorldPropertyHolder<?>> holders = new ArrayList<>();
         for (ServerWorldPropertyBase<?> property : properties) {
-            Object defaultValue = property.getDefaultValue(this.world);
+            Object defaultValue = property.getDefaultValue(world);
             holders.add(new ServerWorldPropertyHolder<>(defaultValue, (ServerWorldPropertyBase<Object>) property));
         }
 

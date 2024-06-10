@@ -87,7 +87,7 @@ public abstract class WorldPropertyDataType<T> {
             if (value == null) value = Items.AIR;
 
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer(8));
-            buf.writeId(BuiltInRegistries.ITEM, value);
+            buf.writeById(BuiltInRegistries.ITEM::getIdOrThrow, value);
 
             byte[] bytes = new byte[buf.writerIndex()];
             buf.getBytes(0, bytes);
@@ -97,7 +97,7 @@ public abstract class WorldPropertyDataType<T> {
         @Override
         public Item deserialize(byte[] bytes) {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(bytes));
-            return buf.readById(BuiltInRegistries.ITEM);
+            return buf.readById(BuiltInRegistries.ITEM::byIdOrThrow);
         }
     };
 
@@ -112,7 +112,7 @@ public abstract class WorldPropertyDataType<T> {
             if (value == null) value = Blocks.AIR;
 
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer(8));
-            buf.writeId(BuiltInRegistries.BLOCK, value);
+            buf.writeById(BuiltInRegistries.BLOCK::getIdOrThrow, value);
 
             byte[] bytes = new byte[buf.writerIndex()];
             buf.getBytes(0, bytes);
@@ -122,7 +122,7 @@ public abstract class WorldPropertyDataType<T> {
         @Override
         public Block deserialize(byte[] bytes) {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(bytes));
-            return buf.readById(BuiltInRegistries.BLOCK);
+            return buf.readById(BuiltInRegistries.BLOCK::byIdOrThrow);
         }
     };
 

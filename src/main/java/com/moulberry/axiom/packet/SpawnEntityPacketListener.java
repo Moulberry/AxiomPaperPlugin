@@ -4,7 +4,10 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
+import com.moulberry.axiom.viaversion.UnknownVersionHelper;
+import com.moulberry.axiom.viaversion.ViaVersionHelper;
 import io.netty.buffer.Unpooled;
+import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -18,7 +21,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
+import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
@@ -38,22 +41,21 @@ public class SpawnEntityPacketListener implements PluginMessageListener {
 
     private record SpawnEntry(UUID newUuid, double x, double y, double z, float yaw, float pitch,
                               @Nullable UUID copyFrom, CompoundTag tag) {
-        public SpawnEntry(FriendlyByteBuf friendlyByteBuf) {
-            this(friendlyByteBuf.readUUID(), friendlyByteBuf.readDouble(), friendlyByteBuf.readDouble(),
-                friendlyByteBuf.readDouble(), friendlyByteBuf.readFloat(), friendlyByteBuf.readFloat(),
-                friendlyByteBuf.readNullable(FriendlyByteBuf::readUUID), friendlyByteBuf.readNbt());
-        }
     }
 
     private static final Rotation[] ROTATION_VALUES = Rotation.values();
 
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        if (!this.plugin.canUseAxiom(player)) {
-            return;
+        try {
+            this.process(player, message);
+        } catch (Throwable t) {
+            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
         }
+    }
 
-        if (!player.hasPermission("axiom.entity.*") && !player.hasPermission("axiom.entity.spawn")) {
+    private void process(Player player, byte[] message) {
+        if (!this.plugin.canUseAxiom(player, "axiom.entity.spawn", true)) {
             return;
         }
 
@@ -62,7 +64,10 @@ public class SpawnEntityPacketListener implements PluginMessageListener {
         }
 
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
-        List<SpawnEntry> entries = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000), SpawnEntry::new);
+        List<SpawnEntry> entries = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
+            buf -> new SpawnEntry(buf.readUUID(), buf.readDouble(), buf.readDouble(),
+                buf.readDouble(), buf.readFloat(), buf.readFloat(),
+                buf.readNullable(buffer -> buffer.readUUID()), UnknownVersionHelper.readTagUnknown(buf, player)));
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();
 

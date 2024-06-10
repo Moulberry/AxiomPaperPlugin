@@ -128,7 +128,7 @@ public class BlueprintIo {
                 CompoundTag blockStates = compoundTag.getCompound("BlockStates");
                 blockStates = DFUHelper.updatePalettedContainer(blockStates, dataVersion);
                 PalettedContainer<BlockState> container = BLOCK_STATE_CODEC.parse(NbtOps.INSTANCE, blockStates)
-                               .getOrThrow(false, err -> {});
+                               .getOrThrow();
                 map.put(BlockPos.asLong(cx, cy, cz), container);
             }
         }
@@ -205,8 +205,7 @@ public class BlueprintIo {
             tag.putInt("X", cx);
             tag.putInt("Y", cy);
             tag.putInt("Z", cz);
-            Tag encoded = BlueprintIo.BLOCK_STATE_CODEC.encodeStart(NbtOps.INSTANCE, container)
-                                                       .getOrThrow(false, err -> {});
+            Tag encoded = BlueprintIo.BLOCK_STATE_CODEC.encodeStart(NbtOps.INSTANCE, container).getOrThrow();
             tag.put("BlockStates", encoded);
             savedBlockRegions.add(tag);
         }

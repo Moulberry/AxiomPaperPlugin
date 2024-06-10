@@ -5,8 +5,10 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
+import com.viaversion.viaversion.api.Via;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.*;
+import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
@@ -20,11 +22,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.ChunkStatus;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
-import org.bukkit.craftbukkit.v1_20_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
@@ -41,12 +43,20 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
     }
 
     @Override
-    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player bukkitPlayer, @NotNull byte[] message) {
+    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
+        try {
+            this.process(player, message);
+        } catch (Throwable t) {
+            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
+        }
+    }
+
+    private void process(Player bukkitPlayer, byte[] message) {
         ServerPlayer player = ((CraftPlayer)bukkitPlayer).getHandle();
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         long id = friendlyByteBuf.readLong();
 
-        if (!this.plugin.canUseAxiom(bukkitPlayer)) {
+        if (!this.plugin.canUseAxiom(bukkitPlayer, "axiom.chunk.request") || this.plugin.isMismatchedDataVersion(bukkitPlayer.getUniqueId())) {
             // We always send an 'empty' response in order to make the client happy
             sendEmptyResponse(player, id);
             return;
@@ -105,7 +115,7 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
 
             BlockEntity blockEntity = chunk.getBlockEntity(mutableBlockPos, LevelChunk.EntityCreationType.IMMEDIATE);
             if (blockEntity != null) {
-                CompoundTag tag = blockEntity.saveWithoutMetadata();
+                CompoundTag tag = blockEntity.saveWithoutMetadata(player.registryAccess());
                 blockEntityMap.put(pos, CompressedBlockEntity.compress(tag, baos));
             }
         }
@@ -144,7 +154,7 @@ public class RequestChunkDataPacketListener implements PluginMessageListener {
                                         mutableBlockPos.set(sx*16 + x, sy*16 + y, sz*16 + z);
                                         BlockEntity blockEntity = chunk.getBlockEntity(mutableBlockPos, LevelChunk.EntityCreationType.CHECK);
                                         if (blockEntity != null) {
-                                            CompoundTag tag = blockEntity.saveWithoutMetadata();
+                                            CompoundTag tag = blockEntity.saveWithoutMetadata(player.registryAccess());
                                             blockEntityMap.put(mutableBlockPos.asLong(), CompressedBlockEntity.compress(tag, baos));
                                         }
                                     }

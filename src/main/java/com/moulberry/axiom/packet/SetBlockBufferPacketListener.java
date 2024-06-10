@@ -8,7 +8,8 @@ import com.moulberry.axiom.buffer.BlockBuffer;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.SectionPermissionChecker;
-import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
+import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
+import com.moulberry.axiom.viaversion.UnknownVersionHelper;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
 import net.minecraft.ChatFormatting;
@@ -33,7 +34,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.ChunkStatus;
+import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
@@ -77,7 +78,7 @@ public class SetBlockBufferPacketListener {
         boolean continuation = friendlyByteBuf.readBoolean();
 
         if (!continuation) {
-            friendlyByteBuf.readNbt(); // Discard sourceInfo
+            UnknownVersionHelper.skipTagUnknown(friendlyByteBuf, player.getBukkitEntity());
         }
 
         RateLimiter rateLimiter = this.plugin.getBlockBufferRateLimiter(player.getUUID());
@@ -85,7 +86,7 @@ public class SetBlockBufferPacketListener {
         byte type = friendlyByteBuf.readByte();
         if (type == 0) {
             AtomicBoolean reachedRateLimit = new AtomicBoolean(false);
-            BlockBuffer buffer = BlockBuffer.load(friendlyByteBuf, rateLimiter, reachedRateLimit);
+            BlockBuffer buffer = BlockBuffer.load(friendlyByteBuf, rateLimiter, reachedRateLimit, this.plugin.getBlockRegistry(player.getUUID()));
             if (reachedRateLimit.get()) {
                 player.sendSystemMessage(Component.literal("[Axiom] Exceeded server rate-limit of " + (int)rateLimiter.getRate() + " sections per second")
                     .withStyle(ChatFormatting.RED));
@@ -124,7 +125,7 @@ public class SetBlockBufferPacketListener {
                 ServerLevel world = player.serverLevel();
                 if (!world.dimension().equals(worldKey)) return;
 
-                if (!this.plugin.canUseAxiom(player.getBukkitEntity())) {
+                if (!this.plugin.canUseAxiom(player.getBukkitEntity(), "axiom.build.section")) {
                     return;
                 }
 
@@ -281,11 +282,19 @@ public class SetBlockBufferPacketListener {
                                         int key = x | (y << 4) | (z << 8);
                                         CompressedBlockEntity savedBlockEntity = blockEntityChunkMap.get((short) key);
                                         if (savedBlockEntity != null) {
-                                            blockEntity.load(savedBlockEntity.decompress());
+                                            blockEntity.loadWithComponents(savedBlockEntity.decompress(), player.registryAccess());
                                         }
                                     }
                                 } else if (old.hasBlockEntity()) {
                                     chunk.removeBlockEntity(blockPos);
+                                }
+
+                                if (CoreProtectIntegration.isEnabled() && old != blockState) {
+                                    String changedBy = player.getBukkitEntity().getName();
+                                    BlockPos changedPos = new BlockPos(bx, by, bz);
+
+                                    CoreProtectIntegration.logRemoval(changedBy, old, world.getWorld(), changedPos);
+                                    CoreProtectIntegration.logPlacement(changedBy, blockState, world.getWorld(), changedPos);
                                 }
                             }
                         }
@@ -316,7 +325,7 @@ public class SetBlockBufferPacketListener {
                 ServerLevel world = player.serverLevel();
                 if (!world.dimension().equals(worldKey)) return;
 
-                if (!this.plugin.canUseAxiom(player.getBukkitEntity())) {
+                if (!this.plugin.canUseAxiom(player.getBukkitEntity(), "axiom.build.section")) {
                     return;
                 }
 
@@ -340,16 +349,16 @@ public class SetBlockBufferPacketListener {
                         return;
                     }
 
-                    var chunk = (LevelChunk) world.getChunk(x >> 2, z >> 2, ChunkStatus.FULL, false);
-                    if (chunk == null) return;
-
-                    var section = chunk.getSection(cy - minSection);
-                    PalettedContainer<Holder<Biome>> container = (PalettedContainer<Holder<Biome>>) section.getBiomes();
-
                     var holder = registry.getHolder(biome);
                     if (holder.isPresent()) {
+                        var chunk = (LevelChunk) world.getChunk(x >> 2, z >> 2, ChunkStatus.FULL, false);
+                        if (chunk == null) return;
+
+                        var section = chunk.getSection(cy - minSection);
+                        PalettedContainer<Holder<Biome>> container = (PalettedContainer<Holder<Biome>>) section.getBiomes();
+
                         if (!Integration.canPlaceBlock(player.getBukkitEntity(),
-                            new Location(player.getBukkitEntity().getWorld(), x+1, y+1, z+1))) return;
+                            new Location(player.getBukkitEntity().getWorld(), (x<<2)+1, (y<<2)+1, (z<<2)+1))) return;
 
                         container.set(x & 3, y & 3, z & 3, holder.get());
                         changedChunks.add(chunk);

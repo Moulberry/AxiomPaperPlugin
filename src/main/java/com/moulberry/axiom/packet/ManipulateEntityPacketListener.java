@@ -4,7 +4,11 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.event.AxiomManipulateEntityEvent;
 import com.moulberry.axiom.integration.Integration;
+import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
+import com.moulberry.axiom.viaversion.UnknownVersionHelper;
+import com.moulberry.axiom.viaversion.ViaVersionHelper;
 import io.netty.buffer.Unpooled;
+import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -19,7 +23,7 @@ import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
+import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
@@ -46,7 +50,7 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
 
     public record ManipulateEntry(UUID uuid, @Nullable Set<RelativeMovement> relativeMovementSet, @Nullable Vec3 position,
                                   float yaw, float pitch, CompoundTag merge, PassengerManipulation passengerManipulation, List<UUID> passengers) {
-        public static ManipulateEntry read(FriendlyByteBuf friendlyByteBuf) {
+        public static ManipulateEntry read(FriendlyByteBuf friendlyByteBuf, Player player) {
             UUID uuid = friendlyByteBuf.readUUID();
 
             int flags = friendlyByteBuf.readByte();
@@ -61,13 +65,13 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
                 pitch = friendlyByteBuf.readFloat();
             }
 
-            CompoundTag nbt = friendlyByteBuf.readNbt();
+            CompoundTag nbt = UnknownVersionHelper.readTagUnknown(friendlyByteBuf, player);
 
             PassengerManipulation passengerManipulation = friendlyByteBuf.readEnum(PassengerManipulation.class);
             List<UUID> passengers = List.of();
             if (passengerManipulation == PassengerManipulation.ADD_LIST || passengerManipulation == PassengerManipulation.REMOVE_LIST) {
                 passengers = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
-                    FriendlyByteBuf::readUUID);
+                    buffer -> buffer.readUUID());
             }
 
             return new ManipulateEntry(uuid, relativeMovementSet, position, yaw, pitch, nbt,
@@ -79,11 +83,15 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
 
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        if (!this.plugin.canUseAxiom(player)) {
-            return;
+        try {
+            this.process(player, message);
+        } catch (Throwable t) {
+            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
         }
+    }
 
-        if (!player.hasPermission("axiom.entity.*") && !player.hasPermission("axiom.entity.manipulate")) {
+    private void process(Player player, byte[] message) {
+        if (!this.plugin.canUseAxiom(player, "axiom.entity.manipulate", true)) {
             return;
         }
 
@@ -93,7 +101,7 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
 
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         List<ManipulateEntry> entries = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
-            ManipulateEntry::read);
+            buf -> ManipulateEntry.read(buf, player));
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();
 

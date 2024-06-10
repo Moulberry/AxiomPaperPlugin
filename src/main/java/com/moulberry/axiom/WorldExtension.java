@@ -16,8 +16,8 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
-import org.bukkit.craftbukkit.v1_20_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 
 import java.util.*;
@@ -65,7 +65,7 @@ public class WorldExtension {
 
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
             buf.writeCollection(markerData, MarkerData::write);
-            buf.writeCollection(Set.of(), FriendlyByteBuf::writeUUID);
+            buf.writeCollection(Set.<UUID>of(), (buffer, uuid) -> buffer.writeUUID(uuid));
             byte[] bytes = new byte[buf.writerIndex()];
             buf.getBytes(0, bytes);
 
@@ -106,7 +106,7 @@ public class WorldExtension {
         if (!changedData.isEmpty() || !oldUuids.isEmpty()) {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
             buf.writeCollection(changedData, MarkerData::write);
-            buf.writeCollection(oldUuids, FriendlyByteBuf::writeUUID);
+            buf.writeCollection(oldUuids, (buffer, uuid) -> buffer.writeUUID(uuid));
             byte[] bytes = new byte[buf.writerIndex()];
             buf.getBytes(0, bytes);
 
