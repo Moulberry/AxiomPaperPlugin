@@ -11,14 +11,11 @@ public class GriefDefenderIntegration {
         if (!Bukkit.getPluginManager().isPluginEnabled("GriefDefender")) {
             return true;
         }
-        return GriefDefenderIntegrationImpl.canBreakBlock(player, loc);
+        return GriefDefenderIntegrationImpl.isBuilder(player, loc);
     }
 
     public static boolean canPlaceBlock(Player player, Location loc) {
-        if (!Bukkit.getPluginManager().isPluginEnabled("GriefDefender")) {
-            return true;
-        }
-        return GriefDefenderIntegrationImpl.canPlaceBlock(player, loc);
+        return canBreakBlock(player, loc);
     }
 
     public static SectionPermissionChecker checkSection(Player player, World world, int cx, int cy, int cz) {
