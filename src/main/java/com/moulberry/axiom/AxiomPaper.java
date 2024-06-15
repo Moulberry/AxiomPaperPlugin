@@ -6,7 +6,6 @@ import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.commands.AxiomDebugCommand;
 import com.moulberry.axiom.event.AxiomCreateWorldPropertiesEvent;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
-import com.moulberry.axiom.integration.bukkit.CanBuildChecker;
 import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.*;
@@ -73,7 +72,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
         this.saveDefaultConfig();
         configuration = this.getConfig();
-        
+
         Set<String> validResolutions = Set.of("kick", "warn", "ignore");
         if (!validResolutions.contains(configuration.getString("incompatible-data-version"))) {
             this.getLogger().warning("Invalid value for incompatible-data-version, expected 'kick', 'warn' or 'ignore'");

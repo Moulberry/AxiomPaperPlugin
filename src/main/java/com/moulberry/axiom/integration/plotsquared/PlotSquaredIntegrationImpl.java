@@ -182,14 +182,14 @@ public class PlotSquaredIntegrationImpl {
 
         for (CuboidRegion region : plot.getRegions()) {
             BlockPos min = new BlockPos(
-                    region.getMinimumPoint().x(),
-                    region.getMinimumPoint().y(),
-                    region.getMinimumPoint().z()
+                    region.getMinimumPoint().getBlockX(),
+                    region.getMinimumPoint().getBlockY(),
+                    region.getMinimumPoint().getBlockZ()
             );
             BlockPos max = new BlockPos(
-                    region.getMaximumPoint().x(),
-                    region.getMaximumPoint().y(),
-                    region.getMaximumPoint().z()
+                    region.getMaximumPoint().getBlockX(),
+                    region.getMaximumPoint().getBlockY(),
+                    region.getMaximumPoint().getBlockZ()
             );
             boxes.add(new PlotSquaredIntegration.PlotBox(min, max));
         }
