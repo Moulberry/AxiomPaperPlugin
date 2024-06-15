@@ -73,9 +73,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
         this.saveDefaultConfig();
         configuration = this.getConfig();
-
-        getServer().getPluginManager().registerEvents(new CanBuildChecker(), this);
-
+        
         Set<String> validResolutions = Set.of("kick", "warn", "ignore");
         if (!validResolutions.contains(configuration.getString("incompatible-data-version"))) {
             this.getLogger().warning("Invalid value for incompatible-data-version, expected 'kick', 'warn' or 'ignore'");
