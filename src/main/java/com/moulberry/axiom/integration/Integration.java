@@ -17,8 +17,8 @@ public class Integration {
     public static boolean canBreakBlock(Player player, Block block) {
         return PlotSquaredIntegration.canBreakBlock(player, block) &&
                 WorldGuardIntegration.canBreakBlock(player, block.getLocation()) &&
-                /* GriefDefenderIntegration.canBreakBlock(player, block.getLocation()) && */
-                BukkitIntegration.canBreakBlock(player, block.getLocation());
+                GriefDefenderIntegration.canBreakBlock(player, block.getLocation())
+                /* BukkitIntegration.canBreakBlock(player, block.getLocation()) */;
     }
 
     public static boolean canPlaceBlock(Player player, org.bukkit.Location loc) {
@@ -30,7 +30,8 @@ public class Integration {
         SectionPermissionChecker worldGuard = WorldGuardIntegration.checkSection(player, world, cx, cy, cz);
         SectionPermissionChecker bukkit = BukkitIntegration.checkSection(player, world, cx, cy, cz);
         SectionPermissionChecker griefDefender = GriefDefenderIntegration.checkSection(player, world, cx, cy, cz);
-        List<SectionPermissionChecker> checkers = List.of(plotSquared, worldGuard, /* griefDefender, */ bukkit);
+        List<SectionPermissionChecker> checkers =
+                List.of(plotSquared, worldGuard,  griefDefender /*, bukkit */);
 
         return SectionPermissionChecker.combine(checkers);
     }

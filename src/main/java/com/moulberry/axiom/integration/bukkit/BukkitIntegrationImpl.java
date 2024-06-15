@@ -15,9 +15,9 @@ public class BukkitIntegrationImpl {
 
         boolean allowed = true;
 
-        for (int x = minX; x <= maxX; x += 4) {
-            for (int y = minY; y <= maxY; y += 4) {
-                for (int z = minZ; z <= maxZ; z += 4) {
+        for (int x = minX; x <= maxX; x += 8) {
+            for (int y = minY; y <= maxY; y += 8) {
+                for (int z = minZ; z <= maxZ; z += 8) {
                     if (!CanBuildChecker.canBuild(player, world, x, y, z)) {
                         allowed = false;
                     }

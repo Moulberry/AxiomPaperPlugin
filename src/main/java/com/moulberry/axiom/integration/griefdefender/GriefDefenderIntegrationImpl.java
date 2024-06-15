@@ -46,34 +46,40 @@ public class GriefDefenderIntegrationImpl {
 
         Vector3i lesserBoundaryCorner = new Vector3i(minX, minY, minZ);
         Vector3i greaterBoundaryCorner = new Vector3i(maxX, maxY, maxZ);
-
-        List<Claim> claimList = getClaimList(world, lesserBoundaryCorner, greaterBoundaryCorner);
-
-        if(claimList.isEmpty()) {
+        System.out.println(1);
+        List<Claim> claims = new ArrayList<>(GriefDefender.getCore().getAllClaims());
+        if (!GriefDefender.getCore().isEnabled(world.getUID())) {
             return SectionPermissionChecker.ALL_ALLOWED;
         }
-
-        for (Claim claim : claimList) {
-            if (!claim.isUserTrusted(player.getUniqueId(), TrustTypes.BUILDER)) {
-                return SectionPermissionChecker.NONE_ALLOWED;
-            }
+        System.out.println(2);
+        claims.removeIf(claim -> !claim.getWorldUniqueId().equals(world.getUID()));
+        System.out.println(3);
+        claims.removeIf(claim -> !claim.isUserTrusted(player.getUniqueId(), TrustTypes.BUILDER));
+        System.out.println(4);
+        List<Claim> claimList = getClaimInArea(claims, lesserBoundaryCorner, greaterBoundaryCorner);
+        System.out.println(5);
+        if(claimList.isEmpty()) {
+            System.out.println("5-1");
+            return SectionPermissionChecker.NONE_ALLOWED;
         }
+        System.out.println(6);
 
         return SectionPermissionChecker.ALL_ALLOWED;
-
-
     }
 
-    private static @NotNull List<Claim> getClaimList(World world, Vector3i lesserBoundaryCorner, Vector3i greaterBoundaryCorner) {
-        if (!GriefDefender.getCore().isEnabled(world.getUID())) {
-            return new ArrayList<>();
+    private static @NotNull List<Claim> getClaimInArea(List<Claim> claims, Vector3i lesserBoundaryCorner, Vector3i greaterBoundaryCorner) {
+        System.out.println("4-1");
+        List<Claim> claimList = new ArrayList<>();
+        for (Claim claim: claims) {
+            Vector3i lesser = claim.getLesserBoundaryCorner();
+            Vector3i greater = claim.getGreaterBoundaryCorner();
+            if (lesser.getX() <= lesserBoundaryCorner.getX() && lesser.getZ() <= lesserBoundaryCorner.getZ() &&
+                    greater.getX() >= greaterBoundaryCorner.getX() && greater.getZ() >= greaterBoundaryCorner.getZ()) {
+                System.out.println("4-1-1");
+                claimList.add(claim);
+            }
         }
-
-        List<Claim> claimList = new ArrayList<>(GriefDefender.getCore().getAllClaims());
-        claimList.removeIf(claim -> !claim.getWorldUniqueId().equals(world.getUID()));
-
-        claimList.removeIf(claim -> claim.getLesserBoundaryCorner().getX() < lesserBoundaryCorner.getX() && claim.getLesserBoundaryCorner().getY() < lesserBoundaryCorner.getY() && claim.getLesserBoundaryCorner().getZ() < lesserBoundaryCorner.getZ());
-        claimList.removeIf(claim -> claim.getGreaterBoundaryCorner().getX() > greaterBoundaryCorner.getX() && claim.getGreaterBoundaryCorner().getY() > greaterBoundaryCorner.getY() && claim.getGreaterBoundaryCorner().getZ() > greaterBoundaryCorner.getZ());
+        System.out.println("4-2");
         return claimList;
     }
 }
