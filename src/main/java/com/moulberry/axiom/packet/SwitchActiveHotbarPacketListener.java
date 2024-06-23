@@ -64,15 +64,15 @@ public class SwitchActiveHotbarPacketListener implements PluginMessageListener {
                 }
 
                 if (stack.isEmpty()) {
-                    containerHotbarItems.remove(new NamespacedKey("axiom", "slot_" + index));
+                    containerHotbarItems.remove(new NamespacedKey("axiom", "slot_"+index));
                 } else {
-                    containerHotbarItems.set(new NamespacedKey("axiom", "slot_" + index), ItemStackDataType.INSTANCE, stack);
+                    containerHotbarItems.set(new NamespacedKey("axiom", "slot_"+index), ItemStackDataType.INSTANCE, stack);
                 }
             }
             int index = activeHotbarIndex*9 + i;
             ItemStack hotbarItem = hotbarItems[i].clone();
             if (hotbarItem.isEmpty()) {
-                containerHotbarItems.remove(new NamespacedKey("axiom", "slot_" + index));
+                containerHotbarItems.remove(new NamespacedKey("axiom", "slot_"+index));
             } else {
                 containerHotbarItems.set(new NamespacedKey("axiom", "slot_"+index), ItemStackDataType.INSTANCE, hotbarItem);
             }
