@@ -62,10 +62,20 @@ public class SwitchActiveHotbarPacketListener implements PluginMessageListener {
                 } else {
                     stack = stack.clone();
                 }
-                containerHotbarItems.set(new NamespacedKey("axiom", "slot_"+index), ItemStackDataType.INSTANCE, stack);
+
+                if (stack.isEmpty()) {
+                    containerHotbarItems.remove(new NamespacedKey("axiom", "slot_" + index));
+                } else {
+                    containerHotbarItems.set(new NamespacedKey("axiom", "slot_" + index), ItemStackDataType.INSTANCE, stack);
+                }
             }
             int index = activeHotbarIndex*9 + i;
-            containerHotbarItems.set(new NamespacedKey("axiom", "slot_"+index), ItemStackDataType.INSTANCE, hotbarItems[i].clone());
+            ItemStack hotbarItem = hotbarItems[i].clone();
+            if (hotbarItem.isEmpty()) {
+                containerHotbarItems.remove(new NamespacedKey("axiom", "slot_" + index));
+            } else {
+                containerHotbarItems.set(new NamespacedKey("axiom", "slot_"+index), ItemStackDataType.INSTANCE, hotbarItem);
+            }
             if (player.getGameMode() == GameMode.CREATIVE) player.getInventory().setItem(i, hotbarItems[i]);
         }
 
