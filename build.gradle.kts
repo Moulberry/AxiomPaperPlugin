@@ -71,7 +71,7 @@ tasks {
                 "name" to project.name,
                 "version" to project.version,
                 "description" to project.description,
-                "apiVersion" to "1.20"
+                "apiVersion" to "1.21"
         )
         inputs.properties(props)
         filesMatching("plugin.yml") {

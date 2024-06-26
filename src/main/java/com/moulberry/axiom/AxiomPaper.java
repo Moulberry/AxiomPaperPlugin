@@ -162,7 +162,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
                 new RequestChunkDataPacketListener(this) : null;
 
             // Hack to figure out the id of the CustomPayload packet
-            ProtocolInfo<ServerGamePacketListener> protocol = GameProtocols.SERVERBOUND.bind(k -> new RegistryFriendlyByteBuf(k,
+            ProtocolInfo<ServerGamePacketListener> protocol = GameProtocols.SERVERBOUND_TEMPLATE.bind(k -> new RegistryFriendlyByteBuf(k,
                 MinecraftServer.getServer().registryAccess()));
             RegistryFriendlyByteBuf friendlyByteBuf = new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
             protocol.codec().encode(friendlyByteBuf, new ServerboundCustomPayloadPacket(new DiscardedPayload(VersionHelper.createResourceLocation("dummy"), Unpooled.buffer())));
