@@ -34,7 +34,7 @@ import java.io.ByteArrayOutputStream;
 
 public class RequestChunkDataPacketListener implements PluginMessageListener {
 
-    private static final ResourceLocation RESPONSE_ID = new ResourceLocation("axiom:response_chunk_data");
+    private static final ResourceLocation RESPONSE_ID = VersionHelper.createResourceLocation("axiom:response_chunk_data");
 
     private final AxiomPaper plugin;
     public RequestChunkDataPacketListener(AxiomPaper plugin) {

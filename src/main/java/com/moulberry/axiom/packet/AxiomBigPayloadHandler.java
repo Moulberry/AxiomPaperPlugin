@@ -16,9 +16,9 @@ import java.util.List;
 
 public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
 
-    private static final ResourceLocation SET_BUFFER = new ResourceLocation("axiom", "set_buffer");
-    private static final ResourceLocation UPLOAD_BLUEPRINT = new ResourceLocation("axiom", "upload_blueprint");
-    private static final ResourceLocation REQUEST_CHUNK_DATA = new ResourceLocation("axiom", "request_chunk_data");
+    private static final ResourceLocation SET_BUFFER = VersionHelper.createResourceLocation("axiom", "set_buffer");
+    private static final ResourceLocation UPLOAD_BLUEPRINT = VersionHelper.createResourceLocation("axiom", "upload_blueprint");
+    private static final ResourceLocation REQUEST_CHUNK_DATA = VersionHelper.createResourceLocation("axiom", "request_chunk_data");
     private final int payloadId;
     private final Connection connection;
     private final SetBlockBufferPacketListener setBlockBuffer;

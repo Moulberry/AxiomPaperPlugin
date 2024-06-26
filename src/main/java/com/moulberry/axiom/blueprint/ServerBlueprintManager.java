@@ -26,7 +26,7 @@ public class ServerBlueprintManager {
     }
 
     private static final int MAX_SIZE = 1000000;
-    private static final ResourceLocation PACKET_BLUEPRINT_MANIFEST_IDENTIFIER = new ResourceLocation("axiom:blueprint_manifest");
+    private static final ResourceLocation PACKET_BLUEPRINT_MANIFEST_IDENTIFIER = VersionHelper.createResourceLocation("axiom:blueprint_manifest");
 
     public static void sendManifest(List<ServerPlayer> serverPlayers) {
         if (registry != null) {
