@@ -7,6 +7,7 @@ import com.viaversion.viaversion.api.data.MappingData;
 import com.viaversion.viaversion.api.data.Mappings;
 import com.viaversion.viaversion.api.protocol.ProtocolPathEntry;
 import com.viaversion.viaversion.api.type.Type;
+import com.viaversion.viaversion.api.type.Types;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.SharedConstants;
@@ -108,28 +109,28 @@ public class ViaVersionHelper {
     }
 
     public static CompoundTag readTagViaVersion(FriendlyByteBuf friendlyByteBuf, int playerVersion) throws Exception {
-        Type<com.viaversion.viaversion.libs.opennbt.tag.builtin.CompoundTag> from = getTagType(playerVersion);
-        Type<com.viaversion.viaversion.libs.opennbt.tag.builtin.CompoundTag> to = getTagType(SharedConstants.getProtocolVersion());
+        Type<com.viaversion.nbt.tag.CompoundTag> from = getTagType(playerVersion);
+        Type<com.viaversion.nbt.tag.CompoundTag> to = getTagType(SharedConstants.getProtocolVersion());
 
         return readTagViaVersion(friendlyByteBuf, from, to);
     }
 
-    private static Type<com.viaversion.viaversion.libs.opennbt.tag.builtin.CompoundTag> getTagType(int version) {
+    private static Type<com.viaversion.nbt.tag.CompoundTag> getTagType(int version) {
         if (version < UNNAMED_COMPOUND_TAG_CHANGE_VERSION) {
-            return Type.NAMED_COMPOUND_TAG;
+            return Types.NAMED_COMPOUND_TAG;
         } else {
-            return Type.COMPOUND_TAG;
+            return Types.COMPOUND_TAG;
         }
     }
 
     private static CompoundTag readTagViaVersion(FriendlyByteBuf friendlyByteBuf,
-            Type<com.viaversion.viaversion.libs.opennbt.tag.builtin.CompoundTag> from,
-            Type<com.viaversion.viaversion.libs.opennbt.tag.builtin.CompoundTag> to) throws Exception {
+            Type<com.viaversion.nbt.tag.CompoundTag> from,
+            Type<com.viaversion.nbt.tag.CompoundTag> to) throws Exception {
         if (from == to) {
             return friendlyByteBuf.readNbt();
         }
 
-        com.viaversion.viaversion.libs.opennbt.tag.builtin.CompoundTag tag = from.read(friendlyByteBuf);
+        com.viaversion.nbt.tag.CompoundTag tag = from.read(friendlyByteBuf);
         FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
         to.write(buffer, tag);
         return buffer.readNbt();
