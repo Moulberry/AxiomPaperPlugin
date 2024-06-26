@@ -24,7 +24,7 @@ public class BlueprintRequestPacketListener implements PluginMessageListener {
         this.plugin = plugin;
     }
 
-    private static final ResourceLocation RESPONSE_PACKET_IDENTIFIER = new ResourceLocation("axiom:response_blueprint");
+    private static final ResourceLocation RESPONSE_PACKET_IDENTIFIER = VersionHelper.createResourceLocation("axiom:response_blueprint");
 
     @Override
     public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {

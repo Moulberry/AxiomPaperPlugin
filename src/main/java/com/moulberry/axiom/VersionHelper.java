@@ -11,4 +11,12 @@ public class VersionHelper {
         serverPlayer.connection.send(new ClientboundCustomPayloadPacket(new CustomByteArrayPayload(id, data)));
     }
 
+    public static ResourceLocation createResourceLocation(String composed) {
+        return ResourceLocation.parse(composed);
+    }
+
+    public static ResourceLocation createResourceLocation(String namespace, String path) {
+        return ResourceLocation.fromNamespaceAndPath(namespace, path);
+    }
+
 }
