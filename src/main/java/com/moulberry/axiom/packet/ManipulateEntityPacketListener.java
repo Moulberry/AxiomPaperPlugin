@@ -2,6 +2,7 @@ package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
+import com.moulberry.axiom.event.AxiomManipulateEntityEvent;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.viaversion.UnknownVersionHelper;
@@ -121,6 +122,11 @@ public class ManipulateEntityPacketListener implements PluginMessageListener {
 
             if (!Integration.canPlaceBlock(player, new Location(player.getWorld(),
                     containing.getX(), containing.getY(), containing.getZ()))) {
+                continue;
+            }
+
+            AxiomManipulateEntityEvent manipulateEvent = new AxiomManipulateEntityEvent(player, entity.getBukkitEntity());
+            if (!manipulateEvent.callEvent()) {
                 continue;
             }
 
