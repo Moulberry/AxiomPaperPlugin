@@ -13,11 +13,11 @@ public class VersionHelper {
     }
 
     public static ResourceLocation createResourceLocation(String composed) {
-        return ResourceLocation.parse(composed);
+        return new ResourceLocation(composed);
     }
 
     public static ResourceLocation createResourceLocation(String namespace, String path) {
-        return ResourceLocation.fromNamespaceAndPath(namespace, path);
+        return new ResourceLocation(namespace, path);
     }
 
 }
