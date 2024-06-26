@@ -3,8 +3,10 @@ package com.moulberry.axiom.packet;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.VersionHelper;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
+import io.netty.handler.codec.MessageToMessageDecoder;
 import io.papermc.paper.network.ConnectionEvent;
 import net.minecraft.network.Connection;
 import net.minecraft.network.FriendlyByteBuf;
@@ -14,7 +16,7 @@ import net.minecraft.server.level.ServerPlayer;
 import java.io.IOException;
 import java.util.List;
 
-public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
+public class AxiomBigPayloadHandler extends MessageToMessageDecoder<ByteBuf> {
 
     private static final ResourceLocation SET_BUFFER = VersionHelper.createResourceLocation("axiom", "set_buffer");
     private static final ResourceLocation UPLOAD_BLUEPRINT = VersionHelper.createResourceLocation("axiom", "upload_blueprint");
@@ -44,20 +46,13 @@ public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
         // Don't handle if player doesn't have permission to use Axiom
         ServerPlayer player = connection.getPlayer();
         if (player == null || !AxiomPaper.PLUGIN.canUseAxiom(player.getBukkitEntity())) {
-            ctx.fireChannelRead(in.retain());
-
-            // Skip remaining bytes
-            if (in.readableBytes() > 0) {
-                in.skipBytes(in.readableBytes());
-            }
+            out.add(in.retain());
             return;
         }
 
         // Don't process if channel isn't active
         if (!ctx.channel().isActive()) {
-            if (in.readableBytes() > 0) {
-                in.skipBytes(in.readableBytes());
-            }
+            in.skipBytes(in.readableBytes());
             return;
         }
 
@@ -100,9 +95,7 @@ public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
                     });
 
                     success = true;
-                    if (in.readableBytes() > 0) {
-                        in.skipBytes(in.readableBytes());
-                    }
+                    in.skipBytes(in.readableBytes());
                     return;
                 }
             }
@@ -110,9 +103,7 @@ public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
             if (!(t instanceof IndexOutOfBoundsException)) {
                 // Skip remaining bytes
                 success = true;
-                if (in.readableBytes() > 0) {
-                    in.skipBytes(in.readableBytes());
-                }
+                in.skipBytes(in.readableBytes());
 
                 // Throw error, will disconnect client
                 throw t;
@@ -123,12 +114,7 @@ public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
             }
         }
 
-        ctx.fireChannelRead(in.retain());
-
-        // Skip remaining bytes
-        if (in.readableBytes() > 0) {
-            in.skipBytes(in.readableBytes());
-        }
+        out.add(in.retain());
     }
 
     @Override
@@ -136,7 +122,7 @@ public class AxiomBigPayloadHandler extends ByteToMessageDecoder {
         if (evt == ConnectionEvent.COMPRESSION_THRESHOLD_SET || evt == ConnectionEvent.COMPRESSION_DISABLED) {
             ctx.channel().pipeline().remove("axiom-big-payload-handler");
             ctx.channel().pipeline().addBefore("decoder", "axiom-big-payload-handler",
-                                               new AxiomBigPayloadHandler(payloadId, connection, setBlockBuffer, uploadBlueprint, requestChunkDataPacketListener));
+                                   new AxiomBigPayloadHandler(payloadId, connection, setBlockBuffer, uploadBlueprint, requestChunkDataPacketListener));
         }
         super.userEventTriggered(ctx, evt);
     }
