@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.moulberry.axiom"
-version = "1.5.11"
+version = "1.5.12"
 description = "Serverside component for Axiom on Paper"
 
 java {
@@ -75,7 +75,7 @@ tasks {
                 "name" to project.name,
                 "version" to project.version,
                 "description" to project.description,
-                "apiVersion" to "1.20"
+                "apiVersion" to "1.21"
         )
         inputs.properties(props)
         filesMatching("plugin.yml") {

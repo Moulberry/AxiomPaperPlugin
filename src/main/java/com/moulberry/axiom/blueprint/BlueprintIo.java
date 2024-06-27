@@ -2,6 +2,7 @@ package com.moulberry.axiom.blueprint;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.Dynamic;
+import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -88,7 +89,7 @@ public class BlueprintIo {
             long pos = blockPos.asLong();
 
             String id = blockEntityCompound.getString("id");
-            BlockEntityType<?> type = BuiltInRegistries.BLOCK_ENTITY_TYPE.get(new ResourceLocation(id));
+            BlockEntityType<?> type = BuiltInRegistries.BLOCK_ENTITY_TYPE.get(VersionHelper.createResourceLocation(id));
 
             if (type != null) {
                 PalettedContainer<BlockState> container = blockMap.get(BlockPos.asLong(

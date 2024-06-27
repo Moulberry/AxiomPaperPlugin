@@ -5,7 +5,6 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
-import com.viaversion.viaversion.api.Via;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.*;
 import net.kyori.adventure.text.Component;
@@ -35,7 +34,7 @@ import java.io.ByteArrayOutputStream;
 
 public class RequestChunkDataPacketListener implements PluginMessageListener {
 
-    private static final ResourceLocation RESPONSE_ID = new ResourceLocation("axiom:response_chunk_data");
+    private static final ResourceLocation RESPONSE_ID = VersionHelper.createResourceLocation("axiom:response_chunk_data");
 
     private final AxiomPaper plugin;
     public RequestChunkDataPacketListener(AxiomPaper plugin) {

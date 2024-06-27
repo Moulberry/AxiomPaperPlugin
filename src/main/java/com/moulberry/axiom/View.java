@@ -2,8 +2,6 @@ package com.moulberry.axiom;
 
 import com.moulberry.axiom.persistence.UUIDDataType;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -113,7 +111,7 @@ public final class View {
         view.pinLevel = tag.getOrDefault(PIN_LEVEL_KEY, PersistentDataType.BOOLEAN, false);
         if (tag.has(LEVEL_KEY)) {
             String level = tag.get(LEVEL_KEY, PersistentDataType.STRING);
-            view.level = ResourceKey.create(Registries.DIMENSION, new ResourceLocation(level));
+            view.level = ResourceKey.create(Registries.DIMENSION, VersionHelper.createResourceLocation(level));
         }
 
         view.pinLocation = tag.getOrDefault(PIN_LOCATION_KEY, PersistentDataType.BOOLEAN, false);
