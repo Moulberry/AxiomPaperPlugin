@@ -29,7 +29,7 @@ public class ItemStackDataType implements PersistentDataType<PersistentDataConta
     public @NotNull PersistentDataContainer toPrimitive(@NotNull ItemStack complex, @NotNull PersistentDataAdapterContext context) {
         net.minecraft.world.item.ItemStack nmsStack = CraftItemStack.asNMSCopy(complex);
         if (nmsStack == null) nmsStack = net.minecraft.world.item.ItemStack.EMPTY;
-        CompoundTag tag = (CompoundTag) nmsStack.save(MinecraftServer.getServer().registryAccess());
+        CompoundTag tag = (CompoundTag) nmsStack.saveOptional(MinecraftServer.getServer().registryAccess());
 
         PersistentDataContainer container = context.newPersistentDataContainer();
         ((CraftPersistentDataContainer)container).putAll(tag);

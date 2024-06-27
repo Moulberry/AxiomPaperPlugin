@@ -169,7 +169,7 @@ public class WorldExtension {
             }
         }
 
-        this.level.getChunkSource().getLightEngine().relight(chunkSet, pos -> {}, count -> {});
+        this.level.getChunkSource().getLightEngine().starlight$serverRelightChunks(chunkSet, pos -> {}, count -> {});
     }
 
 }
