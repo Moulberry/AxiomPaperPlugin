@@ -67,7 +67,7 @@ public class HelloPacketListener implements PluginMessageListener {
             if (incompatibleDataVersion == null) incompatibleDataVersion = "warn";
 
             Component incompatibleWarning = Component.text("Axiom: Incompatible data version detected (client " + dataVersion +
-                ", server " + serverDataVersion  + ")");
+                    ", server " + serverDataVersion  + ")");
 
             if (!Bukkit.getPluginManager().isPluginEnabled("ViaVersion")) {
                 if (incompatibleDataVersion.equals("warn")) {
@@ -77,7 +77,7 @@ public class HelloPacketListener implements PluginMessageListener {
                     player.kick(incompatibleWarning);
                     return;
                 }
-            } else {
+            } else if (dataVersion != 3953) {
                 int playerVersion = Via.getAPI().getPlayerVersion(player.getUniqueId());
                 if (playerVersion == SharedConstants.getProtocolVersion()) {
                     // Likely using via on the proxy, try to get protocol version from data version
@@ -128,7 +128,7 @@ public class HelloPacketListener implements PluginMessageListener {
 
         if (apiVersion != AxiomConstants.API_VERSION) {
             Component text = Component.text("Unsupported Axiom API Version. Server supports " + AxiomConstants.API_VERSION +
-                ", while client is " + apiVersion);
+                    ", while client is " + apiVersion);
 
             String unsupportedAxiomVersion = plugin.configuration.getString("unsupported-axiom-version");
             if (unsupportedAxiomVersion == null) unsupportedAxiomVersion = "kick";
