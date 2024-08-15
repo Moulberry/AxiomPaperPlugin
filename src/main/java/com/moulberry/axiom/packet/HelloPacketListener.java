@@ -49,6 +49,13 @@ public class HelloPacketListener implements PluginMessageListener {
         }
     }
 
+    private static int normalizeDataVersion(int dataVersion) {
+        if (dataVersion == 3955) { // 1.21.1
+            return 3953; // 1.21
+        }
+        return dataVersion;
+    }
+
     private void process(Player player, byte[] message) {
         if (!this.plugin.hasAxiomPermission(player)) {
             return;
@@ -60,7 +67,7 @@ public class HelloPacketListener implements PluginMessageListener {
         // note - skipping NBT here. friendlyByteBuf.readNBT();
 
         int serverDataVersion = SharedConstants.getCurrentVersion().getDataVersion().getVersion();
-        if (dataVersion != serverDataVersion) {
+        if (normalizeDataVersion(dataVersion) != normalizeDataVersion(serverDataVersion)) {
             String incompatibleDataVersion = plugin.configuration.getString("incompatible-data-version");
             if (incompatibleDataVersion == null) incompatibleDataVersion = "warn";
 
