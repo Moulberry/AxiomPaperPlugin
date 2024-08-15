@@ -99,8 +99,10 @@ public class HelloPacketListener implements PluginMessageListener {
                         playerVersion = 764; // 1.20.2
                     } else if (dataVersion <= 3700) {
                         playerVersion = 765; // 1.20.3 / 1.20.4
-                    } else if (dataVersion <= 3837) {
-                        playerVersion = 766; // 1.20.3 / 1.20.4
+                    } else if (dataVersion <= 3839) {
+                        playerVersion = 766; // 1.20.5 / 1.20.6
+                    } else if (dataVersion <= 3955) {
+                        playerVersion = 767; // 1.21.1
                     } else {
                         player.sendMessage(incompatibleWarning.color(NamedTextColor.RED));
                         return;
