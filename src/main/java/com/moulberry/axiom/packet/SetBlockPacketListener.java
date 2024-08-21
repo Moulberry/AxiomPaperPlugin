@@ -33,10 +33,16 @@ import net.minecraft.world.phys.Vec3;
 import org.bukkit.Location;
 import org.bukkit.block.BlockFace;
 import org.bukkit.craftbukkit.v1_20_R1.CraftWorld;
+import org.bukkit.craftbukkit.v1_20_R1.block.CapturedBlockState;
 import org.bukkit.craftbukkit.v1_20_R1.block.CraftBlock;
+import org.bukkit.craftbukkit.v1_20_R1.block.CraftBlockStates;
 import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_20_R1.event.CraftEventFactory;
+import org.bukkit.craftbukkit.v1_20_R1.util.CraftMagicNumbers;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Cancellable;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
@@ -44,6 +50,8 @@ import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -107,6 +115,8 @@ public class SetBlockPacketListener implements PluginMessageListener {
             player.connection.ackBlockChangesUpTo(sequenceId);
         }
 
+        BlockPlaceContext blockPlaceContext = new BlockPlaceContext(player, hand, player.getItemInHand(hand), blockHit);
+
         if (!blockHit.getLocation().equals(Vec3.ZERO)) {
             org.bukkit.inventory.ItemStack heldItem;
             if (hand == InteractionHand.MAIN_HAND) {
@@ -126,11 +136,29 @@ public class SetBlockPacketListener implements PluginMessageListener {
             if (!playerInteractEvent.callEvent()) {
                 return;
             }
+
+            // Call BlockMultiPlace / BlockPlace event
+            List<org.bukkit.block.BlockState> blockStates = new ArrayList<>();
+            for (Map.Entry<BlockPos, BlockState> entry : blocks.entrySet()) {
+                blockStates.add(CraftBlockStates.getBlockState(entry.getKey(), entry.getValue(), null));
+            }
+
+            Cancellable event = null;
+            if (blockStates.size() > 1) {
+                event = CraftEventFactory.callBlockMultiPlaceEvent(player.serverLevel(),
+                    player, hand, blockStates, blockHit.getBlockPos().getX(),
+                    blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
+            } else if (blockStates.size() == 1) {
+                event = CraftEventFactory.callBlockPlaceEvent(player.serverLevel(),
+                    player, hand, blockStates.get(0), blockHit.getBlockPos().getX(),
+                    blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
+            }
+            if (event != null && event.isCancelled()) {
+                return;
+            }
         }
 
         CraftWorld world = player.level().getWorld();
-
-        BlockPlaceContext blockPlaceContext = new BlockPlaceContext(player, hand, player.getItemInHand(hand), blockHit);
 
         // Update blocks
         if (updateNeighbors) {
