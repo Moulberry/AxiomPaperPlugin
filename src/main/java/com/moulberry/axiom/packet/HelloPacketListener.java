@@ -2,6 +2,7 @@ package com.moulberry.axiom.packet;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.moulberry.axiom.*;
+import com.moulberry.axiom.annotations.ServerAnnotations;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.event.AxiomHandshakeEvent;
 import com.moulberry.axiom.persistence.ItemStackDataType;
@@ -20,6 +21,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.Bukkit;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
+import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
 import org.bukkit.craftbukkit.v1_20_R3.entity.CraftPlayer;
 import org.bukkit.craftbukkit.v1_20_R3.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
@@ -49,13 +51,6 @@ public class HelloPacketListener implements PluginMessageListener {
         }
     }
 
-    private static int normalizeDataVersion(int dataVersion) {
-        if (dataVersion == 3955) { // 1.21.1
-            return 3953; // 1.21
-        }
-        return dataVersion;
-    }
-
     private void process(Player player, byte[] message) {
         if (!this.plugin.hasAxiomPermission(player)) {
             return;
@@ -63,11 +58,32 @@ public class HelloPacketListener implements PluginMessageListener {
 
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         int apiVersion = friendlyByteBuf.readVarInt();
+
+        if (apiVersion != AxiomConstants.API_VERSION) {
+            String versions = " (C="+apiVersion+" S="+AxiomConstants.API_VERSION+")";
+            Component text;
+            if (apiVersion < AxiomConstants.API_VERSION) {
+                text = Component.text("Unable to use Axiom, you're on an outdated version! Please update to the latest version of Axiom to use it on this server." + versions);
+            } else {
+                text = Component.text("Unable to use Axiom, server hasn't updated Axiom yet." + versions);
+            }
+
+            String unsupportedAxiomVersion = plugin.configuration.getString("unsupported-axiom-version");
+            if (unsupportedAxiomVersion == null) unsupportedAxiomVersion = "kick";
+            if (unsupportedAxiomVersion.equals("warn")) {
+                player.sendMessage(text.color(NamedTextColor.RED));
+                return;
+            } else if (!unsupportedAxiomVersion.equals("ignore")) {
+                player.kick(text);
+                return;
+            }
+        }
+
         int dataVersion = friendlyByteBuf.readVarInt();
-        // note - skipping NBT here. friendlyByteBuf.readNBT();
+        int protocolVersion = friendlyByteBuf.readVarInt();
 
         int serverDataVersion = SharedConstants.getCurrentVersion().getDataVersion().getVersion();
-        if (normalizeDataVersion(dataVersion) != normalizeDataVersion(serverDataVersion)) {
+        if (protocolVersion != SharedConstants.getProtocolVersion()) {
             String incompatibleDataVersion = plugin.configuration.getString("incompatible-data-version");
             if (incompatibleDataVersion == null) incompatibleDataVersion = "warn";
 
@@ -83,35 +99,11 @@ public class HelloPacketListener implements PluginMessageListener {
                     return;
                 }
             } else {
-                int playerVersion = Via.getAPI().getPlayerVersion(player.getUniqueId());
-                if (playerVersion == SharedConstants.getProtocolVersion()) {
-                    // Likely using via on the proxy, try to get protocol version from data version
-                    if (dataVersion < 3337) {
-                        player.sendMessage(incompatibleWarning.color(NamedTextColor.RED));
-                        return;
-                    } else if (dataVersion == 3337) {
-                        playerVersion = 762; // 1.19.4
-                    } else if (dataVersion <= 3465) {
-                        playerVersion = 763; // 1.20.1
-                    } else if (dataVersion <= 3578) {
-                        playerVersion = 764; // 1.20.2
-                    } else if (dataVersion <= 3700) {
-                        playerVersion = 765; // 1.20.3 / 1.20.4
-                    } else if (dataVersion <= 3839) {
-                        playerVersion = 766; // 1.20.5 / 1.20.6
-                    } else if (dataVersion <= 3955) {
-                        playerVersion = 767; // 1.21.1
-                    } else {
-                        player.sendMessage(incompatibleWarning.color(NamedTextColor.RED));
-                        return;
-                    }
-                }
-
                 IdMapper<BlockState> mapper;
                 try {
-                    mapper = ViaVersionHelper.getBlockRegistryForVersion(this.plugin.allowedBlockRegistry, playerVersion);
+                    mapper = ViaVersionHelper.getBlockRegistryForVersion(this.plugin.allowedBlockRegistry, protocolVersion);
                 } catch (Exception e) {
-                    String clientDescription = "client: " + ProtocolVersion.getProtocol(playerVersion);
+                    String clientDescription = "client: " + ProtocolVersion.getProtocol(protocolVersion);
                     String serverDescription = "server: " + ProtocolVersion.getProtocol(SharedConstants.getProtocolVersion());
                     String description = clientDescription + " <-> " + serverDescription;
                     Component text = Component.text("Axiom+ViaVersion: " + e.getMessage() + " (" + description + ")");
@@ -125,40 +117,11 @@ public class HelloPacketListener implements PluginMessageListener {
                 }
 
                 this.plugin.playerBlockRegistry.put(player.getUniqueId(), mapper);
-                this.plugin.playerProtocolVersion.put(player.getUniqueId(), playerVersion);
+                this.plugin.playerProtocolVersion.put(player.getUniqueId(), protocolVersion);
 
                 Component text = Component.text("Axiom: Warning, client and server versions don't match. " +
                         "Axiom will try to use ViaVersion conversions, but this process may cause problems");
                 player.sendMessage(text.color(NamedTextColor.RED));
-            }
-        }
-
-        if (apiVersion != AxiomConstants.API_VERSION) {
-            Component text = Component.text("Unsupported Axiom API Version. Server supports " + AxiomConstants.API_VERSION +
-                ", while client is " + apiVersion);
-
-            String unsupportedAxiomVersion = plugin.configuration.getString("unsupported-axiom-version");
-            if (unsupportedAxiomVersion == null) unsupportedAxiomVersion = "kick";
-            if (unsupportedAxiomVersion.equals("warn")) {
-                player.sendMessage(text.color(NamedTextColor.RED));
-                return;
-            } else if (!unsupportedAxiomVersion.equals("ignore")) {
-                player.kick(text);
-                return;
-            }
-        }
-
-        if (!player.getListeningPluginChannels().contains("axiom:restrictions")) {
-            Component text = Component.text("This server requires the use of Axiom 2.3 or later. Contact the server administrator if you believe this is unintentional");
-
-            String unsupportedRestrictions = plugin.configuration.getString("client-doesnt-support-restrictions");
-            if (unsupportedRestrictions == null) unsupportedRestrictions = "warn";
-            if (unsupportedRestrictions.equals("warn")) {
-                player.sendMessage(text.color(NamedTextColor.RED));
-                return;
-            } else if (!unsupportedRestrictions.equals("ignore")) {
-                player.kick(text);
-                return;
             }
         }
 

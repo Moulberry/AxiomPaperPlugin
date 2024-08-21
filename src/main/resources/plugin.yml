@@ -32,6 +32,12 @@ permissions:
       axiom.blueprint.upload: true
       axiom.blueprint.request: true
       axiom.blueprint.manifest: true
+  axiom.annotation.*:
+    description: Allows creating and viewing annotations
+    default: op
+    children:
+      axiom.annotation.create: true
+      axiom.annotation.view: true
   axiom.chunk.*:
     description: Allows use of all chunk-related features
     default: op

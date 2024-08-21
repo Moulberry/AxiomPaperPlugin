@@ -65,6 +65,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     private boolean logLargeBlockBufferChanges = false;
 
     public Path blueprintFolder = null;
+    public boolean allowAnnotations = false;
 
     @Override
     public void onEnable() {
@@ -87,6 +88,11 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         List<String> disallowedBlocks = this.configuration.getStringList("disallowed-blocks");
         this.allowedBlockRegistry = DisallowedBlocks.createAllowedBlockRegistry(disallowedBlocks);
 
+        this.allowAnnotations = this.configuration.getBoolean("allow-annotations");
+
+        int allowedCapabilities = calculateAllowedCapabilities();
+        int infiniteReachLimit = this.configuration.getInt("infinite-reach-limit");
+
         Bukkit.getPluginManager().registerEvents(this, this);
         // Bukkit.getPluginManager().registerEvents(new WorldPropertiesExample(), this);
         CompressedBlockEntity.initialize(this);
@@ -103,6 +109,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerOutgoingPluginChannel(this, "axiom:restrictions");
         msg.registerOutgoingPluginChannel(this, "axiom:marker_data");
         msg.registerOutgoingPluginChannel(this, "axiom:marker_nbt_response");
+        msg.registerOutgoingPluginChannel(this, "axiom:annotation_update");
 
         if (configuration.getBoolean("packet-handlers.hello")) {
             msg.registerIncomingPluginChannel(this, "axiom:hello", new HelloPacketListener(this));
@@ -158,6 +165,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         if (configuration.getBoolean("packet-handlers.set-buffer")) {
             SetBlockBufferPacketListener setBlockBufferPacketListener = new SetBlockBufferPacketListener(this);
             UploadBlueprintPacketListener uploadBlueprintPacketListener = new UploadBlueprintPacketListener(this);
+            UpdateAnnotationPacketListener updateAnnotationPacketListener = new UpdateAnnotationPacketListener(this);
             RequestChunkDataPacketListener requestChunkDataPacketListener = allowLargeChunkDataRequest ?
                 new RequestChunkDataPacketListener(this) : null;
 
@@ -179,7 +187,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
                     Connection connection = (Connection) channel.pipeline().get("packet_handler");
                     channel.pipeline().addBefore("decoder", "axiom-big-payload-handler",
                         new AxiomBigPayloadHandler(payloadId, connection, setBlockBufferPacketListener,
-                            uploadBlueprintPacketListener, requestChunkDataPacketListener));
+                            uploadBlueprintPacketListener, updateAnnotationPacketListener, requestChunkDataPacketListener));
                 }
             });
         }
@@ -252,12 +260,19 @@ public class AxiomPaper extends JavaPlugin implements Listener {
                         }
 
                         boolean allowImportingBlocks = player.hasPermission("axiom.can_import_blocks");
+                        boolean canCreateAnnotations = this.allowAnnotations && player.hasPermission("axiom.annotation.create");
 
                         if (restrictions.maxSectionsPerSecond != rateLimit ||
                                 restrictions.canImportBlocks != allowImportingBlocks ||
+                                restrictions.canCreateAnnotations != canCreateAnnotations ||
+                                restrictions.allowedCapabilities != allowedCapabilities ||
+                                restrictions.infiniteReachLimit != infiniteReachLimit ||
                                 !Objects.equals(restrictions.bounds, bounds)) {
                             restrictions.maxSectionsPerSecond = rateLimit;
                             restrictions.canImportBlocks = allowImportingBlocks;
+                            restrictions.canCreateAnnotations = canCreateAnnotations;
+                            restrictions.allowedCapabilities = allowedCapabilities;
+                            restrictions.infiniteReachLimit = infiniteReachLimit;
                             restrictions.bounds = bounds;
                             send = true;
                         }
@@ -300,6 +315,25 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         if (CoreProtectIntegration.isEnabled()) {
             this.getLogger().info("CoreProtect integration enabled");
         }
+    }
+
+    private int calculateAllowedCapabilities() {
+        Set<String> allowed = new HashSet<>(this.configuration.getStringList("allow-capabilities"));
+        if (allowed.contains("all")) {
+            return -1;
+        }
+
+        int allowedCapabilities = 0;
+        if (allowed.contains("bulldozer")) allowedCapabilities |= Restrictions.ALLOW_BULLDOZER;
+        if (allowed.contains("replace_mode")) allowedCapabilities |= Restrictions.ALLOW_REPLACE_MODE;
+        if (allowed.contains("force_place")) allowedCapabilities |= Restrictions.ALLOW_FORCE_PLACE;
+        if (allowed.contains("no_updates")) allowedCapabilities |= Restrictions.ALLOW_NO_UPDATES;
+        if (allowed.contains("tinker")) allowedCapabilities |= Restrictions.ALLOW_TINKER;
+        if (allowed.contains("infinite_reach")) allowedCapabilities |= Restrictions.ALLOW_INFINITE_REACH;
+        if (allowed.contains("fast_place")) allowedCapabilities |= Restrictions.ALLOW_FAST_PLACE;
+        if (allowed.contains("angel_placement")) allowedCapabilities |= Restrictions.ALLOW_ANGEL_PLACEMENT;
+        if (allowed.contains("no_clip")) allowedCapabilities |= Restrictions.ALLOW_NO_CLIP;
+        return allowedCapabilities;
     }
 
     public boolean logLargeBlockBufferChanges() {
