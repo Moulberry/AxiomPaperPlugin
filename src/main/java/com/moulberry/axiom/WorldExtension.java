@@ -1,5 +1,6 @@
 package com.moulberry.axiom;
 
+import com.moulberry.axiom.annotations.ServerAnnotations;
 import com.moulberry.axiom.marker.MarkerData;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.*;
@@ -35,6 +36,10 @@ public class WorldExtension {
     public static void onPlayerJoin(World world, Player player) {
         ServerLevel level = ((CraftWorld)world).getHandle();
         get(level).onPlayerJoin(player);
+
+        if (AxiomPaper.PLUGIN.canUseAxiom(player, "axiom.annotations.view")) {
+            ServerAnnotations.sendAll(world, ((CraftPlayer)player).getHandle());
+        }
     }
 
     public static void tick(MinecraftServer server, boolean sendMarkers, int maxChunkRelightsPerTick, int maxChunkSendsPerTick) {
