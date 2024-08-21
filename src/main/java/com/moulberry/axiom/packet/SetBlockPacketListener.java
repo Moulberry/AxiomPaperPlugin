@@ -358,6 +358,11 @@ public class SetBlockPacketListener implements PluginMessageListener {
 
             BlockItem.updateCustomBlockEntityTag(player.level(), player, clickedPos, inHand);
 
+            BlockEntity blockEntity = player.level().getBlockEntity(clickedPos);
+            if (blockEntity != null) {
+                blockEntity.applyComponentsFromItemStack(inHand);
+            }
+
             if (!(actualBlock instanceof BedBlock) && !(actualBlock instanceof DoublePlantBlock) && !(actualBlock instanceof DoorBlock)) {
                 actualBlock.setPlacedBy(player.level(), clickedPos, actualBlockState, player, inHand);
             }
