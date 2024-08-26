@@ -4,7 +4,6 @@ import com.google.common.collect.Maps;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
-import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
@@ -28,22 +27,28 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.block.BlockFace;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.block.CraftBlock;
+import org.bukkit.craftbukkit.block.CraftBlockState;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.craftbukkit.event.CraftEventFactory;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Cancellable;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -78,6 +83,12 @@ public class SetBlockPacketListener implements PluginMessageListener {
         }
     }
 
+    public static class AxiomPlacingCraftBlockState extends CraftBlockState {
+        public AxiomPlacingCraftBlockState(@Nullable World world, BlockPos blockPosition, BlockState blockData) {
+            super(world, blockPosition, blockData);
+        }
+    }
+
     private void process(Player bukkitPlayer, byte[] message) {
         if (!this.plugin.canUseAxiom(bukkitPlayer, "axiom.build.place")) {
             return;
@@ -107,6 +118,8 @@ public class SetBlockPacketListener implements PluginMessageListener {
             player.connection.ackBlockChangesUpTo(sequenceId);
         }
 
+        BlockPlaceContext blockPlaceContext = new BlockPlaceContext(player, hand, player.getItemInHand(hand), blockHit);
+
         if (!blockHit.getLocation().equals(Vec3.ZERO)) {
             org.bukkit.inventory.ItemStack heldItem;
             if (hand == InteractionHand.MAIN_HAND) {
@@ -126,11 +139,30 @@ public class SetBlockPacketListener implements PluginMessageListener {
             if (!playerInteractEvent.callEvent()) {
                 return;
             }
+
+            // Call BlockMultiPlace / BlockPlace event
+            List<org.bukkit.block.BlockState> blockStates = new ArrayList<>();
+            World world = player.serverLevel().getWorld();
+            for (Map.Entry<BlockPos, BlockState> entry : blocks.entrySet()) {
+                blockStates.add(new AxiomPlacingCraftBlockState(world, entry.getKey(), entry.getValue()));
+            }
+
+            Cancellable event = null;
+            if (blockStates.size() > 1) {
+                event = CraftEventFactory.callBlockMultiPlaceEvent(player.serverLevel(),
+                    player, hand, blockStates, blockHit.getBlockPos().getX(),
+                    blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
+            } else if (blockStates.size() == 1) {
+                event = CraftEventFactory.callBlockPlaceEvent(player.serverLevel(),
+                    player, hand, blockStates.get(0), blockHit.getBlockPos().getX(),
+                    blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
+            }
+            if (event != null && event.isCancelled()) {
+                return;
+            }
         }
 
         CraftWorld world = player.level().getWorld();
-
-        BlockPlaceContext blockPlaceContext = new BlockPlaceContext(player, hand, player.getItemInHand(hand), blockHit);
 
         // Update blocks
         if (updateNeighbors) {
@@ -325,6 +357,11 @@ public class SetBlockPacketListener implements PluginMessageListener {
             ItemStack inHand = player.getItemInHand(hand);
 
             BlockItem.updateCustomBlockEntityTag(player.level(), player, clickedPos, inHand);
+
+            BlockEntity blockEntity = player.level().getBlockEntity(clickedPos);
+            if (blockEntity != null) {
+                blockEntity.applyComponentsFromItemStack(inHand);
+            }
 
             if (!(actualBlock instanceof BedBlock) && !(actualBlock instanceof DoublePlantBlock) && !(actualBlock instanceof DoorBlock)) {
                 actualBlock.setPlacedBy(player.level(), clickedPos, actualBlockState, player, inHand);
