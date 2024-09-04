@@ -5,7 +5,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
-public record ImageAnnotationData(String imageUrl, Vector3f position, Quaternionf rotation, Direction direction, float fallbackYaw, float width, int billboardMode) implements AnnotationData {
+public record ImageAnnotationData(String imageUrl, Vector3f position, Quaternionf rotation, Direction direction, float fallbackYaw, float width, float opacity, int billboardMode) implements AnnotationData {
 
     @Override
     public void setPosition(Vector3f position) {
@@ -31,6 +31,7 @@ public record ImageAnnotationData(String imageUrl, Vector3f position, Quaternion
         friendlyByteBuf.writeByte(this.direction.get3DDataValue());
         friendlyByteBuf.writeFloat(this.fallbackYaw);
         friendlyByteBuf.writeFloat(this.width);
+        friendlyByteBuf.writeFloat(this.opacity);
         friendlyByteBuf.writeByte(this.billboardMode);
     }
 
@@ -46,8 +47,9 @@ public record ImageAnnotationData(String imageUrl, Vector3f position, Quaternion
         Direction direction = Direction.from3DDataValue(friendlyByteBuf.readByte());
         float fallbackYaw = friendlyByteBuf.readFloat();
         float width = friendlyByteBuf.readFloat();
+        float opacity = friendlyByteBuf.readFloat();
         int billboardMode = friendlyByteBuf.readByte();
-        return new ImageAnnotationData(imageUrl, new Vector3f(x, y, z), new Quaternionf(rotX, rotY, rotZ, rotW), direction, fallbackYaw, width, billboardMode);
+        return new ImageAnnotationData(imageUrl, new Vector3f(x, y, z), new Quaternionf(rotX, rotY, rotZ, rotW), direction, fallbackYaw, width, opacity, billboardMode);
     }
 
 }
