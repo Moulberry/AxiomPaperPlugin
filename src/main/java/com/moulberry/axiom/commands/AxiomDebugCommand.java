@@ -85,7 +85,8 @@ public class AxiomDebugCommand {
         );
         enum IntegrationType {
             PLOT_SQUARED,
-            WORLD_GUARD
+            WORLD_GUARD,
+            GRIEF_DEFENDER
         }
         manager.command(
             base(manager, "canBreakBlockAtCurrentPosition").optional("type", EnumParser.enumParser(IntegrationType.class)).handler(context -> {
@@ -99,6 +100,8 @@ public class AxiomDebugCommand {
                     canBreakBlock = PlotSquaredIntegration.canBreakBlock(player, block);
                 } else if (integrationType == IntegrationType.WORLD_GUARD) {
                     canBreakBlock = WorldGuardIntegration.canBreakBlock(player, block.getLocation());
+                } else if (integrationType == IntegrationType.GRIEF_DEFENDER) {
+                    canBreakBlock = Integration.canBreakBlock(player, block);
                 } else {
                     canBreakBlock = Integration.canBreakBlock(player, block);
                 }
@@ -115,6 +118,8 @@ public class AxiomDebugCommand {
                     canPlaceBlock = PlotSquaredIntegration.canPlaceBlock(player, player.getLocation());
                 } else if (integrationType == IntegrationType.WORLD_GUARD) {
                     canPlaceBlock = WorldGuardIntegration.canPlaceBlock(player, player.getLocation());
+                } else if (integrationType == IntegrationType.GRIEF_DEFENDER) {
+                    canPlaceBlock = Integration.canPlaceBlock(player, player.getLocation());
                 } else {
                     canPlaceBlock = Integration.canPlaceBlock(player, player.getLocation());
                 }

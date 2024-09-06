@@ -24,6 +24,7 @@ repositories {
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://maven.enginehub.org/repo/")
     maven("https://maven.playpro.com")
+    maven("https://repo.glaremasters.me/repository/bloodshot")
 }
 
 dependencies {
@@ -47,6 +48,9 @@ dependencies {
 
     // CoreProtect support
     compileOnly(libs.coreprotect)
+
+    // GriefDefender support
+    compileOnly(libs.griefdefender)
 }
 
 tasks {
