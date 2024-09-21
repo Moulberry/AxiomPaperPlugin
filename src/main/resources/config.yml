@@ -17,6 +17,9 @@ blueprint-sharing: false
 # Allow large chunk data requests, not recommended for public servers
 allow-large-chunk-data-request: false
 
+# Raise the size limit for *all* packets to 2mb instead of 32kb. NOT RECOMMENDED FOR PUBLIC SERVERS
+allow-large-payload-for-all-packets: false
+
 # Action to take when a user with an incompatible Minecraft version or Axiom version joins
 # Valid actions are 'kick' and 'warn'
 # 'warn' will give the player a warning and disable Axiom
@@ -97,4 +100,5 @@ packet-handlers:
   manipulate-entity: true
   delete-entity: true
   marker-nbt-request: true
-  blueprint-request: true
+  upload-blueprint: true
+  annotation-update: true
