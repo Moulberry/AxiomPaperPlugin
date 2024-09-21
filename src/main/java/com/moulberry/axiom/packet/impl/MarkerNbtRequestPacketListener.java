@@ -1,7 +1,8 @@
-package com.moulberry.axiom.packet;
+package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.marker.MarkerData;
+import com.moulberry.axiom.packet.PacketHandler;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.nbt.CompoundTag;
@@ -16,7 +17,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 
-public class MarkerNbtRequestPacketListener implements PluginMessageListener {
+public class MarkerNbtRequestPacketListener implements PacketHandler {
 
     private final AxiomPaper plugin;
     public MarkerNbtRequestPacketListener(AxiomPaper plugin) {
@@ -24,15 +25,7 @@ public class MarkerNbtRequestPacketListener implements PluginMessageListener {
     }
 
     @Override
-    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        try {
-            this.process(player, message);
-        } catch (Throwable t) {
-            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
-        }
-    }
-
-    private void process(Player player, byte[] message) {
+    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, "axiom.entity.manipulate", true)) {
             return;
         }
@@ -41,7 +34,6 @@ public class MarkerNbtRequestPacketListener implements PluginMessageListener {
             return;
         }
 
-        FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         UUID uuid = friendlyByteBuf.readUUID();
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();

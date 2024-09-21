@@ -1,9 +1,9 @@
-package com.moulberry.axiom.packet;
+package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.persistence.ItemStackDataType;
-import com.viaversion.viaversion.api.Via;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.network.FriendlyByteBuf;
@@ -18,7 +18,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
 
-public class SetHotbarSlotPacketListener implements PluginMessageListener {
+public class SetHotbarSlotPacketListener implements PacketHandler {
 
     private final AxiomPaper plugin;
     public SetHotbarSlotPacketListener(AxiomPaper plugin) {
@@ -26,20 +26,11 @@ public class SetHotbarSlotPacketListener implements PluginMessageListener {
     }
 
     @Override
-    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        try {
-            this.process(player, message);
-        } catch (Throwable t) {
-            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
-        }
-    }
-
-    private void process(Player player, byte[] message) {
+    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, "axiom.player.hotbar") || this.plugin.isMismatchedDataVersion(player.getUniqueId())) {
             return;
         }
 
-        RegistryFriendlyByteBuf friendlyByteBuf = new RegistryFriendlyByteBuf(Unpooled.wrappedBuffer(message), ((CraftPlayer)player).getHandle().registryAccess());
         int index = friendlyByteBuf.readByte();
         if (index < 0 || index >= 9*9) return;
         net.minecraft.world.item.ItemStack nmsStack = ItemStack.OPTIONAL_STREAM_CODEC.decode(friendlyByteBuf);

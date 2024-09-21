@@ -9,6 +9,25 @@ import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.*;
+import com.moulberry.axiom.packet.impl.BlueprintRequestPacketListener;
+import com.moulberry.axiom.packet.impl.DeleteEntityPacketListener;
+import com.moulberry.axiom.packet.impl.HelloPacketListener;
+import com.moulberry.axiom.packet.impl.ManipulateEntityPacketListener;
+import com.moulberry.axiom.packet.impl.MarkerNbtRequestPacketListener;
+import com.moulberry.axiom.packet.impl.RequestChunkDataPacketListener;
+import com.moulberry.axiom.packet.impl.SetBlockBufferPacketListener;
+import com.moulberry.axiom.packet.impl.SetBlockPacketListener;
+import com.moulberry.axiom.packet.impl.SetEditorViewsPacketListener;
+import com.moulberry.axiom.packet.impl.SetFlySpeedPacketListener;
+import com.moulberry.axiom.packet.impl.SetGamemodePacketListener;
+import com.moulberry.axiom.packet.impl.SetHotbarSlotPacketListener;
+import com.moulberry.axiom.packet.impl.SetTimePacketListener;
+import com.moulberry.axiom.packet.impl.SetWorldPropertyListener;
+import com.moulberry.axiom.packet.impl.SpawnEntityPacketListener;
+import com.moulberry.axiom.packet.impl.SwitchActiveHotbarPacketListener;
+import com.moulberry.axiom.packet.impl.TeleportPacketListener;
+import com.moulberry.axiom.packet.impl.UpdateAnnotationPacketListener;
+import com.moulberry.axiom.packet.impl.UploadBlueprintPacketListener;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -111,64 +130,31 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerOutgoingPluginChannel(this, "axiom:marker_nbt_response");
         msg.registerOutgoingPluginChannel(this, "axiom:annotation_update");
 
-        if (configuration.getBoolean("packet-handlers.hello")) {
-            msg.registerIncomingPluginChannel(this, "axiom:hello", new HelloPacketListener(this));
-        }
-        if (configuration.getBoolean("packet-handlers.set-gamemode")) {
-            msg.registerIncomingPluginChannel(this, "axiom:set_gamemode", new SetGamemodePacketListener(this));
-        }
-        if (configuration.getBoolean("packet-handlers.set-fly-speed")) {
-            msg.registerIncomingPluginChannel(this, "axiom:set_fly_speed", new SetFlySpeedPacketListener(this));
-        }
-        if (configuration.getBoolean("packet-handlers.set-world-time")) {
-            msg.registerIncomingPluginChannel(this, "axiom:set_world_time", new SetTimePacketListener(this));
-        }
-        if (configuration.getBoolean("packet-handlers.set-world-property")) {
-            msg.registerIncomingPluginChannel(this, "axiom:set_world_property", new SetWorldPropertyListener(this));
-        }
-        if (configuration.getBoolean("packet-handlers.set-single-block")) {
-            msg.registerIncomingPluginChannel(this, "axiom:set_block", new SetBlockPacketListener(this));
-        }
-        if (configuration.getBoolean("packet-handlers.set-hotbar-slot")) {
-            msg.registerIncomingPluginChannel(this, "axiom:set_hotbar_slot", new SetHotbarSlotPacketListener(this));
-        }
-        if (configuration.getBoolean("packet-handlers.switch-active-hotbar")) {
-            msg.registerIncomingPluginChannel(this, "axiom:switch_active_hotbar", new SwitchActiveHotbarPacketListener(this));
-        }
-        if (configuration.getBoolean("packet-handlers.teleport")) {
-            msg.registerIncomingPluginChannel(this, "axiom:teleport", new TeleportPacketListener(this));
-        }
-        if (configuration.getBoolean("packet-handlers.set-editor-views")) {
-            msg.registerIncomingPluginChannel(this, "axiom:set_editor_views", new SetEditorViewsPacketListener(this));
-        }
-        if (!allowLargeChunkDataRequest) {
-            if (configuration.getBoolean("packet-handlers.request-chunk-data")) {
-                msg.registerIncomingPluginChannel(this, "axiom:request_chunk_data", new RequestChunkDataPacketListener(this));
-            }
-        }
-        if (configuration.getBoolean("packet-handlers.spawn-entity")) {
-            msg.registerIncomingPluginChannel(this, "axiom:spawn_entity", new SpawnEntityPacketListener(this));
-        }
-        if (configuration.getBoolean("packet-handlers.manipulate-entity")) {
-            msg.registerIncomingPluginChannel(this, "axiom:manipulate_entity", new ManipulateEntityPacketListener(this));
-        }
-        if (configuration.getBoolean("packet-handlers.delete-entity")) {
-            msg.registerIncomingPluginChannel(this, "axiom:delete_entity", new DeleteEntityPacketListener(this));
-        }
-        if (configuration.getBoolean("packet-handlers.marker-nbt-request")) {
-            msg.registerIncomingPluginChannel(this, "axiom:marker_nbt_request", new MarkerNbtRequestPacketListener(this));
-        }
-        if (configuration.getBoolean("packet-handlers.blueprint-request")) {
-            msg.registerIncomingPluginChannel(this, "axiom:request_blueprint", new BlueprintRequestPacketListener(this));
-        }
+        Map<String, PacketHandler> largePayloadHandlers = new HashMap<>();
 
-        if (configuration.getBoolean("packet-handlers.set-buffer")) {
-            SetBlockBufferPacketListener setBlockBufferPacketListener = new SetBlockBufferPacketListener(this);
-            UploadBlueprintPacketListener uploadBlueprintPacketListener = new UploadBlueprintPacketListener(this);
-            UpdateAnnotationPacketListener updateAnnotationPacketListener = new UpdateAnnotationPacketListener(this);
-            RequestChunkDataPacketListener requestChunkDataPacketListener = allowLargeChunkDataRequest ?
-                new RequestChunkDataPacketListener(this) : null;
+        registerPacketHandler("hello", new HelloPacketListener(this), msg, largePayloadHandlers);
+        registerPacketHandler("set_gamemode", new SetGamemodePacketListener(this), msg, largePayloadHandlers);
+        registerPacketHandler("set_fly_speed", new SetFlySpeedPacketListener(this), msg, largePayloadHandlers);
+        registerPacketHandler("set_world_time", new SetTimePacketListener(this), msg, largePayloadHandlers);
+        registerPacketHandler("set_world_property", new SetWorldPropertyListener(this), msg, largePayloadHandlers);
+        registerPacketHandler("set_block", new SetBlockPacketListener(this), msg, largePayloadHandlers); // set-single-block
+        registerPacketHandler("set_hotbar_slot", new SetHotbarSlotPacketListener(this), msg, largePayloadHandlers);
+        registerPacketHandler("switch_active_hotbar", new SwitchActiveHotbarPacketListener(this), msg, largePayloadHandlers);
+        registerPacketHandler("teleport", new TeleportPacketListener(this), msg, largePayloadHandlers);
+        registerPacketHandler("set_editor_views", new SetEditorViewsPacketListener(this), msg, largePayloadHandlers);
+        registerPacketHandler("request_chunk_data", new RequestChunkDataPacketListener(this,
+            !configuration.getBoolean("packet-handlers.request-chunk-data")), msg, largePayloadHandlers);
+        registerPacketHandler("spawn_entity", new SpawnEntityPacketListener(this), msg, largePayloadHandlers);
+        registerPacketHandler("manipulate_entity", new ManipulateEntityPacketListener(this), msg, largePayloadHandlers);
+        registerPacketHandler("delete_entity", new DeleteEntityPacketListener(this), msg, largePayloadHandlers);
+        registerPacketHandler("marker_nbt_request", new MarkerNbtRequestPacketListener(this), msg, largePayloadHandlers);
+        registerPacketHandler("request_blueprint", new BlueprintRequestPacketListener(this), msg, largePayloadHandlers);
 
+        registerPacketHandler("set_buffer", new SetBlockBufferPacketListener(this), msg, largePayloadHandlers);
+        registerPacketHandler("upload_blueprint", new UploadBlueprintPacketListener(this), msg, largePayloadHandlers);
+        registerPacketHandler("annotation_update", new UpdateAnnotationPacketListener(this), msg, largePayloadHandlers);
+
+        if (!largePayloadHandlers.isEmpty()) {
             // Hack to figure out the id of the CustomPayload packet
             ProtocolInfo<ServerGamePacketListener> protocol = GameProtocols.SERVERBOUND.bind(k -> new RegistryFriendlyByteBuf(k,
                 MinecraftServer.getServer().registryAccess()));
@@ -181,8 +167,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
                 public void afterInitChannel(@NonNull Channel channel) {
                     Connection connection = (Connection) channel.pipeline().get("packet_handler");
                     channel.pipeline().addBefore("decoder", "axiom-big-payload-handler",
-                        new AxiomBigPayloadHandler(payloadId, connection, setBlockBufferPacketListener,
-                            uploadBlueprintPacketListener, updateAnnotationPacketListener, requestChunkDataPacketListener));
+                        new AxiomBigPayloadHandler(payloadId, connection, largePayloadHandlers));
                 }
             });
         }
@@ -311,6 +296,35 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
         if (CoreProtectIntegration.isEnabled()) {
             this.getLogger().info("CoreProtect integration enabled");
+        }
+    }
+
+    private void registerPacketHandler(String name, PacketHandler handler, Messenger messenger, Map<String, PacketHandler> largePayloadHandlers) {
+        String configEntry = "packet-handlers." + name.replace("_", "-");
+        if (name.equals("set_block")) {
+            configEntry = "packet-handlers.set-single-block";
+        } else if (name.equals("request_blueprint")) {
+            configEntry = "packet-handlers.blueprint-request";
+        }
+        if (name.equals("request-chunk-data") || this.configuration.getBoolean(configEntry, true)) {
+            boolean isLargePayload = false;
+
+            if (name.equals("hello")) { // Hello must use normal system, as non-Axiom players can't send large payloads
+                isLargePayload = false;
+            } else if (this.configuration.getBoolean("allow-large-payload-for-all-packets")) {
+                isLargePayload = true;
+            } else if (name.equals("set_buffer") || name.equals("upload_blueprint") || name.equals("annotation_update")) {
+                isLargePayload = true;
+            } else if (name.equals("request_chunk_data") && this.configuration.getBoolean("allow-large-chunk-data-request")) {
+                isLargePayload = true;
+            }
+
+            if (isLargePayload) {
+                largePayloadHandlers.put("axiom:"+name, handler);
+                messenger.registerIncomingPluginChannel(this, "axiom:"+name, new DummyPacketListener());
+            } else {
+                messenger.registerIncomingPluginChannel(this, "axiom:"+name, new WrapperPacketListener(handler));
+            }
         }
     }
 
