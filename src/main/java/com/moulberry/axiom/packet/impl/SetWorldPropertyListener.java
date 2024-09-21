@@ -1,7 +1,8 @@
-package com.moulberry.axiom.packet;
+package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
+import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertyHolder;
 import io.netty.buffer.Unpooled;
@@ -12,7 +13,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
 
-public class SetWorldPropertyListener implements PluginMessageListener {
+public class SetWorldPropertyListener implements PacketHandler {
 
     private final AxiomPaper plugin;
     public SetWorldPropertyListener(AxiomPaper plugin) {
@@ -20,20 +21,11 @@ public class SetWorldPropertyListener implements PluginMessageListener {
     }
 
     @Override
-    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        try {
-            this.process(player, message);
-        } catch (Throwable t) {
-            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
-        }
-    }
-
-    private void process(Player player, byte[] message) {
+    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, "axiom.world.property")) {
             return;
         }
 
-        FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         ResourceLocation id = friendlyByteBuf.readResourceLocation();
         int type = friendlyByteBuf.readVarInt();
         byte[] data = friendlyByteBuf.readByteArray();
