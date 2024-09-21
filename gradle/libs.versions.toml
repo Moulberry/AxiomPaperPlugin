@@ -7,12 +7,12 @@ paper = "1.20.2-R0.1-SNAPSHOT"
 plotsquared = "7.3.9-20240513.192211-13"
 reflection-remapper = "0.1.2-20240315.033304-2"
 viaversion-api = "5.0.1"
-worldguard-bukkit = "7.1.0-20240503.180049-12"
+worldguard-bukkit = "7.0.9-SNAPSHOT"
 zstd-jni = "1.5.5-4"
 
 # Plugins
-paperweight-userdev = "1.5.11"
-run-paper = "2.2.2"
+paperweight-userdev = "1.7.2"
+run-paper = "2.3.0"
 shadow = "8.1.1"
 
 [libraries]

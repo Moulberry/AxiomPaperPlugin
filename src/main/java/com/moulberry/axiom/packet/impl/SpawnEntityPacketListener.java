@@ -1,11 +1,10 @@
-package com.moulberry.axiom.packet;
+package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.integration.Integration;
-import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
+import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.viaversion.UnknownVersionHelper;
-import com.moulberry.axiom.viaversion.ViaVersionHelper;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
@@ -32,7 +31,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class SpawnEntityPacketListener implements PluginMessageListener {
+public class SpawnEntityPacketListener implements PacketHandler {
 
     private final AxiomPaper plugin;
     public SpawnEntityPacketListener(AxiomPaper plugin) {
@@ -46,15 +45,7 @@ public class SpawnEntityPacketListener implements PluginMessageListener {
     private static final Rotation[] ROTATION_VALUES = Rotation.values();
 
     @Override
-    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        try {
-            this.process(player, message);
-        } catch (Throwable t) {
-            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
-        }
-    }
-
-    private void process(Player player, byte[] message) {
+    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, "axiom.entity.spawn", true)) {
             return;
         }
@@ -63,7 +54,6 @@ public class SpawnEntityPacketListener implements PluginMessageListener {
             return;
         }
 
-        FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         List<SpawnEntry> entries = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
             buf -> new SpawnEntry(buf.readUUID(), buf.readDouble(), buf.readDouble(),
                 buf.readDouble(), buf.readFloat(), buf.readFloat(),

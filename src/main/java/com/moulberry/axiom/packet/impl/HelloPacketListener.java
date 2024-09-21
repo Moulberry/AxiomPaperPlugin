@@ -1,15 +1,14 @@
-package com.moulberry.axiom.packet;
+package com.moulberry.axiom.packet.impl;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.moulberry.axiom.*;
-import com.moulberry.axiom.annotations.ServerAnnotations;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.event.AxiomHandshakeEvent;
+import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.persistence.ItemStackDataType;
 import com.moulberry.axiom.persistence.UUIDDataType;
 import com.moulberry.axiom.viaversion.ViaVersionHelper;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
-import com.viaversion.viaversion.api.Via;
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
@@ -28,13 +27,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.plugin.messaging.PluginMessageListener;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.UUID;
 
-public class HelloPacketListener implements PluginMessageListener {
+public class HelloPacketListener implements PacketHandler {
 
     private final AxiomPaper plugin;
 
@@ -43,20 +40,11 @@ public class HelloPacketListener implements PluginMessageListener {
     }
 
     @Override
-    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        try {
-            this.process(player, message);
-        } catch (Throwable t) {
-            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
-        }
-    }
-
-    private void process(Player player, byte[] message) {
+    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.hasAxiomPermission(player)) {
             return;
         }
 
-        FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         int apiVersion = friendlyByteBuf.readVarInt();
 
         if (apiVersion != AxiomConstants.API_VERSION) {
