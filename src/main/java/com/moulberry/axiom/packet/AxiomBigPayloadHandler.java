@@ -2,42 +2,36 @@ package com.moulberry.axiom.packet;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.VersionHelper;
+import com.moulberry.axiom.packet.impl.RequestChunkDataPacketListener;
+import com.moulberry.axiom.packet.impl.SetBlockBufferPacketListener;
+import com.moulberry.axiom.packet.impl.UpdateAnnotationPacketListener;
+import com.moulberry.axiom.packet.impl.UploadBlueprintPacketListener;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandler;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.papermc.paper.network.ConnectionEvent;
+import net.kyori.adventure.text.Component;
 import net.minecraft.network.Connection;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import org.bukkit.entity.Player;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 public class AxiomBigPayloadHandler extends MessageToMessageDecoder<ByteBuf> {
 
-    private static final ResourceLocation SET_BUFFER = VersionHelper.createResourceLocation("axiom", "set_buffer");
-    private static final ResourceLocation UPLOAD_BLUEPRINT = VersionHelper.createResourceLocation("axiom", "upload_blueprint");
-    private static final ResourceLocation UPDATE_ANNOTATIONS = VersionHelper.createResourceLocation("axiom", "annotation_update");
-    private static final ResourceLocation REQUEST_CHUNK_DATA = VersionHelper.createResourceLocation("axiom", "request_chunk_data");
     private final int payloadId;
     private final Connection connection;
-    private final SetBlockBufferPacketListener setBlockBuffer;
-    private final UploadBlueprintPacketListener uploadBlueprint;
-    private final UpdateAnnotationPacketListener updateAnnotation;
-    private final RequestChunkDataPacketListener requestChunkDataPacketListener;
+    private final Map<String, PacketHandler> packetHandlers;
 
-    public AxiomBigPayloadHandler(int payloadId, Connection connection, SetBlockBufferPacketListener setBlockBuffer,
-            UploadBlueprintPacketListener uploadBlueprint, UpdateAnnotationPacketListener updateAnnotation,
-            RequestChunkDataPacketListener requestChunkDataPacketListener) {
+    public AxiomBigPayloadHandler(int payloadId, Connection connection, Map<String, PacketHandler> packetHandlers) {
         this.payloadId = payloadId;
         this.connection = connection;
-        this.setBlockBuffer = setBlockBuffer;
-        this.uploadBlueprint = uploadBlueprint;
-        this.updateAnnotation = updateAnnotation;
-        this.requestChunkDataPacketListener = requestChunkDataPacketListener;
+        this.packetHandlers = packetHandlers;
     }
 
     @Override
@@ -67,47 +61,29 @@ public class AxiomBigPayloadHandler extends MessageToMessageDecoder<ByteBuf> {
             int packetId = buf.readVarInt();
 
             if (packetId == payloadId) {
-                ResourceLocation identifier = buf.readResourceLocation();
-                if (identifier.equals(SET_BUFFER)) {
-                    setBlockBuffer.onReceive(player, buf);
-                    success = true;
-                    if (in.readableBytes() > 0) {
-                        throw new IOException("Axiom packet " + identifier + " was larger than I expected, found " + in.readableBytes() +
-                            " bytes extra whilst reading packet");
-                    }
-                    return;
-                } else if (identifier.equals(UPLOAD_BLUEPRINT)) {
-                    uploadBlueprint.onReceive(player, buf);
-                    success = true;
-                    if (in.readableBytes() > 0) {
-                        throw new IOException("Axiom packet " + identifier + " was larger than I expected, found " + in.readableBytes() +
-                            " bytes extra whilst reading packet");
-                    }
-                    return;
-                } else if (identifier.equals(UPDATE_ANNOTATIONS)) {
-                    updateAnnotation.onReceive(player, buf);
-                    success = true;
-                    if (in.readableBytes() > 0) {
-                        throw new IOException("Axiom packet " + identifier + " was larger than I expected, found " + in.readableBytes() +
-                            " bytes extra whilst reading packet");
-                    }
-                    return;
-                } else if (requestChunkDataPacketListener != null && identifier.equals(REQUEST_CHUNK_DATA)) {
-                    byte[] bytes = new byte[buf.writerIndex() - buf.readerIndex()];
-                    buf.getBytes(buf.readerIndex(), bytes);
+                String identifier = buf.readUtf(32767);
+                PacketHandler handler = this.packetHandlers.get(identifier);
+                if (handler != null) {
+                    if (handler.handleAsync()) {
+                        handler.onReceive(player.getBukkitEntity(), buf);
+                        success = true;
+                    } else {
+                        byte[] bytes = new byte[buf.writerIndex() - buf.readerIndex()];
+                        buf.getBytes(buf.readerIndex(), bytes);
+                        Player bukkitPlayer = player.getBukkitEntity();
 
-                    player.getServer().execute(() -> {
-                        try {
-                            requestChunkDataPacketListener.onPluginMessageReceived(
-                                identifier.toString(), player.getBukkitEntity(), bytes);
-                        } catch (Throwable t) {
-                            player.getBukkitEntity().kick(net.kyori.adventure.text.Component.text(
-                                "An error occured while requesting chunk data: " + t.getMessage()));
-                        }
-                    });
+                        player.getServer().execute(() -> {
+                            FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(bytes));
+                            try {
+                                handler.onReceive(bukkitPlayer, friendlyByteBuf);
+                            } catch (Throwable t) {
+                                bukkitPlayer.kick(Component.text("Error while processing packet " + identifier + ": " + t.getMessage()));
+                            }
+                        });
 
-                    success = true;
-                    in.skipBytes(in.readableBytes());
+                        success = true;
+                        in.readerIndex(in.writerIndex());
+                    }
                     return;
                 }
             }
@@ -134,7 +110,7 @@ public class AxiomBigPayloadHandler extends MessageToMessageDecoder<ByteBuf> {
         if (evt == ConnectionEvent.COMPRESSION_THRESHOLD_SET || evt == ConnectionEvent.COMPRESSION_DISABLED) {
             ctx.channel().pipeline().remove("axiom-big-payload-handler");
             ctx.channel().pipeline().addBefore("decoder", "axiom-big-payload-handler",
-                                   new AxiomBigPayloadHandler(payloadId, connection, setBlockBuffer, uploadBlueprint, updateAnnotation, requestChunkDataPacketListener));
+                                   new AxiomBigPayloadHandler(payloadId, connection, packetHandlers));
         }
         super.userEventTriggered(ctx, evt);
     }
