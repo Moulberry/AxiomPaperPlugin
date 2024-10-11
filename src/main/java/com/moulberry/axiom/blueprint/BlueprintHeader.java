@@ -9,24 +9,25 @@ import net.minecraft.network.FriendlyByteBuf;
 import java.util.ArrayList;
 import java.util.List;
 
-public record BlueprintHeader(String name, String author, List<String> tags, float thumbnailYaw, float thumbnailPitch, boolean lockedThumbnail, int blockCount) {
+public record BlueprintHeader(String name, String author, List<String> tags, float thumbnailYaw, float thumbnailPitch, boolean lockedThumbnail, int blockCount, boolean containsAir) {
 
-    private static final int CURRENT_VERSION = 0;
+    private static final int CURRENT_VERSION = 1;
 
     public void write(FriendlyByteBuf friendlyByteBuf) {
         friendlyByteBuf.writeUtf(this.name);
         friendlyByteBuf.writeUtf(this.author);
         friendlyByteBuf.writeCollection(this.tags, FriendlyByteBuf::writeUtf);
         friendlyByteBuf.writeInt(this.blockCount);
+        friendlyByteBuf.writeBoolean(this.containsAir);
     }
 
     public static BlueprintHeader read(FriendlyByteBuf friendlyByteBuf) {
         String name = friendlyByteBuf.readUtf();
         String author = friendlyByteBuf.readUtf();
-        List<String> tags = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
-            FriendlyByteBuf::readUtf);
+        List<String> tags = friendlyByteBuf.readList(FriendlyByteBuf::readUtf);
         int blockCount = friendlyByteBuf.readInt();
-        return new BlueprintHeader(name, author, tags, 0, 0, true, blockCount);
+        boolean containsAir = friendlyByteBuf.readBoolean();
+        return new BlueprintHeader(name, author, tags, 0, 0, true, blockCount, containsAir);
     }
 
     public static BlueprintHeader load(CompoundTag tag) {
@@ -37,13 +38,14 @@ public record BlueprintHeader(String name, String author, List<String> tags, flo
         float thumbnailPitch = tag.contains("ThumbnailPitch", Tag.TAG_FLOAT) ? tag.getFloat("ThumbnailPitch") : 30;
         boolean lockedThumbnail = tag.getBoolean("LockedThumbnail");
         int blockCount = tag.getInt("BlockCount");
+        boolean containsAir = tag.getBoolean("ContainsAir");
 
         List<String> tags = new ArrayList<>();
         for (Tag string : tag.getList("Tags", Tag.TAG_STRING)) {
             tags.add(string.getAsString());
         }
 
-        return new BlueprintHeader(name, author, tags, thumbnailYaw, thumbnailPitch, lockedThumbnail, blockCount);
+        return new BlueprintHeader(name, author, tags, thumbnailYaw, thumbnailPitch, lockedThumbnail, blockCount, containsAir);
     }
 
     public CompoundTag save(CompoundTag tag) {
@@ -60,6 +62,7 @@ public record BlueprintHeader(String name, String author, List<String> tags, flo
         tag.putFloat("ThumbnailPitch", this.thumbnailPitch);
         tag.putBoolean("LockedThumbnail", this.lockedThumbnail);
         tag.putInt("BlockCount", this.blockCount);
+        tag.putBoolean("ContainsAir", this.containsAir);
         return tag;
     }
 
