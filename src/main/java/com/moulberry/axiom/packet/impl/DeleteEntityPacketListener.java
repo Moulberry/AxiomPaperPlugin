@@ -35,22 +35,17 @@ public class DeleteEntityPacketListener implements PacketHandler {
             return;
         }
 
-        List<UUID> delete = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
-            buf -> buf.readUUID());
+        List<UUID> delete = friendlyByteBuf.readCollection(this.plugin.limitCollection(ArrayList::new), buf -> buf.readUUID());
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();
-
-        List<String> whitelistedEntities = this.plugin.configuration.getStringList("whitelist-entities");
-        List<String> blacklistedEntities = this.plugin.configuration.getStringList("blacklist-entities");
 
         for (UUID uuid : delete) {
             Entity entity = serverLevel.getEntity(uuid);
             if (entity == null || entity instanceof net.minecraft.world.entity.player.Player || entity.hasPassenger(e -> e instanceof net.minecraft.world.entity.player.Player)) continue;
 
-            String type = EntityType.getKey(entity.getType()).toString();
-
-            if (!whitelistedEntities.isEmpty() && !whitelistedEntities.contains(type)) continue;
-            if (blacklistedEntities.contains(type)) continue;
+            if (!this.plugin.canEntityBeManipulated(entity.getType())) {
+                continue;
+            }
 
             if (!Integration.canBreakBlock(player,
                     player.getWorld().getBlockAt(entity.getBlockX(), entity.getBlockY(), entity.getBlockZ()))) {

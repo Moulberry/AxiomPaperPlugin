@@ -54,15 +54,12 @@ public class SpawnEntityPacketListener implements PacketHandler {
             return;
         }
 
-        List<SpawnEntry> entries = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
+        List<SpawnEntry> entries = friendlyByteBuf.readCollection(this.plugin.limitCollection(ArrayList::new),
             buf -> new SpawnEntry(buf.readUUID(), buf.readDouble(), buf.readDouble(),
                 buf.readDouble(), buf.readFloat(), buf.readFloat(),
                 buf.readNullable(buffer -> buffer.readUUID()), UnknownVersionHelper.readTagUnknown(buf, player)));
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();
-
-        List<String> whitelistedEntities = this.plugin.configuration.getStringList("whitelist-entities");
-        List<String> blacklistedEntities = this.plugin.configuration.getStringList("blacklist-entities");
 
         for (SpawnEntry entry : entries) {
             Vec3 position = new Vec3(entry.x, entry.y, entry.z);
@@ -99,9 +96,9 @@ public class SpawnEntityPacketListener implements PacketHandler {
             AtomicBoolean useNewUuid = new AtomicBoolean(true);
 
             Entity spawned = EntityType.loadEntityRecursive(tag, serverLevel, entity -> {
-                String type = EntityType.getKey(entity.getType()).toString();
-                if (!whitelistedEntities.isEmpty() && !whitelistedEntities.contains(type)) return null;
-                if (blacklistedEntities.contains(type)) return null;
+                if (!this.plugin.canEntityBeManipulated(entity.getType())) {
+                    return null;
+                }
 
                 if (useNewUuid.getAndSet(false)) {
                     entity.setUUID(entry.newUuid);
