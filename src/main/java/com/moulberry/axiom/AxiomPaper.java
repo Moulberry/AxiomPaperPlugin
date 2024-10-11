@@ -9,25 +9,7 @@ import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.*;
-import com.moulberry.axiom.packet.impl.BlueprintRequestPacketListener;
-import com.moulberry.axiom.packet.impl.DeleteEntityPacketListener;
-import com.moulberry.axiom.packet.impl.HelloPacketListener;
-import com.moulberry.axiom.packet.impl.ManipulateEntityPacketListener;
-import com.moulberry.axiom.packet.impl.MarkerNbtRequestPacketListener;
-import com.moulberry.axiom.packet.impl.RequestChunkDataPacketListener;
-import com.moulberry.axiom.packet.impl.SetBlockBufferPacketListener;
-import com.moulberry.axiom.packet.impl.SetBlockPacketListener;
-import com.moulberry.axiom.packet.impl.SetEditorViewsPacketListener;
-import com.moulberry.axiom.packet.impl.SetFlySpeedPacketListener;
-import com.moulberry.axiom.packet.impl.SetGamemodePacketListener;
-import com.moulberry.axiom.packet.impl.SetHotbarSlotPacketListener;
-import com.moulberry.axiom.packet.impl.SetTimePacketListener;
-import com.moulberry.axiom.packet.impl.SetWorldPropertyListener;
-import com.moulberry.axiom.packet.impl.SpawnEntityPacketListener;
-import com.moulberry.axiom.packet.impl.SwitchActiveHotbarPacketListener;
-import com.moulberry.axiom.packet.impl.TeleportPacketListener;
-import com.moulberry.axiom.packet.impl.UpdateAnnotationPacketListener;
-import com.moulberry.axiom.packet.impl.UploadBlueprintPacketListener;
+import com.moulberry.axiom.packet.impl.*;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -46,6 +28,7 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.*;
 import org.bukkit.command.CommandSender;
@@ -68,6 +51,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.IntFunction;
 
 public class AxiomPaper extends JavaPlugin implements Listener {
 
@@ -82,6 +66,9 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     public IdMapper<BlockState> allowedBlockRegistry = null;
     private boolean logLargeBlockBufferChanges = false;
+    private int packetCollectionReadLimit = 1024;
+    private Set<EntityType<?>> whitelistedEntities = new HashSet<>();
+    private Set<EntityType<?>> blacklistedEntities = new HashSet<>();
 
     public Path blueprintFolder = null;
     public boolean allowAnnotations = false;
@@ -101,8 +88,20 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             this.getLogger().warning("Invalid value for unsupported-axiom-version, expected 'kick', 'warn' or 'ignore'");
         }
 
-        boolean allowLargeChunkDataRequest = this.configuration.getBoolean("allow-large-chunk-data-request");
         this.logLargeBlockBufferChanges = this.configuration.getBoolean("log-large-block-buffer-changes");
+
+        if (this.configuration.getBoolean("allow-large-payload-for-all-packets")) {
+            packetCollectionReadLimit = Short.MAX_VALUE;
+        }
+
+        this.whitelistedEntities.clear();
+        this.blacklistedEntities.clear();
+        for (String whitelistedEntity : this.configuration.getStringList("whitelist-entities")) {
+            EntityType.byString(whitelistedEntity).ifPresent(this.whitelistedEntities::add);
+        }
+        for (String blacklistedEntity : this.configuration.getStringList("blacklist-entities")) {
+            EntityType.byString(blacklistedEntity).ifPresent(this.blacklistedEntities::add);
+        }
 
         List<String> disallowedBlocks = this.configuration.getStringList("disallowed-blocks");
         this.allowedBlockRegistry = DisallowedBlocks.createAllowedBlockRegistry(disallowedBlocks);
@@ -132,27 +131,29 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
         Map<String, PacketHandler> largePayloadHandlers = new HashMap<>();
 
-        registerPacketHandler("hello", new HelloPacketListener(this), msg, largePayloadHandlers);
-        registerPacketHandler("set_gamemode", new SetGamemodePacketListener(this), msg, largePayloadHandlers);
-        registerPacketHandler("set_fly_speed", new SetFlySpeedPacketListener(this), msg, largePayloadHandlers);
-        registerPacketHandler("set_world_time", new SetTimePacketListener(this), msg, largePayloadHandlers);
-        registerPacketHandler("set_world_property", new SetWorldPropertyListener(this), msg, largePayloadHandlers);
-        registerPacketHandler("set_block", new SetBlockPacketListener(this), msg, largePayloadHandlers); // set-single-block
-        registerPacketHandler("set_hotbar_slot", new SetHotbarSlotPacketListener(this), msg, largePayloadHandlers);
-        registerPacketHandler("switch_active_hotbar", new SwitchActiveHotbarPacketListener(this), msg, largePayloadHandlers);
-        registerPacketHandler("teleport", new TeleportPacketListener(this), msg, largePayloadHandlers);
-        registerPacketHandler("set_editor_views", new SetEditorViewsPacketListener(this), msg, largePayloadHandlers);
-        registerPacketHandler("request_chunk_data", new RequestChunkDataPacketListener(this,
-            !configuration.getBoolean("packet-handlers.request-chunk-data")), msg, largePayloadHandlers);
-        registerPacketHandler("spawn_entity", new SpawnEntityPacketListener(this), msg, largePayloadHandlers);
-        registerPacketHandler("manipulate_entity", new ManipulateEntityPacketListener(this), msg, largePayloadHandlers);
-        registerPacketHandler("delete_entity", new DeleteEntityPacketListener(this), msg, largePayloadHandlers);
-        registerPacketHandler("marker_nbt_request", new MarkerNbtRequestPacketListener(this), msg, largePayloadHandlers);
-        registerPacketHandler("request_blueprint", new BlueprintRequestPacketListener(this), msg, largePayloadHandlers);
+        registerPacketHandler("hello", new HelloPacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
+        registerPacketHandler("set_gamemode", new SetGamemodePacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        registerPacketHandler("set_fly_speed", new SetFlySpeedPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        registerPacketHandler("set_world_time", new SetTimePacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        registerPacketHandler("set_world_property", new SetWorldPropertyListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        registerPacketHandler("set_block", new SetBlockPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers); // set-single-block
+        registerPacketHandler("set_hotbar_slot", new SetHotbarSlotPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        registerPacketHandler("switch_active_hotbar", new SwitchActiveHotbarPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        registerPacketHandler("teleport", new TeleportPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        registerPacketHandler("set_editor_views", new SetEditorViewsPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        registerPacketHandler("request_chunk_data", new RequestChunkDataPacketListener(this, !configuration.getBoolean("packet-handlers.request-chunk-data")), msg,
+                this.configuration.getBoolean("allow-large-chunk-data-request") ? LargePayloadBehaviour.FORCE_LARGE : LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        registerPacketHandler("request_entity_data", new RequestEntityDataPacketListener(this, !configuration.getBoolean("packet-handlers.request-entity-data")), msg,
+                this.configuration.getBoolean("allow-large-chunk-data-request") ? LargePayloadBehaviour.FORCE_LARGE : LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        registerPacketHandler("spawn_entity", new SpawnEntityPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        registerPacketHandler("manipulate_entity", new ManipulateEntityPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        registerPacketHandler("delete_entity", new DeleteEntityPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        registerPacketHandler("marker_nbt_request", new MarkerNbtRequestPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        registerPacketHandler("request_blueprint", new BlueprintRequestPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
 
-        registerPacketHandler("set_buffer", new SetBlockBufferPacketListener(this), msg, largePayloadHandlers);
-        registerPacketHandler("upload_blueprint", new UploadBlueprintPacketListener(this), msg, largePayloadHandlers);
-        registerPacketHandler("annotation_update", new UpdateAnnotationPacketListener(this), msg, largePayloadHandlers);
+        registerPacketHandler("set_buffer", new SetBlockBufferPacketListener(this), msg, LargePayloadBehaviour.FORCE_LARGE, largePayloadHandlers);
+        registerPacketHandler("upload_blueprint", new UploadBlueprintPacketListener(this), msg, LargePayloadBehaviour.FORCE_LARGE, largePayloadHandlers);
+        registerPacketHandler("annotation_update", new UpdateAnnotationPacketListener(this), msg, LargePayloadBehaviour.FORCE_LARGE, largePayloadHandlers);
 
         if (!largePayloadHandlers.isEmpty()) {
             ChannelInitializeListenerHolder.addListener(Key.key("axiom:handle_big_payload"), new ChannelInitializeListener() {
@@ -302,25 +303,26 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         }
     }
 
-    private void registerPacketHandler(String name, PacketHandler handler, Messenger messenger, Map<String, PacketHandler> largePayloadHandlers) {
+    private enum LargePayloadBehaviour {
+        DEFAULT,
+        FORCE_LARGE,
+        FORCE_SMALL
+    }
+
+    private void registerPacketHandler(String name, PacketHandler handler, Messenger messenger, LargePayloadBehaviour behaviour,
+                                       Map<String, PacketHandler> largePayloadHandlers) {
         String configEntry = "packet-handlers." + name.replace("_", "-");
         if (name.equals("set_block")) {
             configEntry = "packet-handlers.set-single-block";
         } else if (name.equals("request_blueprint")) {
             configEntry = "packet-handlers.blueprint-request";
         }
-        if (name.equals("request-chunk-data") || this.configuration.getBoolean(configEntry, true)) {
-            boolean isLargePayload = false;
-
-            if (name.equals("hello")) { // Hello must use normal system, as non-Axiom players can't send large payloads
-                isLargePayload = false;
-            } else if (this.configuration.getBoolean("allow-large-payload-for-all-packets")) {
-                isLargePayload = true;
-            } else if (name.equals("set_buffer") || name.equals("upload_blueprint") || name.equals("annotation_update")) {
-                isLargePayload = true;
-            } else if (name.equals("request_chunk_data") && this.configuration.getBoolean("allow-large-chunk-data-request")) {
-                isLargePayload = true;
-            }
+        if (name.equals("request_chunk_data") || name.equals("request_entity_data") || this.configuration.getBoolean(configEntry, true)) {
+            boolean isLargePayload = switch (behaviour) {
+                case DEFAULT -> this.configuration.getBoolean("allow-large-payload-for-all-packets");
+                case FORCE_LARGE -> true;
+                case FORCE_SMALL -> false;
+            };
 
             if (isLargePayload) {
                 largePayloadHandlers.put("axiom:"+name, handler);
@@ -350,6 +352,10 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         return allowedCapabilities;
     }
 
+    public <T> IntFunction<T> limitCollection(IntFunction<T> applier) {
+        return FriendlyByteBuf.limitValue(applier, this.packetCollectionReadLimit);
+    }
+
     public boolean logLargeBlockBufferChanges() {
         return this.logLargeBlockBufferChanges;
     }
@@ -377,6 +383,19 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     public boolean canUseAxiom(Player player, String permission, boolean strict) {
         return activeAxiomPlayers.contains(player.getUniqueId()) && hasAxiomPermission(player, permission, strict);
+    }
+
+    public boolean canEntityBeManipulated(EntityType<?> entityType) {
+        if (entityType == EntityType.PLAYER) {
+            return false;
+        }
+        if (!this.whitelistedEntities.isEmpty() && !this.whitelistedEntities.contains(entityType)) {
+            return false;
+        }
+        if (this.blacklistedEntities.contains(entityType)) {
+            return false;
+        }
+        return true;
     }
 
     public @Nullable RateLimiter getBlockBufferRateLimiter(UUID uuid) {

@@ -25,6 +25,7 @@ permissions:
       axiom.entity.spawn: true
       axiom.entity.manipulate: true
       axiom.entity.delete: true
+      axiom.entity.request_data: true
   axiom.blueprint.*:
     description: Allows use of all blueprint-related features
     default: op

@@ -49,7 +49,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
 
     public record ManipulateEntry(UUID uuid, @Nullable Set<RelativeMovement> relativeMovementSet, @Nullable Vec3 position,
                                   float yaw, float pitch, CompoundTag merge, PassengerManipulation passengerManipulation, List<UUID> passengers) {
-        public static ManipulateEntry read(FriendlyByteBuf friendlyByteBuf, Player player) {
+        public static ManipulateEntry read(FriendlyByteBuf friendlyByteBuf, Player player, AxiomPaper plugin) {
             UUID uuid = friendlyByteBuf.readUUID();
 
             int flags = friendlyByteBuf.readByte();
@@ -69,8 +69,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
             PassengerManipulation passengerManipulation = friendlyByteBuf.readEnum(PassengerManipulation.class);
             List<UUID> passengers = List.of();
             if (passengerManipulation == PassengerManipulation.ADD_LIST || passengerManipulation == PassengerManipulation.REMOVE_LIST) {
-                passengers = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
-                    FriendlyByteBuf::readUUID);
+                passengers = friendlyByteBuf.readCollection(plugin.limitCollection(ArrayList::new), FriendlyByteBuf::readUUID);
             }
 
             return new ManipulateEntry(uuid, relativeMovementSet, position, yaw, pitch, nbt,
@@ -90,22 +89,18 @@ public class ManipulateEntityPacketListener implements PacketHandler {
             return;
         }
 
-        List<ManipulateEntry> entries = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
-            buf -> ManipulateEntry.read(buf, player));
+        List<ManipulateEntry> entries = friendlyByteBuf.readCollection(this.plugin.limitCollection(ArrayList::new),
+                buf -> ManipulateEntry.read(buf, player, this.plugin));
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();
-
-        List<String> whitelistedEntities = this.plugin.configuration.getStringList("whitelist-entities");
-        List<String> blacklistedEntities = this.plugin.configuration.getStringList("blacklist-entities");
 
         for (ManipulateEntry entry : entries) {
             Entity entity = serverLevel.getEntity(entry.uuid);
             if (entity == null || entity instanceof net.minecraft.world.entity.player.Player || entity.hasPassenger(ManipulateEntityPacketListener::isPlayer)) continue;
 
-            String type = EntityType.getKey(entity.getType()).toString();
-
-            if (!whitelistedEntities.isEmpty() && !whitelistedEntities.contains(type)) continue;
-            if (blacklistedEntities.contains(type)) continue;
+            if (!this.plugin.canEntityBeManipulated(entity.getType())) {
+                continue;
+            }
 
             Vec3 position = entity.position();
             BlockPos containing = BlockPos.containing(position.x, position.y, position.z);
@@ -168,10 +163,9 @@ public class ManipulateEntityPacketListener implements PacketHandler {
                         if (passenger == null || passenger.isPassenger() ||
                             passenger instanceof net.minecraft.world.entity.player.Player || passenger.hasPassenger(ManipulateEntityPacketListener::isPlayer)) continue;
 
-                        String passengerType = EntityType.getKey(passenger.getType()).toString();
-
-                        if (!whitelistedEntities.isEmpty() && !whitelistedEntities.contains(passengerType)) continue;
-                        if (blacklistedEntities.contains(passengerType)) continue;
+                        if (!this.plugin.canEntityBeManipulated(passenger.getType())) {
+                            continue;
+                        }
 
                         // Prevent mounting loop
                         if (passenger.getSelfAndPassengers().anyMatch(entity2 -> entity2 == entity)) {
@@ -195,10 +189,9 @@ public class ManipulateEntityPacketListener implements PacketHandler {
                         if (passenger == null || passenger == entity || passenger instanceof net.minecraft.world.entity.player.Player ||
                             passenger.hasPassenger(ManipulateEntityPacketListener::isPlayer)) continue;
 
-                        String passengerType = EntityType.getKey(passenger.getType()).toString();
-
-                        if (!whitelistedEntities.isEmpty() && !whitelistedEntities.contains(passengerType)) continue;
-                        if (blacklistedEntities.contains(passengerType)) continue;
+                        if (!this.plugin.canEntityBeManipulated(passenger.getType())) {
+                            continue;
+                        }
 
                         Entity vehicle = passenger.getVehicle();
                         if (vehicle == entity) {

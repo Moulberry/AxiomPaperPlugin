@@ -23,6 +23,8 @@ import net.minecraft.world.level.chunk.PalettedContainer;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 public class BlueprintIo {
 
@@ -111,7 +113,23 @@ public class BlueprintIo {
             }
         }
 
-        return new RawBlueprint(header, thumbnailBytes, blockMap, blockEntities);
+        ListTag entitiesTag = blockDataTag.getList("Entities", Tag.TAG_COMPOUND);
+        List<CompoundTag> entities = new ArrayList<>();
+        for (Tag tag : entitiesTag) {
+            CompoundTag entityCompound = (CompoundTag) tag;
+
+            // Data Fix
+            if (blueprintDataVersion != currentDataVersion) {
+                Dynamic<Tag> dynamic = new Dynamic<>(NbtOps.INSTANCE, entityCompound);
+                Dynamic<Tag> output = DataFixers.getDataFixer().update(References.ENTITY, dynamic,
+                        blueprintDataVersion, currentDataVersion);
+                entityCompound = (CompoundTag) output.getValue();
+            }
+
+            entities.add(entityCompound);
+        }
+
+        return new RawBlueprint(header, thumbnailBytes, blockMap, blockEntities, entities);
     }
 
     public static final Codec<PalettedContainer<BlockState>> BLOCK_STATE_CODEC = PalettedContainer.codecRW(Block.BLOCK_STATE_REGISTRY, BlockState.CODEC,
@@ -135,41 +153,6 @@ public class BlueprintIo {
         }
 
         return map;
-    }
-
-    public static void writeHeader(Path inPath, Path outPath, BlueprintHeader newHeader) throws IOException {
-        byte[] thumbnailAndBlockBytes;
-        try (InputStream inputStream = new BufferedInputStream(Files.newInputStream(inPath))) {
-            if (inputStream.available() < 4) throw NOT_VALID_BLUEPRINT;
-            DataInputStream dataInputStream = new DataInputStream(inputStream);
-
-            int magic = dataInputStream.readInt();
-            if (magic != MAGIC) throw NOT_VALID_BLUEPRINT;
-
-            // Header
-            int headerLength = dataInputStream.readInt(); // Ignore header length
-            if (dataInputStream.skip(headerLength) < headerLength) throw NOT_VALID_BLUEPRINT;
-
-            thumbnailAndBlockBytes = dataInputStream.readAllBytes();
-        }
-
-        try (OutputStream outputStream = new BufferedOutputStream(Files.newOutputStream(outPath))) {
-            DataOutputStream dataOutputStream = new DataOutputStream(outputStream);
-
-            dataOutputStream.writeInt(MAGIC);
-
-            // Write header
-            CompoundTag headerTag = newHeader.save(new CompoundTag());
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            try (DataOutputStream os = new DataOutputStream(baos)) {
-                NbtIo.write(headerTag, os);
-            }
-            dataOutputStream.writeInt(baos.size());
-            baos.writeTo(dataOutputStream);
-
-            // Copy remaining bytes
-            dataOutputStream.write(thumbnailAndBlockBytes);
-        }
     }
 
     public static void writeRaw(OutputStream outputStream, RawBlueprint rawBlueprint) throws IOException {
@@ -240,6 +223,11 @@ public class BlueprintIo {
             }
         });
         compound.put("BlockEntities", blockEntitiesTag);
+
+        // Write entities
+        ListTag entitiesTag = new ListTag();
+        entitiesTag.addAll(rawBlueprint.entities());
+        compound.put("Entities", entitiesTag);
 
         baos.reset();
         NbtIo.writeCompressed(compound, baos);
