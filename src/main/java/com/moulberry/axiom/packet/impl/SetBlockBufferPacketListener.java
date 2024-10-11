@@ -20,6 +20,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket;
 import net.minecraft.resources.ResourceKey;
@@ -42,7 +43,7 @@ import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.lighting.LightEngine;
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
 
@@ -76,7 +77,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
         return true;
     }
 
-    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
         ServerPlayer serverPlayer = ((CraftPlayer)player).getHandle();
         MinecraftServer server = serverPlayer.getServer();
         if (server == null) return;

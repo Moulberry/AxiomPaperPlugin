@@ -5,8 +5,9 @@ import com.moulberry.axiom.annotations.AnnotationUpdateAction;
 import com.moulberry.axiom.annotations.ServerAnnotations;
 import com.moulberry.axiom.packet.PacketHandler;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
-import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -19,7 +20,7 @@ public class UpdateAnnotationPacketListener implements PacketHandler {
         this.plugin = plugin;
     }
 
-    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.allowAnnotations || !this.plugin.canUseAxiom(player, "axiom.annotation.create")) {
             friendlyByteBuf.writerIndex(friendlyByteBuf.readerIndex());
             return;

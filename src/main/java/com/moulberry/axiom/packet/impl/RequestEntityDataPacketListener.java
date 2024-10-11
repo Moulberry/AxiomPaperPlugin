@@ -7,14 +7,14 @@ import com.moulberry.axiom.packet.PacketHandler;
 import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.protocol.game.ClientboundCustomPayloadPacket;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import org.bukkit.Location;
-import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 
 import java.util.*;
 
@@ -30,7 +30,7 @@ public class RequestEntityDataPacketListener implements PacketHandler {
     }
 
     @Override
-    public void onReceive(org.bukkit.entity.Player bukkitPlayer, FriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(org.bukkit.entity.Player bukkitPlayer, RegistryFriendlyByteBuf friendlyByteBuf) {
         ServerPlayer player = ((CraftPlayer)bukkitPlayer).getHandle();
         long id = friendlyByteBuf.readLong();
 
@@ -102,7 +102,9 @@ public class RequestEntityDataPacketListener implements PacketHandler {
         friendlyByteBuf.writeBoolean(finished);
         friendlyByteBuf.writeMap(map, (buf, uuid) -> buf.writeUUID(uuid), (buf, nbt) -> buf.writeNbt(nbt));
 
-        player.connection.send(new ClientboundCustomPayloadPacket(RESPONSE_ID, friendlyByteBuf));
+        byte[] bytes = new byte[friendlyByteBuf.writerIndex()];
+        friendlyByteBuf.getBytes(0, bytes);
+        VersionHelper.sendCustomPayload(player, RESPONSE_ID, bytes);
     }
 
 }

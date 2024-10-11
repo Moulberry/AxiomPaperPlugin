@@ -12,6 +12,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.IdMapper;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -82,7 +83,7 @@ public class SetBlockPacketListener implements PacketHandler {
     }
 
     @Override
-    public void onReceive(Player bukkitPlayer, FriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player bukkitPlayer, RegistryFriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(bukkitPlayer, "axiom.build.place")) {
             return;
         }

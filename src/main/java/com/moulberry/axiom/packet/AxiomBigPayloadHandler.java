@@ -14,6 +14,7 @@ import io.papermc.paper.network.ConnectionEvent;
 import net.kyori.adventure.text.Component;
 import net.minecraft.network.Connection;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import org.bukkit.entity.Player;
@@ -65,7 +66,7 @@ public class AxiomBigPayloadHandler extends MessageToMessageDecoder<ByteBuf> {
                 PacketHandler handler = this.packetHandlers.get(identifier);
                 if (handler != null) {
                     if (handler.handleAsync()) {
-                        handler.onReceive(player.getBukkitEntity(), buf);
+                        handler.onReceive(player.getBukkitEntity(), new RegistryFriendlyByteBuf(buf, player.registryAccess()));
                         success = true;
                     } else {
                         byte[] bytes = new byte[buf.writerIndex() - buf.readerIndex()];
@@ -73,7 +74,7 @@ public class AxiomBigPayloadHandler extends MessageToMessageDecoder<ByteBuf> {
                         Player bukkitPlayer = player.getBukkitEntity();
 
                         player.getServer().execute(() -> {
-                            FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(bytes));
+                            RegistryFriendlyByteBuf friendlyByteBuf = new RegistryFriendlyByteBuf(Unpooled.wrappedBuffer(bytes), player.registryAccess());
                             try {
                                 handler.onReceive(bukkitPlayer, friendlyByteBuf);
                             } catch (Throwable t) {
