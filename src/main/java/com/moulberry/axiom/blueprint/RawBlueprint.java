@@ -5,14 +5,18 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongSet;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.PalettedContainer;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public record RawBlueprint(BlueprintHeader header, byte[] thumbnail, Long2ObjectMap<PalettedContainer<BlockState>> blocks,
-                           Long2ObjectMap<CompressedBlockEntity> blockEntities) {
+                           Long2ObjectMap<CompressedBlockEntity> blockEntities, List<CompoundTag> entities) {
 
     public static void writeHeader(FriendlyByteBuf friendlyByteBuf, RawBlueprint rawBlueprint) {
         rawBlueprint.header.write(friendlyByteBuf);
@@ -23,7 +27,7 @@ public record RawBlueprint(BlueprintHeader header, byte[] thumbnail, Long2Object
         BlueprintHeader header = BlueprintHeader.read(friendlyByteBuf);
         byte[] thumbnail = friendlyByteBuf.readByteArray();
 
-        return new RawBlueprint(header, thumbnail, null, null);
+        return new RawBlueprint(header, thumbnail, null, null, null);
     }
 
     public static void write(FriendlyByteBuf friendlyByteBuf, RawBlueprint rawBlueprint) {
@@ -49,6 +53,11 @@ public record RawBlueprint(BlueprintHeader header, byte[] thumbnail, Long2Object
             friendlyByteBuf.writeLong(pos);
             rawBlueprint.blockEntities.get(pos).write(friendlyByteBuf);
         }
+
+        friendlyByteBuf.writeVarInt(rawBlueprint.entities.size());
+        for (CompoundTag entity : rawBlueprint.entities) {
+            friendlyByteBuf.writeNbt(entity);
+        }
     }
 
     public static RawBlueprint read(FriendlyByteBuf friendlyByteBuf) {
@@ -62,7 +71,7 @@ public record RawBlueprint(BlueprintHeader header, byte[] thumbnail, Long2Object
             long pos = friendlyByteBuf.readLong();
 
             PalettedContainer<BlockState> palettedContainer = new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY,
-                Blocks.STRUCTURE_VOID.defaultBlockState(), PalettedContainer.Strategy.SECTION_STATES);
+                    Blocks.STRUCTURE_VOID.defaultBlockState(), PalettedContainer.Strategy.SECTION_STATES);
             palettedContainer.read(friendlyByteBuf);
 
             blocks.put(pos, palettedContainer);
@@ -78,7 +87,14 @@ public record RawBlueprint(BlueprintHeader header, byte[] thumbnail, Long2Object
             blockEntities.put(pos, compressedBlockEntity);
         }
 
-        return new RawBlueprint(header, thumbnail, blocks, blockEntities);
+        List<CompoundTag> entities = new ArrayList<>();
+
+        int entityCount = friendlyByteBuf.readVarInt();
+        for (int i = 0; i < entityCount; i++) {
+            entities.add(friendlyByteBuf.readNbt());
+        }
+
+        return new RawBlueprint(header, thumbnail, blocks, blockEntities, entities);
     }
 
 }
