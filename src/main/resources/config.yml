@@ -14,7 +14,7 @@ allow-teleport-between-worlds: true
 # Whether to allow clients to save/load/share blueprints through the server
 blueprint-sharing: false
 
-# Allow large chunk data requests, not recommended for public servers
+# Allow large chunk & entity data requests, not recommended for public servers
 allow-large-chunk-data-request: false
 
 # Raise the size limit for *all* packets to 2mb instead of 32kb. NOT RECOMMENDED FOR PUBLIC SERVERS
@@ -57,6 +57,9 @@ whitelist-entities:
 blacklist-entities:
 #  - "minecraft:ender_dragon"
 
+# Disables entity data sanitization. NOT RECOMMENDED FOR PUBLIC SERVERS
+disable-entity-sanitization: false
+
 # True allows players to see/manipulate marker entities
 send-markers: false
 
@@ -95,6 +98,7 @@ packet-handlers:
   teleport: true
   set-editor-views: true
   request-chunk-data: true
+  request-entity-data: true
   set-buffer: true
   spawn-entity: true
   manipulate-entity: true

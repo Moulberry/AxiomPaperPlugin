@@ -135,6 +135,9 @@ public class HelloPacketListener implements PacketHandler {
         buf.writeVarInt(5); // Maximum Reach
         buf.writeVarInt(16); // Max editor views
         buf.writeBoolean(true); // Editable Views
+        buf.writeVarInt(0); // No custom data overrides
+        buf.writeVarInt(0); // No rotation overrides
+        buf.writeVarInt(1); // Blueprint version
 
         byte[] enableBytes = new byte[buf.writerIndex()];
         buf.getBytes(0, enableBytes);
