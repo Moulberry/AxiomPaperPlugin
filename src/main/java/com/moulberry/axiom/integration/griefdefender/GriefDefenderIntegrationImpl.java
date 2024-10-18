@@ -69,7 +69,7 @@ public class GriefDefenderIntegrationImpl {
         for (Claim claim : claims) {
             Vector3i lesser = claim.getLesserBoundaryCorner();
             Vector3i greater = claim.getGreaterBoundaryCorner();
-            if (lesser.getX() <= lesserBoundaryCorner.getX() && lesser.getZ() <= lesserBoundaryCorner.getZ() && greater.getX() >= greaterBoundaryCorner.getX() && greater.getZ() >= greaterBoundaryCorner.getZ()) {
+            if (lesser.getX() <= lesserBoundaryCorner.getX() && lesser.getY() <= lesserBoundaryCorner.getY() && lesser.getZ() <= lesserBoundaryCorner.getZ() && greater.getX() >= greaterBoundaryCorner.getX() && greater.getY() >= greaterBoundaryCorner.getY() && greater.getZ() >= greaterBoundaryCorner.getZ()) {
 
                 claimList.add(claim);
             }
