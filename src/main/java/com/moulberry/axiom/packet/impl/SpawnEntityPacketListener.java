@@ -1,17 +1,17 @@
-package com.moulberry.axiom.packet;
+package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.integration.Integration;
-import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
+import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.viaversion.UnknownVersionHelper;
-import com.moulberry.axiom.viaversion.ViaVersionHelper;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class SpawnEntityPacketListener implements PluginMessageListener {
+public class SpawnEntityPacketListener implements PacketHandler {
 
     private final AxiomPaper plugin;
     public SpawnEntityPacketListener(AxiomPaper plugin) {
@@ -46,15 +46,7 @@ public class SpawnEntityPacketListener implements PluginMessageListener {
     private static final Rotation[] ROTATION_VALUES = Rotation.values();
 
     @Override
-    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        try {
-            this.process(player, message);
-        } catch (Throwable t) {
-            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
-        }
-    }
-
-    private void process(Player player, byte[] message) {
+    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, "axiom.entity.spawn", true)) {
             return;
         }
@@ -63,16 +55,12 @@ public class SpawnEntityPacketListener implements PluginMessageListener {
             return;
         }
 
-        FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
-        List<SpawnEntry> entries = friendlyByteBuf.readCollection(FriendlyByteBuf.limitValue(ArrayList::new, 1000),
+        List<SpawnEntry> entries = friendlyByteBuf.readCollection(this.plugin.limitCollection(ArrayList::new),
             buf -> new SpawnEntry(buf.readUUID(), buf.readDouble(), buf.readDouble(),
                 buf.readDouble(), buf.readFloat(), buf.readFloat(),
                 buf.readNullable(buffer -> buffer.readUUID()), UnknownVersionHelper.readTagUnknown(buf, player)));
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();
-
-        List<String> whitelistedEntities = this.plugin.configuration.getStringList("whitelist-entities");
-        List<String> blacklistedEntities = this.plugin.configuration.getStringList("blacklist-entities");
 
         for (SpawnEntry entry : entries) {
             Vec3 position = new Vec3(entry.x, entry.y, entry.z);
@@ -109,9 +97,9 @@ public class SpawnEntityPacketListener implements PluginMessageListener {
             AtomicBoolean useNewUuid = new AtomicBoolean(true);
 
             Entity spawned = EntityType.loadEntityRecursive(tag, serverLevel, entity -> {
-                String type = EntityType.getKey(entity.getType()).toString();
-                if (!whitelistedEntities.isEmpty() && !whitelistedEntities.contains(type)) return null;
-                if (blacklistedEntities.contains(type)) return null;
+                if (!this.plugin.canEntityBeManipulated(entity.getType())) {
+                    return null;
+                }
 
                 if (useNewUuid.getAndSet(false)) {
                     entity.setUUID(entry.newUuid);

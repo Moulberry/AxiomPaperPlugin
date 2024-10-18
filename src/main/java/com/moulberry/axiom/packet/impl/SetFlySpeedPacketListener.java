@@ -1,17 +1,19 @@
-package com.moulberry.axiom.packet;
+package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomFlySpeedChangeEvent;
+import com.moulberry.axiom.packet.PacketHandler;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
 
-public class SetFlySpeedPacketListener implements PluginMessageListener {
+public class SetFlySpeedPacketListener implements PacketHandler {
 
     private final AxiomPaper plugin;
     public SetFlySpeedPacketListener(AxiomPaper plugin) {
@@ -19,20 +21,11 @@ public class SetFlySpeedPacketListener implements PluginMessageListener {
     }
 
     @Override
-    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        try {
-            this.process(player, message);
-        } catch (Throwable t) {
-            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
-        }
-    }
-
-    private void process(Player player, byte[] message) {
+    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, "axiom.player.speed")) {
             return;
         }
 
-        FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         float flySpeed = friendlyByteBuf.readFloat();
 
         // Call event

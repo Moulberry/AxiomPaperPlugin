@@ -1,9 +1,10 @@
-package com.moulberry.axiom.packet;
+package com.moulberry.axiom.packet.impl;
 
 import com.google.common.collect.Maps;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
+import com.moulberry.axiom.packet.PacketHandler;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
@@ -11,6 +12,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.IdMapper;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -54,7 +56,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.IntFunction;
 
-public class SetBlockPacketListener implements PluginMessageListener {
+public class SetBlockPacketListener implements PacketHandler {
 
     private final AxiomPaper plugin;
     private final Method updateBlockEntityTicker;
@@ -74,22 +76,14 @@ public class SetBlockPacketListener implements PluginMessageListener {
         }
     }
 
-    @Override
-    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        try {
-            this.process(player, message);
-        } catch (Throwable t) {
-            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
-        }
-    }
-
     public static class AxiomPlacingCraftBlockState extends CraftBlockState {
         public AxiomPlacingCraftBlockState(@Nullable World world, BlockPos blockPosition, BlockState blockData) {
             super(world, blockPosition, blockData);
         }
     }
 
-    private void process(Player bukkitPlayer, byte[] message) {
+    @Override
+    public void onReceive(Player bukkitPlayer, RegistryFriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(bukkitPlayer, "axiom.build.place")) {
             return;
         }
@@ -99,8 +93,7 @@ public class SetBlockPacketListener implements PluginMessageListener {
         }
 
         // Read packet
-        FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
-        IntFunction<Map<BlockPos, BlockState>> mapFunction = FriendlyByteBuf.limitValue(Maps::newLinkedHashMapWithExpectedSize, 512);
+        IntFunction<Map<BlockPos, BlockState>> mapFunction = this.plugin.limitCollection(Maps::newLinkedHashMapWithExpectedSize);
         IdMapper<BlockState> registry = this.plugin.getBlockRegistry(bukkitPlayer.getUniqueId());
         Map<BlockPos, BlockState> blocks = friendlyByteBuf.readMap(mapFunction,
                 buf -> buf.readBlockPos(), buf -> buf.readById(registry::byIdOrThrow));

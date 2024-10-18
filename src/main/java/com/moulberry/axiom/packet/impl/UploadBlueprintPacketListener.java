@@ -1,14 +1,18 @@
-package com.moulberry.axiom.packet;
+package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.blueprint.BlueprintIo;
 import com.moulberry.axiom.blueprint.RawBlueprint;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.blueprint.ServerBlueprintRegistry;
+import com.moulberry.axiom.packet.PacketHandler;
 import net.minecraft.SharedConstants;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.entity.Player;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -16,18 +20,25 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class UploadBlueprintPacketListener  {
+public class UploadBlueprintPacketListener implements PacketHandler {
 
     private final AxiomPaper plugin;
     public UploadBlueprintPacketListener(AxiomPaper plugin) {
         this.plugin = plugin;
     }
 
-    public void onReceive(ServerPlayer serverPlayer, FriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.canUseAxiom(serverPlayer.getBukkitEntity(), "axiom.blueprint.upload")) {
+    @Override
+    public boolean handleAsync() {
+        return true;
+    }
+
+    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
+        if (!this.plugin.canUseAxiom(player, "axiom.blueprint.upload")) {
             friendlyByteBuf.writerIndex(friendlyByteBuf.readerIndex());
             return;
         }
+
+        ServerPlayer serverPlayer = ((CraftPlayer)player).getHandle();
 
         if (this.plugin.isMismatchedDataVersion(serverPlayer.getUUID())) {
             serverPlayer.sendSystemMessage(Component.literal("Axiom+ViaVersion: This feature isn't supported. Switch your client version to " + SharedConstants.VERSION_STRING + " to use this"));

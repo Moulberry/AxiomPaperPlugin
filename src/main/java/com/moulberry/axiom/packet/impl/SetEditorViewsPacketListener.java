@@ -1,13 +1,15 @@
-package com.moulberry.axiom.packet;
+package com.moulberry.axiom.packet.impl;
 
 import com.google.common.collect.Lists;
 import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.View;
+import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.persistence.UUIDDataType;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import org.bukkit.entity.Player;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -18,7 +20,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.function.IntFunction;
 
-public class SetEditorViewsPacketListener implements PluginMessageListener {
+public class SetEditorViewsPacketListener implements PacketHandler {
 
     private final AxiomPaper plugin;
     public SetEditorViewsPacketListener(AxiomPaper plugin) {
@@ -26,20 +28,11 @@ public class SetEditorViewsPacketListener implements PluginMessageListener {
     }
 
     @Override
-    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        try {
-            this.process(player, message);
-        } catch (Throwable t) {
-            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
-        }
-    }
-
-    private void process(Player player, byte[] message) {
+    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, "axiom.editor.views")) {
             return;
         }
 
-        FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         UUID uuid = friendlyByteBuf.readUUID();
         IntFunction<List<View>> listFunction = FriendlyByteBuf.limitValue(Lists::newArrayListWithCapacity, 64);
         List<View> views = friendlyByteBuf.readCollection(listFunction, View::read);

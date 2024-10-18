@@ -21,6 +21,15 @@ public class NbtSanitization {
         "Glowing",
         "Tags",
         "Passengers",
+        // armor stand
+        "ArmorItems",
+        "HandItems",
+        "Small",
+        "ShowArms",
+        "DisabledSlots",
+        "NoBasePlate",
+        "Marker",
+        "Pose",
         // marker
         "data",
         // display entity
@@ -50,6 +59,10 @@ public class NbtSanitization {
     );
 
     public static void sanitizeEntity(CompoundTag entityRoot) {
+        if (AxiomPaper.PLUGIN.configuration.getBoolean("disable-entity-sanitization")) {
+            return;
+        }
+
         entityRoot.getAllKeys().retainAll(ALLOWED_KEYS);
 
         if (entityRoot.contains("Passengers", Tag.TAG_LIST)) {

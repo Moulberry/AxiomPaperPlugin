@@ -1,7 +1,8 @@
-package com.moulberry.axiom.packet;
+package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.persistence.ItemStackDataType;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
@@ -19,7 +20,7 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
 
-public class SwitchActiveHotbarPacketListener implements PluginMessageListener {
+public class SwitchActiveHotbarPacketListener implements PacketHandler {
 
     private final AxiomPaper plugin;
     public SwitchActiveHotbarPacketListener(AxiomPaper plugin) {
@@ -27,20 +28,11 @@ public class SwitchActiveHotbarPacketListener implements PluginMessageListener {
     }
 
     @Override
-    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        try {
-            this.process(player, message);
-        } catch (Throwable t) {
-            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
-        }
-    }
-
-    private void process(Player player, byte[] message) {
+    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, "axiom.player.hotbar") || this.plugin.isMismatchedDataVersion(player.getUniqueId())) {
             return;
         }
 
-        RegistryFriendlyByteBuf friendlyByteBuf = new RegistryFriendlyByteBuf(Unpooled.wrappedBuffer(message), ((CraftPlayer)player).getHandle().registryAccess());
         int oldHotbarIndex = friendlyByteBuf.readByte();
         int activeHotbarIndex = friendlyByteBuf.readByte();
 

@@ -4,16 +4,16 @@ bom-newest = "1.37"
 cloud-paper = "2.0.0-20240516.054251-69"
 coreprotect = "22.4"
 paper = "1.21.1-R0.1-SNAPSHOT"
-plotsquared = "7.3.9-20240513.192211-13"
+plotsquared = "7.3.8"
 reflection-remapper = "0.1.2-20240315.033304-2"
 viaversion-api = "5.0.1"
-worldguard-bukkit = "7.1.0-20240503.180049-12"
+worldguard-bukkit = "7.0.9-SNAPSHOT"
 zstd-jni = "1.5.5-4"
 griefdefender = "2.1.0-20240112.231634-8"
 
 # Plugins
-paperweight-userdev = "1.7.1"
-run-paper = "2.2.4"
+paperweight-userdev = "1.7.2"
+run-paper = "2.3.0"
 shadow = "8.1.7"
 
 [libraries]

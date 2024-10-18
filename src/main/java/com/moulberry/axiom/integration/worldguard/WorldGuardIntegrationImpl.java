@@ -122,12 +122,12 @@ public class WorldGuardIntegrationImpl {
                     BlockVector3 regionMin = region.getMinimumPoint();
                     BlockVector3 regionMax = region.getMaximumPoint();
 
-                    int regionMinX = Math.max(regionMin.x(), cx*16) - minX;
-                    int regionMinY = Math.max(regionMin.y(), cy*16) - minY;
-                    int regionMinZ = Math.max(regionMin.z(), cz*16) - minZ;
-                    int regionMaxX = Math.min(regionMax.x(), cx*16+15) - minX;
-                    int regionMaxY = Math.min(regionMax.y(), cy*16+15) - minY;
-                    int regionMaxZ = Math.min(regionMax.z(), cz*16+15) - minZ;
+                    int regionMinX = Math.max(regionMin.getBlockX(), cx*16) - minX;
+                    int regionMinY = Math.max(regionMin.getBlockY(), cy*16) - minY;
+                    int regionMinZ = Math.max(regionMin.getBlockZ(), cz*16) - minZ;
+                    int regionMaxX = Math.min(regionMax.getBlockX(), cx*16+15) - minX;
+                    int regionMaxY = Math.min(regionMax.getBlockY(), cy*16+15) - minY;
+                    int regionMaxZ = Math.min(regionMax.getBlockZ(), cz*16+15) - minZ;
 
                     Box box = new Box(regionMinX, regionMinY, regionMinZ, regionMaxX, regionMaxY, regionMaxZ);
                     if (value == StateFlag.State.DENY) {

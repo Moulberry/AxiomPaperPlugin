@@ -237,12 +237,12 @@ public class PlotSquaredIntegrationImpl {
                             BlockVector3 minPoint = region.getMinimumPoint();
                             BlockVector3 maxPoint = region.getMaximumPoint();
 
-                            int minPlotX = Math.max(minPoint.x(), minX);
-                            int minPlotY = Math.max(minPoint.y(), minY);
-                            int minPlotZ = Math.max(minPoint.z(), minZ);
-                            int maxPlotX = Math.min(maxPoint.x(), maxX);
-                            int maxPlotY = Math.min(maxPoint.y(), maxY);
-                            int maxPlotZ = Math.min(maxPoint.z(), maxZ);
+                            int minPlotX = Math.max(minPoint.getBlockX(), minX);
+                            int minPlotY = Math.max(minPoint.getBlockY(), minY);
+                            int minPlotZ = Math.max(minPoint.getBlockZ(), minZ);
+                            int maxPlotX = Math.min(maxPoint.getBlockX(), maxX);
+                            int maxPlotY = Math.min(maxPoint.getBlockY(), maxY);
+                            int maxPlotZ = Math.min(maxPoint.getBlockZ(), maxZ);
 
                             if (minPlotX > maxPlotX) continue;
                             if (minPlotY > maxPlotY) continue;

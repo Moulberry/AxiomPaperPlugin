@@ -1,23 +1,23 @@
-package com.moulberry.axiom.packet;
+package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.blueprint.RawBlueprint;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.blueprint.ServerBlueprintRegistry;
+import com.moulberry.axiom.packet.PacketHandler;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.SharedConstants;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.UUID;
-
-public class BlueprintRequestPacketListener implements PluginMessageListener {
+public class BlueprintRequestPacketListener implements PacketHandler {
 
     private final AxiomPaper plugin;
     public BlueprintRequestPacketListener(AxiomPaper plugin) {
@@ -27,15 +27,7 @@ public class BlueprintRequestPacketListener implements PluginMessageListener {
     private static final ResourceLocation RESPONSE_PACKET_IDENTIFIER = VersionHelper.createResourceLocation("axiom:response_blueprint");
 
     @Override
-    public void onPluginMessageReceived(@NotNull String channel, @NotNull Player player, @NotNull byte[] message) {
-        try {
-            this.process(player, message);
-        } catch (Throwable t) {
-            player.kick(Component.text("Error while processing packet " + channel + ": " + t.getMessage()));
-        }
-    }
-
-    private void process(Player player, byte[] message) {
+    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, "axiom.blueprint.request")) {
             return;
         }
@@ -45,7 +37,6 @@ public class BlueprintRequestPacketListener implements PluginMessageListener {
             return;
         }
 
-        FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(message));
         String path = friendlyByteBuf.readUtf();
 
         ServerBlueprintRegistry registry = ServerBlueprintManager.getRegistry();
