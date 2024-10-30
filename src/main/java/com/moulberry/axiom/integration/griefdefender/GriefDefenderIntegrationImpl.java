@@ -4,11 +4,12 @@ import com.griefdefender.api.GriefDefender;
 import com.griefdefender.api.claim.Claim;
 import com.griefdefender.api.claim.TrustTypes;
 import com.griefdefender.lib.flowpowered.math.vector.Vector3i;
+import com.moulberry.axiom.integration.Box;
+import com.moulberry.axiom.integration.BoxWithBoolean;
 import com.moulberry.axiom.integration.SectionPermissionChecker;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,48 +34,67 @@ public class GriefDefenderIntegrationImpl {
             return SectionPermissionChecker.ALL_ALLOWED;
         }
 
-        int minX = Math.min(cx * 16, cx * 16 + 15);
-        int minY = Math.min(cy * 16, cy * 16 + 15);
-        int minZ = Math.min(cz * 16, cz * 16 + 15);
-        int maxX = Math.max(cx * 16, cx * 16 + 15);
-        int maxY = Math.max(cy * 16, cy * 16 + 15);
-        int maxZ = Math.max(cz * 16, cz * 16 + 15);
+        int minX = cx * 16;
+        int minY = cy * 16;
+        int minZ = cz * 16;
+        int maxX = cx * 16 + 15;
+        int maxY = cy * 16 + 15;
+        int maxZ = cz * 16 + 15;
 
+        List<BoxWithBoolean> finalRegions = new ArrayList<>();
+        List<Box> allowRegions = new ArrayList<>();
+        List<Box> denyRegions = new ArrayList<>();
 
-        Vector3i lesserBoundaryCorner = new Vector3i(minX, minY, minZ);
-        Vector3i greaterBoundaryCorner = new Vector3i(maxX, maxY, maxZ);
-
+        // 獲取所有相關的領地
         List<Claim> claims = new ArrayList<>(GriefDefender.getCore().getAllClaims());
-        if (!GriefDefender.getCore().isEnabled(world.getUID())) {
-            return SectionPermissionChecker.ALL_ALLOWED;
-        }
-
         claims.removeIf(claim -> !claim.getWorldUniqueId().equals(world.getUID()));
 
-        claims.removeIf(claim -> !claim.isUserTrusted(player.getUniqueId(), TrustTypes.BUILDER));
 
-        List<Claim> claimList = getClaimInArea(claims, lesserBoundaryCorner, greaterBoundaryCorner);
-
-        if (claimList.isEmpty()) {
-
-            return SectionPermissionChecker.NONE_ALLOWED;
-        }
-
-        return SectionPermissionChecker.ALL_ALLOWED;
-    }
-
-    private static @NotNull List<Claim> getClaimInArea(List<Claim> claims, Vector3i lesserBoundaryCorner, Vector3i greaterBoundaryCorner) {
-
-        List<Claim> claimList = new ArrayList<>();
         for (Claim claim : claims) {
             Vector3i lesser = claim.getLesserBoundaryCorner();
             Vector3i greater = claim.getGreaterBoundaryCorner();
-            if (lesser.getX() <= lesserBoundaryCorner.getX() && lesser.getY() <= lesserBoundaryCorner.getY() && lesser.getZ() <= lesserBoundaryCorner.getZ() && greater.getX() >= greaterBoundaryCorner.getX() && greater.getY() >= greaterBoundaryCorner.getY() && greater.getZ() >= greaterBoundaryCorner.getZ()) {
 
-                claimList.add(claim);
+            // 計算與當前區塊的交集
+            int claimMinX = Math.max(lesser.getX(), minX) - minX;
+            int claimMinY = Math.max(lesser.getY(), minY) - minY;
+            int claimMinZ = Math.max(lesser.getZ(), minZ) - minZ;
+            int claimMaxX = Math.min(greater.getX(), maxX) - minX;
+            int claimMaxY = Math.min(greater.getY(), maxY) - minY;
+            int claimMaxZ = Math.min(greater.getZ(), maxZ) - minZ;
+
+            // 檢查是否有交集
+            if (claimMaxX >= claimMinX && claimMaxY >= claimMinY && claimMaxZ >= claimMinZ) {
+                Box box = new Box(claimMinX, claimMinY, claimMinZ, claimMaxX, claimMaxY, claimMaxZ);
+
+                if (claim.isUserTrusted(player.getUniqueId(), TrustTypes.BUILDER)) {
+                    allowRegions.add(box);
+                } else {
+                    denyRegions.add(box);
+                }
             }
         }
 
-        return claimList;
+        // 處理區域
+        if (!denyRegions.isEmpty()) {
+            Box.combineAll(denyRegions);
+            for (Box denyRegion : denyRegions) {
+                finalRegions.add(new BoxWithBoolean(denyRegion, false));
+            }
+        }
+
+        if (!allowRegions.isEmpty()) {
+            Box.combineAll(allowRegions);
+            for (Box allowRegion : allowRegions) {
+                finalRegions.add(new BoxWithBoolean(allowRegion, true));
+            }
+        }
+
+        // 如果沒有任何領地覆蓋，使用默認權限
+        if (finalRegions.isEmpty()) {
+            // GriefDefender 默認情況下不允許建造
+            return SectionPermissionChecker.NONE_ALLOWED;
+        }
+
+        return SectionPermissionChecker.fromBoxWithBooleans(finalRegions, false);
     }
 }
