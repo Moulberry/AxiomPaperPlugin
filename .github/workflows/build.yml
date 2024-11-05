@@ -45,10 +45,29 @@ jobs:
           draft: false
           prerelease: false
 
+      - name: Check For Duplicate Release
+        id: check_assets
+        run: |
+          ASSETS_URL="https://api.github.com/repos/${{ github.repository }}/releases/${{ steps.create_release.outputs.id }}/assets"
+          ASSET_RESPONSE=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" -s $ASSETS_URL)
+          echo "$ASSET_RESPONSE" | jq -c '.[] | select(.name == "AxiomPaper-${{ steps.extract_version.outputs.version }}.jar")' || echo "[]"
+          echo "::set-output name=assets::$ASSET_RESPONSE"
+
+      - name: Override Previous Release
+        id: delete_asset
+        run: |
+          ASSET_ID=$(echo "${{ steps.check_assets.outputs.assets }}" | jq -r '.[0].id')
+          if [ "$ASSET_ID" != "null" ]; then
+            echo "Deleting existing asset with ID $ASSET_ID..."
+            curl -X DELETE -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/releases/assets/$ASSET_ID"
+          else
+            echo "No existing asset to delete."
+          fi
+
       - name: Upload JAR
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: build/libs/AxiomPaper-${{ steps.extract_version.outputs.version }}.jar
-          asset_name: AxiomPaper-${{ github.ref_name }}.jar
+          asset_name: AxiomPaper-${{ steps.extract_version.outputs.version }}.jar
           asset_content_type: application/java-archive
