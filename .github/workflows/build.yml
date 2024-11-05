@@ -49,6 +49,6 @@ jobs:
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: build/libs/AxiomPaper-4.0.2.jar
+          asset_path: build/libs/AxiomPaper-${{ steps.extract_version.outputs.version }}.jar
           asset_name: AxiomPaper-${{ github.ref_name }}.jar
           asset_content_type: application/java-archive
