@@ -2,8 +2,6 @@ name: Build and Release
 on:
   push:
     branches: [ "**" ]
-    tags:
-      - 'v*'
   pull_request:
   workflow_dispatch:
 
@@ -29,6 +27,7 @@ jobs:
         run: ./gradlew build
       - name: Extract Version Name
         id: extract_version
+        # Janky way of getting the version without having to complicate things (there's probably a better way)
         run: |
           JAR_FILE=$(ls build/libs/AxiomPaper-*.jar)
           VERSION=${JAR_FILE##*-}
