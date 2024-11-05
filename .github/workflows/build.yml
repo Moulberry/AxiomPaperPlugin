@@ -27,9 +27,6 @@ jobs:
         uses: gradle/gradle-build-action@v2
       - name: Build
         run: ./gradlew build
-      - name: Archive JAR
-        if: github.ref_type == 'tag'
-        run: mv build/libs/*.jar AxiomPaperPlugin.jar
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
