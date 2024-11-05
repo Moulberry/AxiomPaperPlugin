@@ -29,7 +29,7 @@ jobs:
         run: ./gradlew build
       - name: Archive JAR
         if: github.ref_type == 'tag'
-        run: mv build/libs/*.jar my-plugin.jar
+        run: mv build/libs/*.jar AxiomPaperPlugin.jar
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
@@ -40,12 +40,12 @@ jobs:
           release_name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
-          
+
       - name: Upload JAR to Release
         if: github.ref_type == 'tag'
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: my-plugin.jar
-          asset_name: my-plugin-${{ github.ref_name }}.jar
+          asset_path: build/libs/AxiomPaper-4.0.2.jar
+          asset_name: AxiomPaper-${{ github.ref_name }}.jar
           asset_content_type: application/java-archive
