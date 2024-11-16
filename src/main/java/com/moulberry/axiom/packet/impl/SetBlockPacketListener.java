@@ -136,21 +136,26 @@ public class SetBlockPacketListener implements PacketHandler {
             List<org.bukkit.block.BlockState> blockStates = new ArrayList<>();
             World world = player.serverLevel().getWorld();
             for (Map.Entry<BlockPos, BlockState> entry : blocks.entrySet()) {
-                blockStates.add(new AxiomPlacingCraftBlockState(world, entry.getKey(), entry.getValue()));
+                BlockState existing = player.serverLevel().getBlockState(entry.getKey());
+                if (existing.canBeReplaced()) {
+                    blockStates.add(new AxiomPlacingCraftBlockState(world, entry.getKey(), entry.getValue()));
+                }
             }
 
-            Cancellable event = null;
-            if (blockStates.size() > 1) {
-                event = CraftEventFactory.callBlockMultiPlaceEvent(player.serverLevel(),
-                    player, hand, blockStates, blockHit.getBlockPos().getX(),
-                    blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
-            } else if (blockStates.size() == 1) {
-                event = CraftEventFactory.callBlockPlaceEvent(player.serverLevel(),
-                    player, hand, blockStates.get(0), blockHit.getBlockPos().getX(),
-                    blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
-            }
-            if (event != null && event.isCancelled()) {
-                return;
+            if (!blockStates.isEmpty()) {
+                Cancellable event;
+                if (blockStates.size() > 1) {
+                    event = CraftEventFactory.callBlockMultiPlaceEvent(player.serverLevel(),
+                            player, hand, blockStates, blockHit.getBlockPos().getX(),
+                            blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
+                } else {
+                    event = CraftEventFactory.callBlockPlaceEvent(player.serverLevel(),
+                            player, hand, blockStates.get(0), blockHit.getBlockPos().getX(),
+                            blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
+                }
+                if (event.isCancelled()) {
+                    return;
+                }
             }
         }
 
