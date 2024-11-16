@@ -154,7 +154,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                     int cz = BlockPos.getZ(entry.getLongKey());
                     PalettedContainer<BlockState> container = entry.getValue();
 
-                    if (cy < world.getMinSection() || cy >= world.getMaxSection()) {
+                    if (cy < world.getMinSectionY() || cy > world.getMaxSectionY()) {
                         continue;
                     }
 
@@ -247,7 +247,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                                     }
 
                                     // Update Light
-                                    sectionLightChanged |= LightEngine.hasDifferentLightProperties(chunk, blockPos, old, blockState);
+                                    sectionLightChanged |= LightEngine.hasDifferentLightProperties(old, blockState);
 
                                     // Update Poi
                                     Optional<Holder<PoiType>> newPoi = containerMaybeHasPoi ? PoiTypes.forState(blockState) : Optional.empty();
@@ -312,11 +312,12 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                     boolean nowHasOnlyAir = section.hasOnlyAir();
                     if (hasOnlyAir != nowHasOnlyAir) {
                         world.getChunkSource().getLightEngine().updateSectionStatus(SectionPos.of(cx, cy, cz), nowHasOnlyAir);
+                        world.getChunkSource().onSectionEmptinessChanged(cx, cy, cz, nowHasOnlyAir);
                     }
 
                     if (sectionChanged) {
                         extension.sendChunk(cx, cz);
-                        chunk.setUnsaved(true);
+                        chunk.markUnsaved();
                     }
                     if (sectionLightChanged) {
                         extension.lightChunk(cx, cz);
@@ -344,21 +345,21 @@ public class SetBlockBufferPacketListener implements PacketHandler {
 
                 Set<LevelChunk> changedChunks = new HashSet<>();
 
-                int minSection = world.getMinSection();
-                int maxSection = world.getMaxSection();
+                int minSection = world.getMinSectionY();
+                int maxSection = world.getMaxSectionY();
 
-                Optional<Registry<Biome>> registryOptional = world.registryAccess().registry(Registries.BIOME);
+                Optional<Registry<Biome>> registryOptional = world.registryAccess().lookup(Registries.BIOME);
                 if (registryOptional.isEmpty()) return;
 
                 Registry<Biome> registry = registryOptional.get();
 
                 biomeBuffer.forEachEntry((x, y, z, biome) -> {
                     int cy = y >> 2;
-                    if (cy < minSection || cy >= maxSection) {
+                    if (cy < minSection || cy > maxSection) {
                         return;
                     }
 
-                    var holder = registry.getHolder(biome);
+                    var holder = registry.get(biome);
                     if (holder.isPresent()) {
                         var chunk = (LevelChunk) world.getChunk(x >> 2, z >> 2, ChunkStatus.FULL, false);
                         if (chunk == null) return;
@@ -377,7 +378,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                 var chunkMap = world.getChunkSource().chunkMap;
                 HashMap<ServerPlayer, List<LevelChunk>> map = new HashMap<>();
                 for (LevelChunk chunk : changedChunks) {
-                    chunk.setUnsaved(true);
+                    chunk.markUnsaved();
                     ChunkPos chunkPos = chunk.getPos();
                     for (ServerPlayer serverPlayer2 : chunkMap.getPlayers(chunkPos, false)) {
                         map.computeIfAbsent(serverPlayer2, serverPlayer -> new ArrayList<>()).add(chunk);

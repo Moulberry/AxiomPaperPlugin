@@ -232,7 +232,7 @@ public class SetBlockPacketListener implements PacketHandler {
 
                 ServerLevel level = player.serverLevel();
                 LevelChunk chunk = level.getChunk(cx, cz);
-                chunk.setUnsaved(true);
+                chunk.markUnsaved();
 
                 LevelChunkSection section = chunk.getSection(level.getSectionIndexFromSectionY(cy));
                 boolean hasOnlyAir = section.hasOnlyAir();
@@ -295,7 +295,7 @@ public class SetBlockPacketListener implements PacketHandler {
                     level.getChunkSource().blockChanged(blockPos);
 
                     // Update Light
-                    if (LightEngine.hasDifferentLightProperties(chunk, blockPos, old, blockState)) {
+                    if (LightEngine.hasDifferentLightProperties(old, blockState)) {
                         // Note: Skylight Sources not currently needed on Paper due to Starlight
                         // This might change in the future, so be careful!
                         // chunk.getSkyLightSources().update(chunk, x, by, z);
@@ -322,6 +322,7 @@ public class SetBlockPacketListener implements PacketHandler {
                 boolean nowHasOnlyAir = section.hasOnlyAir();
                 if (hasOnlyAir != nowHasOnlyAir) {
                     level.getChunkSource().getLightEngine().updateSectionStatus(SectionPos.of(cx, cy, cz), nowHasOnlyAir);
+                    level.getChunkSource().onSectionEmptinessChanged(cx, cy, cz, nowHasOnlyAir);
                 }
             }
         }
