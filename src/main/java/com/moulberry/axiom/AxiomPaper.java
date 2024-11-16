@@ -135,10 +135,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         registerPacketHandler("set_world_time", new SetTimePacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
         registerPacketHandler("set_world_property", new SetWorldPropertyListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
         registerPacketHandler("set_block", new SetBlockPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers); // set-single-block
-        registerPacketHandler("set_hotbar_slot", new SetHotbarSlotPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
-        registerPacketHandler("switch_active_hotbar", new SwitchActiveHotbarPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
         registerPacketHandler("teleport", new TeleportPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
-        registerPacketHandler("set_editor_views", new SetEditorViewsPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
         registerPacketHandler("request_chunk_data", new RequestChunkDataPacketListener(this, !configuration.getBoolean("packet-handlers.request-chunk-data")), msg,
                 this.configuration.getBoolean("allow-large-chunk-data-request") ? LargePayloadBehaviour.FORCE_LARGE : LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
         registerPacketHandler("request_entity_data", new RequestEntityDataPacketListener(this, !configuration.getBoolean("packet-handlers.request-entity-data")), msg,
