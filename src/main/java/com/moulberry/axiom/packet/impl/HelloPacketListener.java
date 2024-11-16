@@ -5,8 +5,6 @@ import com.moulberry.axiom.*;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.event.AxiomHandshakeEvent;
 import com.moulberry.axiom.packet.PacketHandler;
-import com.moulberry.axiom.persistence.ItemStackDataType;
-import com.moulberry.axiom.persistence.UUIDDataType;
 import com.moulberry.axiom.viaversion.ViaVersionHelper;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
@@ -20,18 +18,11 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.Bukkit;
-import org.bukkit.NamespacedKey;
 import org.bukkit.World;
-import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
-import org.bukkit.craftbukkit.inventory.CraftItemStack;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
-import org.bukkit.persistence.PersistentDataContainer;
-import org.bukkit.persistence.PersistentDataType;
 
 import java.util.List;
-import java.util.UUID;
 
 public class HelloPacketListener implements PacketHandler {
 
@@ -145,47 +136,6 @@ public class HelloPacketListener implements PacketHandler {
         byte[] enableBytes = new byte[buf.writerIndex()];
         buf.getBytes(0, enableBytes);
         player.sendPluginMessage(this.plugin, "axiom:enable", enableBytes);
-
-        // Initialize Hotbars
-        PersistentDataContainer container = player.getPersistentDataContainer();
-        if (!this.plugin.isMismatchedDataVersion(player.getUniqueId())) {
-            int activeHotbarIndex = container.getOrDefault(AxiomConstants.ACTIVE_HOTBAR_INDEX, PersistentDataType.BYTE, (byte) 0);
-            PersistentDataContainer hotbarItems = container.get(AxiomConstants.HOTBAR_DATA, PersistentDataType.TAG_CONTAINER);
-            if (hotbarItems != null) {
-                buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
-                buf.writeByte((byte) activeHotbarIndex);
-                for (int i=0; i<9*9; i++) {
-                    // Ignore selected hotbar
-                    if (i / 9 == activeHotbarIndex) {
-                        net.minecraft.world.item.ItemStack.OPTIONAL_STREAM_CODEC.encode(buf, net.minecraft.world.item.ItemStack.EMPTY);
-                    } else {
-                        ItemStack stack = hotbarItems.get(new NamespacedKey("axiom", "slot_"+i), ItemStackDataType.INSTANCE);
-                        net.minecraft.world.item.ItemStack.OPTIONAL_STREAM_CODEC.encode(buf, CraftItemStack.asNMSCopy(stack));
-                    }
-                }
-
-                byte[] bytes = new byte[buf.writerIndex()];
-                buf.getBytes(0, bytes);
-                player.sendPluginMessage(this.plugin, "axiom:initialize_hotbars", bytes);
-            }
-        }
-
-        // Initialize Views
-        UUID activeView = container.get(AxiomConstants.ACTIVE_VIEW, UUIDDataType.INSTANCE);
-        if (activeView != null) {
-            buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
-            buf.writeUUID(activeView);
-
-            PersistentDataContainer[] views = container.get(AxiomConstants.VIEWS, PersistentDataType.TAG_CONTAINER_ARRAY);
-            buf.writeVarInt(views.length);
-            for (PersistentDataContainer view : views) {
-                View.load(view).write(buf);
-            }
-
-            byte[] bytes = new byte[buf.writerIndex()];
-            buf.getBytes(0, bytes);
-            player.sendPluginMessage(this.plugin, "axiom:set_editor_views", bytes);
-        }
 
         // Register world properties
         World world = player.getWorld();
