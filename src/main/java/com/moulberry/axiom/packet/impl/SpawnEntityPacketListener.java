@@ -14,6 +14,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.decoration.ItemFrame;
@@ -96,7 +97,7 @@ public class SpawnEntityPacketListener implements PacketHandler {
 
             AtomicBoolean useNewUuid = new AtomicBoolean(true);
 
-            Entity spawned = EntityType.loadEntityRecursive(tag, serverLevel, entity -> {
+            Entity spawned = EntityType.loadEntityRecursive(tag, serverLevel, EntitySpawnReason.COMMAND, entity -> {
                 if (!this.plugin.canEntityBeManipulated(entity.getType())) {
                     return null;
                 }

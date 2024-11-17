@@ -17,7 +17,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.RelativeMovement;
+import net.minecraft.world.entity.Relative;
 import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.level.block.Rotation;
@@ -48,18 +48,18 @@ public class ManipulateEntityPacketListener implements PacketHandler {
         REMOVE_LIST
     }
 
-    public record ManipulateEntry(UUID uuid, @Nullable Set<RelativeMovement> relativeMovementSet, @Nullable Vec3 position,
+    public record ManipulateEntry(UUID uuid, @Nullable Set<Relative> relativeMovementSet, @Nullable Vec3 position,
                                   float yaw, float pitch, CompoundTag merge, PassengerManipulation passengerManipulation, List<UUID> passengers) {
         public static ManipulateEntry read(FriendlyByteBuf friendlyByteBuf, Player player, AxiomPaper plugin) {
             UUID uuid = friendlyByteBuf.readUUID();
 
             int flags = friendlyByteBuf.readByte();
-            Set<RelativeMovement> relativeMovementSet = null;
+            Set<Relative> relativeMovementSet = null;
             Vec3 position = null;
             float yaw = 0;
             float pitch = 0;
             if (flags >= 0) {
-                relativeMovementSet = RelativeMovement.unpack(flags);
+                relativeMovementSet = Relative.unpack(flags);
                 position = new Vec3(friendlyByteBuf.readDouble(), friendlyByteBuf.readDouble(), friendlyByteBuf.readDouble());
                 yaw = friendlyByteBuf.readFloat();
                 pitch = friendlyByteBuf.readFloat();
@@ -128,11 +128,11 @@ public class ManipulateEntityPacketListener implements PacketHandler {
 
             Vec3 entryPos = entry.position();
             if (entryPos != null && entry.relativeMovementSet != null) {
-                double newX = entry.relativeMovementSet.contains(RelativeMovement.X) ? entity.position().x + entryPos.x : entryPos.x;
-                double newY = entry.relativeMovementSet.contains(RelativeMovement.Y) ? entity.position().y + entryPos.y : entryPos.y;
-                double newZ = entry.relativeMovementSet.contains(RelativeMovement.Z) ? entity.position().z + entryPos.z : entryPos.z;
-                float newYaw = entry.relativeMovementSet.contains(RelativeMovement.Y_ROT) ? entity.getYRot() + entry.yaw : entry.yaw;
-                float newPitch = entry.relativeMovementSet.contains(RelativeMovement.X_ROT) ? entity.getXRot() + entry.pitch : entry.pitch;
+                double newX = entry.relativeMovementSet.contains(Relative.X) ? entity.position().x + entryPos.x : entryPos.x;
+                double newY = entry.relativeMovementSet.contains(Relative.Y) ? entity.position().y + entryPos.y : entryPos.y;
+                double newZ = entry.relativeMovementSet.contains(Relative.Z) ? entity.position().z + entryPos.z : entryPos.z;
+                float newYaw = entry.relativeMovementSet.contains(Relative.Y_ROT) ? entity.getYRot() + entry.yaw : entry.yaw;
+                float newPitch = entry.relativeMovementSet.contains(Relative.X_ROT) ? entity.getXRot() + entry.pitch : entry.pitch;
 
                 if (entity instanceof HangingEntity hangingEntity) {
                     float changedYaw = newYaw - entity.getYRot();
@@ -148,7 +148,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
 
                 if (Integration.canPlaceBlock(player, new Location(player.getWorld(),
                         containing.getX(), containing.getY(), containing.getZ()))) {
-                    entity.teleportTo(serverLevel, newX, newY, newZ, Set.of(), newYaw, newPitch);
+                    entity.teleportTo(serverLevel, newX, newY, newZ, Set.of(), newYaw, newPitch, true);
                 }
 
                 entity.setYHeadRot(newYaw);

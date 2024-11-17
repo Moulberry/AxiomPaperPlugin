@@ -8,6 +8,7 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.*;
 import net.minecraft.resources.ResourceLocation;
@@ -25,6 +26,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class BlueprintIo {
 
@@ -91,9 +93,11 @@ public class BlueprintIo {
             long pos = blockPos.asLong();
 
             String id = blockEntityCompound.getString("id");
-            BlockEntityType<?> type = BuiltInRegistries.BLOCK_ENTITY_TYPE.get(VersionHelper.createResourceLocation(id));
+            Optional<Holder.Reference<BlockEntityType<?>>> typeOptional = BuiltInRegistries.BLOCK_ENTITY_TYPE.get(VersionHelper.createResourceLocation(id));
 
-            if (type != null) {
+            if (typeOptional.isPresent()) {
+                BlockEntityType<?> type = typeOptional.get().value();
+                
                 PalettedContainer<BlockState> container = blockMap.get(BlockPos.asLong(
                     blockPos.getX() >> 4,
                     blockPos.getY() >> 4,

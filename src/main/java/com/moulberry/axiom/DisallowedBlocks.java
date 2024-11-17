@@ -27,7 +27,7 @@ public class DisallowedBlocks {
 
         for (String disallowedBlock : disallowedBlocks) {
             try {
-                var parsed = BlockStateParser.parseForTesting(BuiltInRegistries.BLOCK.asLookup(), new StringReader(disallowedBlock), false);
+                var parsed = BlockStateParser.parseForTesting(BuiltInRegistries.BLOCK, new StringReader(disallowedBlock), false);
 
                 parsed.left().ifPresent(result -> {
                     disallowedPredicates.add(blockState -> {

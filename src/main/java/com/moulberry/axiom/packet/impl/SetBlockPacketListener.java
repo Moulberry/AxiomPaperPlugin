@@ -137,21 +137,26 @@ public class SetBlockPacketListener implements PacketHandler {
             List<org.bukkit.block.BlockState> blockStates = new ArrayList<>();
             World world = player.serverLevel().getWorld();
             for (Map.Entry<BlockPos, BlockState> entry : blocks.entrySet()) {
-                blockStates.add(new AxiomPlacingCraftBlockState(world, entry.getKey(), entry.getValue()));
+                BlockState existing = player.serverLevel().getBlockState(entry.getKey());
+                if (existing.canBeReplaced()) {
+                    blockStates.add(new AxiomPlacingCraftBlockState(world, entry.getKey(), entry.getValue()));
+                }
             }
 
-            Cancellable event = null;
-            if (blockStates.size() > 1) {
-                event = CraftEventFactory.callBlockMultiPlaceEvent(player.serverLevel(),
-                    player, hand, blockStates, blockHit.getBlockPos().getX(),
-                    blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
-            } else if (blockStates.size() == 1) {
-                event = CraftEventFactory.callBlockPlaceEvent(player.serverLevel(),
-                    player, hand, blockStates.get(0), blockHit.getBlockPos().getX(),
-                    blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
-            }
-            if (event != null && event.isCancelled()) {
-                return;
+            if (!blockStates.isEmpty()) {
+                Cancellable event;
+                if (blockStates.size() > 1) {
+                    event = CraftEventFactory.callBlockMultiPlaceEvent(player.serverLevel(),
+                            player, hand, blockStates, blockHit.getBlockPos().getX(),
+                            blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
+                } else {
+                    event = CraftEventFactory.callBlockPlaceEvent(player.serverLevel(),
+                            player, hand, blockStates.get(0), blockHit.getBlockPos().getX(),
+                            blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
+                }
+                if (event.isCancelled()) {
+                    return;
+                }
             }
         }
 
@@ -232,7 +237,7 @@ public class SetBlockPacketListener implements PacketHandler {
 
                 ServerLevel level = player.serverLevel();
                 LevelChunk chunk = level.getChunk(cx, cz);
-                chunk.setUnsaved(true);
+                chunk.markUnsaved();
 
                 LevelChunkSection section = chunk.getSection(level.getSectionIndexFromSectionY(cy));
                 boolean hasOnlyAir = section.hasOnlyAir();
@@ -295,7 +300,7 @@ public class SetBlockPacketListener implements PacketHandler {
                     level.getChunkSource().blockChanged(blockPos);
 
                     // Update Light
-                    if (LightEngine.hasDifferentLightProperties(chunk, blockPos, old, blockState)) {
+                    if (LightEngine.hasDifferentLightProperties(old, blockState)) {
                         // Note: Skylight Sources not currently needed on Paper due to Starlight
                         // This might change in the future, so be careful!
                         // chunk.getSkyLightSources().update(chunk, x, by, z);
@@ -322,6 +327,7 @@ public class SetBlockPacketListener implements PacketHandler {
                 boolean nowHasOnlyAir = section.hasOnlyAir();
                 if (hasOnlyAir != nowHasOnlyAir) {
                     level.getChunkSource().getLightEngine().updateSectionStatus(SectionPos.of(cx, cy, cz), nowHasOnlyAir);
+                    level.getChunkSource().onSectionEmptinessChanged(cx, cy, cz, nowHasOnlyAir);
                 }
             }
         }
