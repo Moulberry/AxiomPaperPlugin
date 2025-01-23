@@ -17,6 +17,7 @@ import io.papermc.paper.event.player.PlayerFailMoveEvent;
 import io.papermc.paper.event.world.WorldGameRuleChangeEvent;
 import io.papermc.paper.network.ChannelInitializeListener;
 import io.papermc.paper.network.ChannelInitializeListenerHolder;
+import net.alanleouk.rokianperms.api.IRokianPermsRegionEditApi;
 import net.kyori.adventure.key.Key;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
@@ -73,9 +74,25 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     public Path blueprintFolder = null;
     public boolean allowAnnotations = false;
 
+    // PATCH_d76d9d98-4301-45d0-a6b6-f713ea4e916d_START
+    private transient IRokianPermsRegionEditApi rokianPermsRegionEditApi;
+    // PATCH_d76d9d98-4301-45d0-a6b6-f713ea4e916d_END
+
+    public IRokianPermsRegionEditApi getRokianPermsRegionEditApi() {
+        return rokianPermsRegionEditApi;
+    }
+
     @Override
-    public void onEnable() {
+    public void onEnable()  {
         PLUGIN = this;
+
+        // PATCH_d76d9d98-4301-45d0-a6b6-f713ea4e916d_START
+        // Register Services (External)
+        this.rokianPermsRegionEditApi = getServer().getServicesManager().load(net.alanleouk.rokianperms.api.IRokianPermsRegionEditApi.class);
+        if(this.rokianPermsRegionEditApi != null) {
+            this.getLogger().info("RokianPerms integration enabled");
+        }
+        // PATCH_d76d9d98-4301-45d0-a6b6-f713ea4e916d_END
 
         this.saveDefaultConfig();
         configuration = this.getConfig();

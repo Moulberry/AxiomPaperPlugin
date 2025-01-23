@@ -47,6 +47,11 @@ dependencies {
 
     // CoreProtect support
     compileOnly(libs.coreprotect)
+
+    // PATCH_d76d9d98-4301-45d0-a6b6-f713ea4e916d_START
+    // RokianPerms Support
+    compileOnly(files("libs/RokianPerms.jar"))
+    // PATCH_d76d9d98-4301-45d0-a6b6-f713ea4e916d_END
 }
 
 tasks {
