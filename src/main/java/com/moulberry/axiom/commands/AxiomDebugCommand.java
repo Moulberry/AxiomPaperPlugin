@@ -3,9 +3,11 @@ package com.moulberry.axiom.commands;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.Restrictions;
 import com.moulberry.axiom.integration.Integration;
+import com.moulberry.axiom.integration.SectionPermissionChecker;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.integration.worldguard.WorldGuardIntegration;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Chunk;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -120,6 +122,29 @@ public class AxiomDebugCommand {
                 }
                 context.sender().sendMessage(Component.text("canPlaceBlock: " + canPlaceBlock));
             })
+        );
+        manager.command(
+                base(manager, "checkSectionAtCurrentPosition").optional("type", EnumParser.enumParser(IntegrationType.class)).handler(context -> {
+                    if (!(context.sender() instanceof Player player)) return;
+                    IntegrationType integrationType = (IntegrationType) context.optional("type").orElse(null);
+
+                    Block block = player.getWorld().getBlockAt(player.getLocation());
+                    int cx = player.getChunk().getX();
+                    int cz = player.getChunk().getZ();
+
+                    SectionPermissionChecker sectionPermissionChecker;
+                    if (integrationType == IntegrationType.PLOT_SQUARED) {
+                        sectionPermissionChecker = PlotSquaredIntegration.checkSection(player, player.getWorld(), cx, block.getY(), cz);
+                    } else if (integrationType == IntegrationType.WORLD_GUARD) {
+                        sectionPermissionChecker = WorldGuardIntegration.checkSection(player, player.getWorld(), cx, block.getY(), cz);
+                    } else {
+                        sectionPermissionChecker = Integration.checkSection(player, player.getWorld(), cx, block.getY(), cz);
+                    }
+                    boolean all = sectionPermissionChecker.allAllowed();
+                    boolean none = sectionPermissionChecker.noneAllowed();
+                    boolean atPlayer = sectionPermissionChecker.allowed(block.getX(), block.getY(), block.getZ());
+                    context.sender().sendMessage(Component.text("allAllowed: " + all + " noneAllowed: " + none + " atPlayerAllowed: " + atPlayer));
+                })
         );
         manager.command(
             base(manager, "isPlotWorld").handler(context -> {
