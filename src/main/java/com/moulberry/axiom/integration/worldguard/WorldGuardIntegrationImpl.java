@@ -139,8 +139,6 @@ public class WorldGuardIntegrationImpl {
                 }
             }
 
-            // todo: handle membership
-
             // The BUILD flag is implicitly set on every region where
             // PASSTHROUGH is not set to ALLOW
             // todo: handle passthrough
