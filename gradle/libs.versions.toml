@@ -14,7 +14,7 @@ griefdefender = "2.1.0-20240112.231634-8"
 # Plugins
 paperweight-userdev = "1.7.2"
 run-paper = "2.3.1"
-shadow = "8.1.7"
+shadow = "8.1.8"
 
 [libraries]
 bom-newest = { group = "com.intellectualsites.bom", name = "bom-newest", version.ref = "bom-newest" }
