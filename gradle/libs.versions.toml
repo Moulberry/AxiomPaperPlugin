@@ -7,7 +7,7 @@ paper = "1.21.4-R0.1-SNAPSHOT"
 plotsquared = "7.3.8"
 reflection-remapper = "0.1.2-20240315.033304-2"
 viaversion-api = "5.0.1"
-worldguard-bukkit = "7.0.9-SNAPSHOT"
+worldguard-bukkit = "7.1.0-SNAPSHOT"
 zstd-jni = "1.5.5-4"
 griefdefender = "2.1.0-20240112.231634-8"
 
