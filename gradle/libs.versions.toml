@@ -12,7 +12,7 @@ zstd-jni = "1.5.5-4"
 griefdefender = "2.1.0-20240112.231634-8"
 
 # Plugins
-paperweight-userdev = "1.7.2"
+paperweight-userdev = "1.7.7"
 run-paper = "2.3.1"
 shadow = "8.1.8"
 
