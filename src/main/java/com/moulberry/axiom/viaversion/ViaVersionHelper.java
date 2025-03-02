@@ -74,7 +74,7 @@ public class ViaVersionHelper {
         }
 
         // Map blocks
-        for (int i = 0; i < registry.size(); i++) {
+        for (int i = registry.size() - 1; i >= 0; i--) {
             BlockState blockState = registry.byId(i);
 
             if (blockState != null) {
