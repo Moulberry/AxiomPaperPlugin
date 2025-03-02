@@ -74,6 +74,8 @@ public class ViaVersionHelper {
         }
 
         // Map blocks
+        // We do this in reverse to prioritise earlier blocks in case of clashes
+        // e.g. We probably want air to map to 0 instead of 3874
         for (int i = registry.size() - 1; i >= 0; i--) {
             BlockState blockState = registry.byId(i);
 
