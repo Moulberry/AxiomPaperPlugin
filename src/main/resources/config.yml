@@ -85,6 +85,9 @@ allow-capabilities:
 
 infinite-reach-limit: 256
 
+# Whether to log Axiom changes with CoreProtect (if CoreProtect is installed)
+log-core-protect-changes: true
+
 # Toggles for individual packet handlers. May break certain features
 packet-handlers:
   hello: true
