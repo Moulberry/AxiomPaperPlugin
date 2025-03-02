@@ -1,5 +1,6 @@
 package com.moulberry.axiom.integration.worldguard;
 
+import com.google.common.collect.Iterables;
 import com.moulberry.axiom.integration.Box;
 import com.moulberry.axiom.integration.BoxWithBoolean;
 import com.moulberry.axiom.integration.SectionPermissionChecker;
@@ -78,10 +79,12 @@ public class WorldGuardIntegrationImpl {
             return SectionPermissionChecker.ALL_ALLOWED;
         }
 
-        BlockVector3 min = BlockVector3.at(cx*16, cy*16, cz*16);
-        BlockVector3 max = BlockVector3.at(cx*16+15, cy*16+15, cz*16+15);
+        BlockVector3 min = BlockVector3.at(minX, minY, minZ);
+        BlockVector3 max = BlockVector3.at(maxX, maxY, maxZ);
         ProtectedRegion test = new ProtectedCuboidRegion("dummy", min, max);
-        ApplicableRegionSet regions = regionManager.getApplicableRegions(test, RegionQuery.QueryOption.COMPUTE_PARENTS);
+        Iterable<ProtectedRegion> regions = regionManager.getApplicableRegions(test, RegionQuery.QueryOption.COMPUTE_PARENTS);
+        ProtectedRegion globalRegion = regionManager.getRegion("__global__");
+        regions = globalRegion == null ? regions : Iterables.concat(regions, Collections.singletonList(globalRegion));
 
         Box sectionBox = new Box(0, 0, 0, 15, 15, 15);
         int lastPriority = Integer.MIN_VALUE;
