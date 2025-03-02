@@ -150,6 +150,8 @@ public class HelloPacketListener implements PacketHandler {
         WorldExtension.onPlayerJoin(world, player);
 
         ServerBlueprintManager.sendManifest(List.of(((CraftPlayer)player).getHandle()));
+
+        ServerHeightmaps.sendTo(player);
     }
 
 }
