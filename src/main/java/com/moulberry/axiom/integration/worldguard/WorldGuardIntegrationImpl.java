@@ -1,5 +1,6 @@
 package com.moulberry.axiom.integration.worldguard;
 
+import com.google.common.collect.Iterables;
 import com.moulberry.axiom.integration.Box;
 import com.moulberry.axiom.integration.BoxWithBoolean;
 import com.moulberry.axiom.integration.SectionPermissionChecker;
@@ -78,10 +79,12 @@ public class WorldGuardIntegrationImpl {
             return SectionPermissionChecker.ALL_ALLOWED;
         }
 
-        BlockVector3 min = BlockVector3.at(cx*16, cy*16, cz*16);
-        BlockVector3 max = BlockVector3.at(cx*16+15, cy*16+15, cz*16+15);
+        BlockVector3 min = BlockVector3.at(minX, minY, minZ);
+        BlockVector3 max = BlockVector3.at(maxX, maxY, maxZ);
         ProtectedRegion test = new ProtectedCuboidRegion("dummy", min, max);
-        ApplicableRegionSet regions = regionManager.getApplicableRegions(test, RegionQuery.QueryOption.COMPUTE_PARENTS);
+        Iterable<ProtectedRegion> regions = regionManager.getApplicableRegions(test, RegionQuery.QueryOption.COMPUTE_PARENTS);
+        ProtectedRegion globalRegion = regionManager.getRegion("__global__");
+        regions = globalRegion == null ? regions : Iterables.concat(regions, Collections.singletonList(globalRegion));
 
         Box sectionBox = new Box(0, 0, 0, 15, 15, 15);
         int lastPriority = Integer.MIN_VALUE;
@@ -122,12 +125,12 @@ public class WorldGuardIntegrationImpl {
                     BlockVector3 regionMin = region.getMinimumPoint();
                     BlockVector3 regionMax = region.getMaximumPoint();
 
-                    int regionMinX = Math.max(regionMin.getBlockX(), cx*16) - minX;
-                    int regionMinY = Math.max(regionMin.getBlockY(), cy*16) - minY;
-                    int regionMinZ = Math.max(regionMin.getBlockZ(), cz*16) - minZ;
-                    int regionMaxX = Math.min(regionMax.getBlockX(), cx*16+15) - minX;
-                    int regionMaxY = Math.min(regionMax.getBlockY(), cy*16+15) - minY;
-                    int regionMaxZ = Math.min(regionMax.getBlockZ(), cz*16+15) - minZ;
+                    int regionMinX = Math.max(regionMin.getBlockX(), minX) - minX;
+                    int regionMinY = Math.max(regionMin.getBlockY(), minY) - minY;
+                    int regionMinZ = Math.max(regionMin.getBlockZ(), minZ) - minZ;
+                    int regionMaxX = Math.min(regionMax.getBlockX(), maxX) - minX;
+                    int regionMaxY = Math.min(regionMax.getBlockY(), maxY) - minY;
+                    int regionMaxZ = Math.min(regionMax.getBlockZ(), maxZ) - minZ;
 
                     Box box = new Box(regionMinX, regionMinY, regionMinZ, regionMaxX, regionMaxY, regionMaxZ);
                     if (value == StateFlag.State.DENY) {
