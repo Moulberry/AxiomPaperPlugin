@@ -70,6 +70,8 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     private Set<EntityType<?>> whitelistedEntities = new HashSet<>();
     private Set<EntityType<?>> blacklistedEntities = new HashSet<>();
 
+    public boolean logCoreProtectChanges = true;
+
     public Path blueprintFolder = null;
     public boolean allowAnnotations = false;
 
@@ -128,6 +130,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerOutgoingPluginChannel(this, "axiom:marker_data");
         msg.registerOutgoingPluginChannel(this, "axiom:marker_nbt_response");
         msg.registerOutgoingPluginChannel(this, "axiom:annotation_update");
+        msg.registerOutgoingPluginChannel(this, "axiom:add_server_heightmap");
 
         Map<String, PacketHandler> largePayloadHandlers = new HashMap<>();
 
@@ -177,6 +180,12 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             } catch (IOException ignored) {}
             ServerBlueprintManager.initialize(this.blueprintFolder);
         }
+
+        Path heightmapsPath = this.getDataFolder().toPath().resolve("heightmaps");
+        try {
+            Files.createDirectories(heightmapsPath);
+        } catch (IOException ignored) {}
+        ServerHeightmaps.load(heightmapsPath);
 
         Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
             HashSet<UUID> stillActiveAxiomPlayers = new HashSet<>();
@@ -272,6 +281,8 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         boolean sendMarkers = configuration.getBoolean("send-markers");
         int maxChunkRelightsPerTick = configuration.getInt("max-chunk-relights-per-tick");
         int maxChunkSendsPerTick = configuration.getInt("max-chunk-sends-per-tick");
+
+        this.logCoreProtectChanges = configuration.getBoolean("log-core-protect-changes");
 
         Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
             WorldExtension.tick(MinecraftServer.getServer(), sendMarkers, maxChunkRelightsPerTick, maxChunkSendsPerTick);
