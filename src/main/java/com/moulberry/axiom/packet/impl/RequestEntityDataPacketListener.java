@@ -86,6 +86,7 @@ public class RequestEntityDataPacketListener implements PacketHandler {
                 if (remainingBytes - size < 0) {
                     sendResponse(player, id, false, entityData);
                     entityData.clear();
+                    remainingBytes = maxPacketSize;
                 }
 
                 entityData.put(uuid, entityTag);
