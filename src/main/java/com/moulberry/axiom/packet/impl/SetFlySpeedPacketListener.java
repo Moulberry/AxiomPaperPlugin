@@ -27,6 +27,8 @@ public class SetFlySpeedPacketListener implements PacketHandler {
 
         float flySpeed = friendlyByteBuf.readFloat();
 
+        flySpeed = Math.max(-1.0f, Math.min(1.0f, flySpeed));
+
         // Call event
         AxiomFlySpeedChangeEvent flySpeedChangeEvent = new AxiomFlySpeedChangeEvent(player, flySpeed);
         Bukkit.getPluginManager().callEvent(flySpeedChangeEvent);
