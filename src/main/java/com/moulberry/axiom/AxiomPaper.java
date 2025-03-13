@@ -457,6 +457,9 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         if (!this.activeAxiomPlayers.contains(event.getPlayer().getUniqueId())) {
             return;
         }
+        if (event.getFailReason() == PlayerFailMoveEvent.FailReason.MOVED_INTO_UNLOADED_CHUNK) {
+            return;
+        }
         if (!event.getPlayer().getWorld().isChunkLoaded(event.getTo().getBlockX() >> 4, event.getTo().getBlockZ() >> 4)) {
             return;
         }
