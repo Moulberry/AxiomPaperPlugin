@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.moulberry.axiom"
-version = "4.0.3+1.21.4"
+version = "4.0.4+1.21.4"
 description = "Serverside component for Axiom on Paper"
 
 java {
@@ -27,7 +27,7 @@ repositories {
 }
 
 dependencies {
-    paperweight.paperDevBundle(libs.versions.paper)
+    paperweight.paperDevBundle("1.21.5-no-moonrise-SNAPSHOT")
     implementation(libs.reflection.remapper)
     implementation(libs.cloud.paper)
 

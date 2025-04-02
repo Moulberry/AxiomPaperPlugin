@@ -67,14 +67,14 @@ public class BlueprintIo {
         // Block data
         dataInputStream.readInt(); // Ignore block data length
         CompoundTag blockDataTag = NbtIo.readCompressed(dataInputStream, NbtAccounter.unlimitedHeap());
-        int blueprintDataVersion = blockDataTag.getInt("DataVersion");
+        int blueprintDataVersion = blockDataTag.getIntOr("DataVersion", 0);
         if (blueprintDataVersion == 0) blueprintDataVersion = currentDataVersion;
 
-        ListTag listTag = blockDataTag.getList("BlockRegion", Tag.TAG_COMPOUND);
+        ListTag listTag = blockDataTag.getListOrEmpty("BlockRegion");
         Long2ObjectMap<PalettedContainer<BlockState>> blockMap = readBlocks(listTag, blueprintDataVersion);
 
         // Block Entities
-        ListTag blockEntitiesTag = blockDataTag.getList("BlockEntities", Tag.TAG_COMPOUND);
+        ListTag blockEntitiesTag = blockDataTag.getListOrEmpty("BlockEntities");
         Long2ObjectMap<CompressedBlockEntity> blockEntities = new Long2ObjectOpenHashMap<>();
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -89,15 +89,18 @@ public class BlueprintIo {
                 blockEntityCompound = (CompoundTag) output.getValue();
             }
 
-            BlockPos blockPos = BlockEntity.getPosFromTag(blockEntityCompound);
+            int x = blockEntityCompound.getIntOr("x", 0);
+            int y = blockEntityCompound.getIntOr("y", 0);
+            int z = blockEntityCompound.getIntOr("z", 0);
+            BlockPos blockPos = new BlockPos(x, y, z);
             long pos = blockPos.asLong();
 
-            String id = blockEntityCompound.getString("id");
+            String id = blockEntityCompound.getStringOr("id", "");
             Optional<Holder.Reference<BlockEntityType<?>>> typeOptional = BuiltInRegistries.BLOCK_ENTITY_TYPE.get(VersionHelper.createResourceLocation(id));
 
             if (typeOptional.isPresent()) {
                 BlockEntityType<?> type = typeOptional.get().value();
-                
+
                 PalettedContainer<BlockState> container = blockMap.get(BlockPos.asLong(
                     blockPos.getX() >> 4,
                     blockPos.getY() >> 4,
@@ -117,7 +120,7 @@ public class BlueprintIo {
             }
         }
 
-        ListTag entitiesTag = blockDataTag.getList("Entities", Tag.TAG_COMPOUND);
+        ListTag entitiesTag = blockDataTag.getListOrEmpty("Entities");
         List<CompoundTag> entities = new ArrayList<>();
         for (Tag tag : entitiesTag) {
             CompoundTag entityCompound = (CompoundTag) tag;
@@ -144,11 +147,11 @@ public class BlueprintIo {
 
         for (Tag tag : list) {
             if (tag instanceof CompoundTag compoundTag) {
-                int cx = compoundTag.getInt("X");
-                int cy = compoundTag.getInt("Y");
-                int cz = compoundTag.getInt("Z");
+                int cx = compoundTag.getIntOr("X", 0);
+                int cy = compoundTag.getIntOr("Y", 0);
+                int cz = compoundTag.getIntOr("Z", 0);
 
-                CompoundTag blockStates = compoundTag.getCompound("BlockStates");
+                CompoundTag blockStates = compoundTag.getCompoundOrEmpty("BlockStates");
                 blockStates = DFUHelper.updatePalettedContainer(blockStates, dataVersion);
                 PalettedContainer<BlockState> container = BLOCK_STATE_CODEC.parse(NbtOps.INSTANCE, blockStates)
                                .getOrThrow();

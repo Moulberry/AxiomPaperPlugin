@@ -31,18 +31,18 @@ public record BlueprintHeader(String name, String author, List<String> tags, flo
     }
 
     public static BlueprintHeader load(CompoundTag tag) {
-        long version = tag.getLong("Version");
-        String name = tag.getString("Name");
-        String author = tag.getString("Author");
-        float thumbnailYaw = tag.contains("ThumbnailYaw", Tag.TAG_FLOAT) ? tag.getFloat("ThumbnailYaw") : 135;
-        float thumbnailPitch = tag.contains("ThumbnailPitch", Tag.TAG_FLOAT) ? tag.getFloat("ThumbnailPitch") : 30;
-        boolean lockedThumbnail = tag.getBoolean("LockedThumbnail");
-        int blockCount = tag.getInt("BlockCount");
-        boolean containsAir = tag.getBoolean("ContainsAir");
+        long version = tag.getLongOr("Version", 0);
+        String name = tag.getStringOr("Name", "");
+        String author = tag.getStringOr("Author", "");
+        float thumbnailYaw = tag.getFloatOr("ThumbnailYaw", 135f);
+        float thumbnailPitch = tag.getFloatOr("ThumbnailPitch", 30f);
+        boolean lockedThumbnail = tag.getBooleanOr("LockedThumbnail", false);
+        int blockCount = tag.getIntOr("BlockCount", 0);
+        boolean containsAir = tag.getBooleanOr("ContainsAir", false);
 
         List<String> tags = new ArrayList<>();
-        for (Tag string : tag.getList("Tags", Tag.TAG_STRING)) {
-            tags.add(string.getAsString());
+        for (Tag string : tag.getListOrEmpty("Tags")) {
+            string.asString().ifPresent(tags::add);
         }
 
         return new BlueprintHeader(name, author, tags, thumbnailYaw, thumbnailPitch, lockedThumbnail, blockCount, containsAir);

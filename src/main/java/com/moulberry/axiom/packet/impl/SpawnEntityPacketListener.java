@@ -118,7 +118,7 @@ public class SpawnEntityPacketListener implements PacketHandler {
                     }
                 }
 
-                entity.moveTo(position.x, position.y, position.z, entry.yaw, entry.pitch);
+                entity.snapTo(position.x, position.y, position.z, entry.yaw, entry.pitch);
                 entity.setYHeadRot(entity.getYRot());
 
                 return entity;

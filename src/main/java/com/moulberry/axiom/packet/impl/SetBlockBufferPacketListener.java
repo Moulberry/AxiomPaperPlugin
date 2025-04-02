@@ -238,14 +238,6 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                                     oceanFloor.update(x, by, z, blockState);
                                     worldSurface.update(x, by, z, blockState);
 
-                                    if (false) { // Full update
-                                        old.onRemove(world, blockPos, blockState, false);
-
-                                        if (sectionStates.get(x, y, z).is(block)) {
-                                            blockState.onPlace(world, blockPos, old, false);
-                                        }
-                                    }
-
                                     // Update Light
                                     sectionLightChanged |= LightEngine.hasDifferentLightProperties(old, blockState);
 

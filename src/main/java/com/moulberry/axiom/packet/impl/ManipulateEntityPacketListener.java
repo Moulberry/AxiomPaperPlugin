@@ -148,7 +148,12 @@ public class ManipulateEntityPacketListener implements PacketHandler {
 
                 if (Integration.canPlaceBlock(player, new Location(player.getWorld(),
                         containing.getX(), containing.getY(), containing.getZ()))) {
-                    entity.teleportTo(serverLevel, newX, newY, newZ, Set.of(), newYaw, newPitch, true);
+                    if (entity.isPassenger()) {
+                        entity.setYRot(newYaw);
+                        entity.setXRot(newPitch);
+                    } else {
+                        entity.snapTo(newX, newY, newZ, newYaw, newPitch);
+                    }
                 }
 
                 entity.setYHeadRot(newYaw);

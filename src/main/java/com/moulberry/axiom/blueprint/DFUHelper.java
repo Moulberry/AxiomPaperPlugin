@@ -23,7 +23,7 @@ public class DFUHelper {
         tag = tag.copy();
 
         ListTag newPalette = new ListTag();
-        for (Tag entry : tag.getList("palette", Tag.TAG_COMPOUND)) {
+        for (Tag entry : tag.getListOrEmpty("palette")) {
             Dynamic<Tag> dynamic = new Dynamic<>(NbtOps.INSTANCE, entry);
             Dynamic<Tag> output = DataFixers.getDataFixer().update(References.BLOCK_STATE, dynamic, fromVersion, DATA_VERSION);
             newPalette.add(output.getValue());
@@ -34,12 +34,12 @@ public class DFUHelper {
     }
 
     private static boolean hasExpectedPaletteTag(CompoundTag tag) {
-        if (!tag.contains("palette", Tag.TAG_LIST)) return false;
+        if (!tag.contains("palette")) return false;
 
         ListTag listTag = (ListTag) tag.get("palette");
         if (listTag == null) return false;
 
-        return listTag.isEmpty() || listTag.getElementType() == Tag.TAG_COMPOUND;
+        return listTag.isEmpty() || listTag.get(0).getId() == Tag.TAG_COMPOUND;
     }
 
 }

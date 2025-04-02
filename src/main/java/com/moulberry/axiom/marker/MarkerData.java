@@ -1,10 +1,12 @@
 package com.moulberry.axiom.marker;
 
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.entity.Marker;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
@@ -109,9 +111,10 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
 
     public static MarkerData createFrom(Marker marker) {
         Vec3 position = marker.position();
-        CompoundTag data = getData(marker);
+        CustomData customData = marker.get(DataComponents.CUSTOM_DATA);
+        CompoundTag data = customData == null ? new CompoundTag() : customData.copyTag();
 
-        String name = data.getString("name").trim();
+        String name = data.getStringOr("name", "").trim();
         if (name.isEmpty()) name = null;
 
         Vec3 minRegion = null;
@@ -120,34 +123,75 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
         float lineThickness = 0;
         int faceArgb = 0;
 
-        if (data.contains("min", Tag.TAG_LIST) && data.contains("max", Tag.TAG_LIST)) {
-            ListTag min = data.getList("min", Tag.TAG_DOUBLE);
-            ListTag max = data.getList("max", Tag.TAG_DOUBLE);
+        if (data.contains("min") && data.contains("max")) {
+            // Try to load min/max as absolute coordinates
+            ListTag min = data.getListOrEmpty("min");
+            ListTag max = data.getListOrEmpty("max");
 
-            if (min.size() == 3 && max.size() == 3) {
-                double minX = min.getDouble(0);
-                double minY = min.getDouble(1);
-                double minZ = min.getDouble(2);
-                double maxX = max.getDouble(0);
-                double maxY = max.getDouble(1);
-                double maxZ = max.getDouble(2);
+            if (min.size() == 3 && min.get(0).getId() == Tag.TAG_DOUBLE) {
+                double minX = min.getDoubleOr(0, 0.0);
+                double minY = min.getDoubleOr(1, 0.0);
+                double minZ = min.getDoubleOr(2, 0.0);
                 minRegion = new Vec3(minX, minY, minZ);
+            }
+
+            if (max.size() == 3 && max.get(0).getId() == Tag.TAG_DOUBLE) {
+                double maxX = max.getDoubleOr(0, 0.0);
+                double maxY = max.getDoubleOr(1, 0.0);
+                double maxZ = max.getDoubleOr(2, 0.0);
                 maxRegion = new Vec3(maxX, maxY, maxZ);
+            }
 
-                if (data.contains("line_argb", Tag.TAG_ANY_NUMERIC)) {
-                    lineArgb = data.getInt("line_argb");
+            if (minRegion == null) {
+                // Try to load min as string coordinates
+                if (min.size() == 3 && min.get(0).getId() == Tag.TAG_STRING) {
+                    double minX = calculateCoordinate(min.getStringOr(0, ""), position.x);
+                    double minY = calculateCoordinate(min.getStringOr(1, ""), position.y);
+                    double minZ = calculateCoordinate(min.getStringOr(2, ""), position.z);
+                    if (Double.isFinite(minX) && Double.isFinite(minY) && Double.isFinite(minZ)) {
+                        minRegion = new Vec3(minX, minY, minZ);
+                    }
                 }
+            }
+            if (maxRegion == null) {
+                // Try to load max as string coordinates
+                if (max.size() == 3 && max.get(0).getId() == Tag.TAG_STRING) {
+                    double maxX = calculateCoordinate(max.getStringOr(0, ""), position.x);
+                    double maxY = calculateCoordinate(max.getStringOr(1, ""), position.y);
+                    double maxZ = calculateCoordinate(max.getStringOr(2, ""), position.z);
+                    if (Double.isFinite(maxX) && Double.isFinite(maxY) && Double.isFinite(maxZ)) {
+                        maxRegion = new Vec3(maxX, maxY, maxZ);
+                    }
+                }
+            }
 
-                if (data.contains("line_thickness", Tag.TAG_ANY_NUMERIC)) {
-                    lineThickness = data.getInt("line_thickness");
-                }
-
-                if (data.contains("face_argb", Tag.TAG_ANY_NUMERIC)) {
-                    faceArgb = data.getInt("face_argb");
-                }
+            if (minRegion != null && maxRegion != null) {
+                lineArgb = data.getIntOr("line_argb", 0);
+                lineThickness = data.getIntOr("line_thickness", 0);
+                faceArgb = data.getIntOr("face_argb", 0);
             }
         }
 
         return new MarkerData(marker.getUUID(), position, name, minRegion, maxRegion, lineArgb, lineThickness, faceArgb);
     }
+
+    private static double calculateCoordinate(String coordinate, double position) {
+        coordinate = coordinate.trim();
+        boolean relative = coordinate.startsWith("~");
+        if (relative) {
+            coordinate = coordinate.substring(1).trim();
+        }
+
+        try {
+            double value = Double.parseDouble(coordinate);
+            if (relative) {
+                return position + value;
+            } else {
+                return value;
+            }
+        } catch (NumberFormatException e) {
+            return Double.NaN;
+        }
+    }
+
 }

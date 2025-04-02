@@ -147,12 +147,10 @@ public class SetBlockPacketListener implements PacketHandler {
                 Cancellable event;
                 if (blockStates.size() > 1) {
                     event = CraftEventFactory.callBlockMultiPlaceEvent(player.serverLevel(),
-                            player, hand, blockStates, blockHit.getBlockPos().getX(),
-                            blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
+                            player, hand, blockStates, blockHit.getBlockPos());
                 } else {
                     event = CraftEventFactory.callBlockPlaceEvent(player.serverLevel(),
-                            player, hand, blockStates.get(0), blockHit.getBlockPos().getX(),
-                            blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
+                            player, hand, blockStates.get(0), blockHit.getBlockPos());
                 }
                 if (event.isCancelled()) {
                     return;

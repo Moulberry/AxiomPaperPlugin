@@ -158,9 +158,14 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         if (!largePayloadHandlers.isEmpty()) {
             // Hack to figure out the id of the CustomPayload packet
             ProtocolInfo<ServerGamePacketListener> protocol = GameProtocols.SERVERBOUND_TEMPLATE.bind(k -> new RegistryFriendlyByteBuf(k,
-                    MinecraftServer.getServer().registryAccess()));
+                MinecraftServer.getServer().registryAccess()), new GameProtocols.Context() {
+                @Override
+                public boolean hasInfiniteMaterials() {
+                    return false;
+                }
+            });
             RegistryFriendlyByteBuf friendlyByteBuf = new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
-            protocol.codec().encode(friendlyByteBuf, new ServerboundCustomPayloadPacket(new DiscardedPayload(VersionHelper.createResourceLocation("dummy"), Unpooled.buffer())));
+            protocol.codec().encode(friendlyByteBuf, new ServerboundCustomPayloadPacket(new DiscardedPayload(VersionHelper.createResourceLocation("dummy"), new byte[0])));
             int payloadId = friendlyByteBuf.readVarInt();
 
             ChannelInitializeListenerHolder.addListener(Key.key("axiom:handle_big_payload"), new ChannelInitializeListener() {

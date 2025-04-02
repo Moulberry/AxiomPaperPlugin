@@ -63,12 +63,14 @@ public class NbtSanitization {
             return;
         }
 
-        entityRoot.getAllKeys().retainAll(ALLOWED_KEYS);
+        entityRoot.keySet().retainAll(ALLOWED_KEYS);
 
-        if (entityRoot.contains("Passengers", Tag.TAG_LIST)) {
-            ListTag listTag = entityRoot.getList("Passengers", Tag.TAG_COMPOUND);
+        if (entityRoot.contains("Passengers")) {
+            ListTag listTag = entityRoot.getListOrEmpty("Passengers");
             for (Tag tag : listTag) {
-                sanitizeEntity((CompoundTag) tag);
+                if (tag instanceof CompoundTag compoundTag) {
+                    sanitizeEntity(compoundTag);
+                }
             }
         }
     }
