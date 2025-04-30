@@ -9,7 +9,7 @@ import net.minecraft.server.level.ServerPlayer;
 public class VersionHelper {
 
     public static void sendCustomPayload(ServerPlayer serverPlayer, ResourceLocation id, byte[] data) {
-        serverPlayer.connection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, Unpooled.wrappedBuffer(data))));
+        serverPlayer.connection.send(new ClientboundCustomPayloadPacket(new DiscardedPayload(id, data)));
     }
 
     public static ResourceLocation createResourceLocation(String composed) {
