@@ -1,7 +1,9 @@
 package com.moulberry.axiom;
 
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 
 import javax.imageio.ImageIO;
@@ -34,7 +36,14 @@ public class ServerHeightmaps {
                         continue;
                     }
 
-                    heightmaps.add(new NamedImage(imagePath.getFileName().toString(), Files.readAllBytes(imagePath)));
+                    byte[] allBytes = Files.readAllBytes(imagePath);
+                    if (allBytes.length > 2000000) {
+                        Path relative = path.relativize(imagePath);
+                        AxiomPaper.PLUGIN.getLogger().info("Heightmap " + relative + " skipped because it's over 2mb");
+                        continue;
+                    }
+
+                    heightmaps.add(new NamedImage(imagePath.getFileName().toString(), allBytes));
                 } catch (IOException ignored) {}
             }
         } catch (IOException e) {
@@ -48,9 +57,8 @@ public class ServerHeightmaps {
             buf.writeUtf(heightmap.name);
             buf.writeByteArray(heightmap.imageBytes);
 
-            byte[] packetBytes = new byte[buf.writerIndex()];
-            buf.getBytes(0, packetBytes);
-            player.sendPluginMessage(AxiomPaper.PLUGIN, "axiom:add_server_heightmap", packetBytes);
+            byte[] packetBytes = ByteBufUtil.getBytes(buf);
+            VersionHelper.sendCustomPayload(((CraftPlayer)player).getHandle(), "axiom:add_server_heightmap", packetBytes);
             buf.clear();
         }
     }

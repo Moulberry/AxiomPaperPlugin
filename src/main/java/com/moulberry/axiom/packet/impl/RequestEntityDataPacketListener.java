@@ -4,6 +4,7 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.packet.PacketHandler;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
@@ -103,8 +104,7 @@ public class RequestEntityDataPacketListener implements PacketHandler {
         friendlyByteBuf.writeBoolean(finished);
         friendlyByteBuf.writeMap(map, (buf, uuid) -> buf.writeUUID(uuid), (buf, nbt) -> buf.writeNbt(nbt));
 
-        byte[] bytes = new byte[friendlyByteBuf.writerIndex()];
-        friendlyByteBuf.getBytes(0, bytes);
+        byte[] bytes = ByteBufUtil.getBytes(friendlyByteBuf);
         VersionHelper.sendCustomPayload(player, RESPONSE_ID, bytes);
     }
 

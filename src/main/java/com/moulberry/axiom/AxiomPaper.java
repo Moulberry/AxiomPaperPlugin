@@ -11,6 +11,7 @@ import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.*;
 import com.moulberry.axiom.packet.impl.*;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.papermc.paper.event.player.PlayerFailMoveEvent;
@@ -207,9 +208,8 @@ public class AxiomPaper extends JavaPlugin implements Listener {
                     if (!this.hasAxiomPermission(player)) {
                         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
                         buf.writeBoolean(false);
-                        byte[] bytes = new byte[buf.writerIndex()];
-                        buf.getBytes(0, bytes);
-                        player.sendPluginMessage(this, "axiom:enable", bytes);
+                        byte[] bytes = ByteBufUtil.getBytes(buf);
+                        VersionHelper.sendCustomPayload(player, "axiom:enable", bytes);
                     } else {
                         UUID uuid = player.getUniqueId();
                         stillActiveAxiomPlayers.add(uuid);
@@ -486,7 +486,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         ServerWorldPropertiesRegistry properties = getOrCreateWorldProperties(world);
 
         if (properties == null) {
-            event.getPlayer().sendPluginMessage(this, "axiom:register_world_properties", new byte[]{0});
+            VersionHelper.sendCustomPayload(event.getPlayer(), "axiom:register_world_properties", new byte[]{0});
         } else {
             properties.registerFor(this, event.getPlayer());
         }
