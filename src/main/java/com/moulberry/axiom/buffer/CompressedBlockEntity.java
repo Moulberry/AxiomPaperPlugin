@@ -45,7 +45,7 @@ public record CompressedBlockEntity(int originalSize, byte compressionDict, byte
 
         try {
             byte[] nbt = Zstd.decompress(this.compressed, zstdDictDecompress, this.originalSize);
-            return NbtIo.read(new DataInputStream(new ByteArrayInputStream(nbt)), NbtAccounter.create(131072));
+            return NbtIo.read(new DataInputStream(new ByteArrayInputStream(nbt)), AxiomPaper.PLUGIN.createNbtAccounter());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
