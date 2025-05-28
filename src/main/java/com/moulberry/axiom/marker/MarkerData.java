@@ -1,5 +1,6 @@
 package com.moulberry.axiom.marker;
 
+import com.moulberry.axiom.VersionHelper;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
@@ -95,10 +96,9 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
 
     public static MarkerData createFrom(Marker marker) {
         Vec3 position = marker.position();
-        CustomData customData = marker.get(DataComponents.CUSTOM_DATA);
-        CompoundTag data = customData == null ? new CompoundTag() : customData.copyTag();
+        CompoundTag data = getData(marker);
 
-        String name = data.getStringOr("name", "").trim();
+        String name = data.getString("name").orElse("").trim();
         if (name.isEmpty()) name = null;
 
         Vec3 minRegion = null;
@@ -109,17 +109,16 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
 
         if (data.contains("min") && data.contains("max")) {
             // Try to load min/max as absolute coordinates
-            ListTag min = data.getListOrEmpty("min");
-            ListTag max = data.getListOrEmpty("max");
-
-            if (min.size() == 3 && min.get(0).getId() == Tag.TAG_DOUBLE) {
+            ListTag min = VersionHelper.getList(data, "min", Tag.TAG_DOUBLE);
+            if (min.size() == 3) {
                 double minX = min.getDoubleOr(0, 0.0);
                 double minY = min.getDoubleOr(1, 0.0);
                 double minZ = min.getDoubleOr(2, 0.0);
                 minRegion = new Vec3(minX, minY, minZ);
             }
 
-            if (max.size() == 3 && max.get(0).getId() == Tag.TAG_DOUBLE) {
+            ListTag max = VersionHelper.getList(data, "max", Tag.TAG_DOUBLE);
+            if (max.size() == 3) {
                 double maxX = max.getDoubleOr(0, 0.0);
                 double maxY = max.getDoubleOr(1, 0.0);
                 double maxZ = max.getDoubleOr(2, 0.0);
@@ -128,7 +127,8 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
 
             if (minRegion == null) {
                 // Try to load min as string coordinates
-                if (min.size() == 3 && min.get(0).getId() == Tag.TAG_STRING) {
+                min = VersionHelper.getList(data, "min", Tag.TAG_STRING);
+                if (min.size() == 3) {
                     double minX = calculateCoordinate(min.getStringOr(0, ""), position.x);
                     double minY = calculateCoordinate(min.getStringOr(1, ""), position.y);
                     double minZ = calculateCoordinate(min.getStringOr(2, ""), position.z);
@@ -139,7 +139,8 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
             }
             if (maxRegion == null) {
                 // Try to load max as string coordinates
-                if (max.size() == 3 && max.get(0).getId() == Tag.TAG_STRING) {
+                max = VersionHelper.getList(data, "max", Tag.TAG_STRING);
+                if (max.size() == 3) {
                     double maxX = calculateCoordinate(max.getStringOr(0, ""), position.x);
                     double maxY = calculateCoordinate(max.getStringOr(1, ""), position.y);
                     double maxZ = calculateCoordinate(max.getStringOr(2, ""), position.z);

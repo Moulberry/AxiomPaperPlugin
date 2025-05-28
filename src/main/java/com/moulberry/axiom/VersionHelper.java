@@ -1,6 +1,8 @@
 package com.moulberry.axiom;
 
 import io.netty.buffer.Unpooled;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.network.protocol.common.custom.DiscardedPayload;
 import net.minecraft.resources.ResourceLocation;
@@ -71,6 +73,18 @@ public class VersionHelper {
 
     public static ResourceLocation createResourceLocation(String namespace, String path) {
         return ResourceLocation.fromNamespaceAndPath(namespace, path);
+    }
+
+    public static ListTag getList(CompoundTag tag, String key, int type) {
+        ListTag list = tag.getListOrEmpty(key);
+        if (list.isEmpty()) {
+            return list;
+        }
+        if (list.get(0).getId() != type) {
+            return new ListTag();
+        } else {
+            return list;
+        }
     }
 
 }
