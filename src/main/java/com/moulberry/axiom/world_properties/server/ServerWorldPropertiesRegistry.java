@@ -1,7 +1,9 @@
 package com.moulberry.axiom.world_properties.server;
 
+import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.world_properties.WorldPropertyCategory;
 import com.moulberry.axiom.world_properties.WorldPropertyWidgetType;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -65,9 +67,8 @@ public class ServerWorldPropertiesRegistry {
             buf.writeCollection(entry.getValue(), (buffer, p) -> p.write(buffer));
         }
 
-        byte[] bytes = new byte[buf.writerIndex()];
-        buf.getBytes(0, bytes);
-        bukkitPlayer.sendPluginMessage(plugin, "axiom:register_world_properties", bytes);
+        byte[] bytes = ByteBufUtil.getBytes(buf);
+        VersionHelper.sendCustomPayload(bukkitPlayer, "axiom:register_world_properties", bytes);
     }
 
     private static final ServerWorldProperty<Integer> TIME = new ServerWorldProperty<>(

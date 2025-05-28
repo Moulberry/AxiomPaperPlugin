@@ -1,8 +1,10 @@
 package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.marker.MarkerData;
 import com.moulberry.axiom.packet.PacketHandler;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.nbt.CompoundTag;
@@ -45,10 +47,9 @@ public class MarkerNbtRequestPacketListener implements PacketHandler {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
             buf.writeUUID(uuid);
             buf.writeNbt(data);
-            byte[] bytes = new byte[buf.writerIndex()];
-            buf.getBytes(0, bytes);
 
-            player.sendPluginMessage(AxiomPaper.PLUGIN, "axiom:marker_nbt_response", bytes);
+            byte[] bytes = ByteBufUtil.getBytes(buf);
+            VersionHelper.sendCustomPayload(player, "axiom:marker_nbt_response", bytes);
         }
     }
 

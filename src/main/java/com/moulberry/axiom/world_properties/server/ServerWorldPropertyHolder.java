@@ -1,9 +1,11 @@
 package com.moulberry.axiom.world_properties.server;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.world_properties.PropertyUpdateHandler;
 import com.moulberry.axiom.world_properties.WorldPropertyDataType;
 import com.moulberry.axiom.world_properties.WorldPropertyWidgetType;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -72,11 +74,10 @@ public class ServerWorldPropertyHolder<T> {
         buf.writeVarInt(this.property.widget.dataType().getTypeId());
         buf.writeByteArray(this.property.widget.dataType().serialize(this.value));
 
-        byte[] message = new byte[buf.writerIndex()];
-        buf.getBytes(0, message);
+        byte[] message = ByteBufUtil.getBytes(buf);
         for (Player player : world.getPlayers()) {
             if (AxiomPaper.PLUGIN.activeAxiomPlayers.contains(player.getUniqueId())) {
-                player.sendPluginMessage(AxiomPaper.PLUGIN, "axiom:set_world_property", message);
+                VersionHelper.sendCustomPayload(player, "axiom:set_world_property", message);
             }
         }
 

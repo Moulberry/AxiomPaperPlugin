@@ -2,6 +2,7 @@ package com.moulberry.axiom;
 
 import com.moulberry.axiom.annotations.ServerAnnotations;
 import com.moulberry.axiom.marker.MarkerData;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.*;
 import net.minecraft.network.FriendlyByteBuf;
@@ -70,11 +71,10 @@ public class WorldExtension {
 
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
             buf.writeCollection(markerData, MarkerData::write);
-            buf.writeCollection(Set.of(), FriendlyByteBuf::writeUUID);
-            byte[] bytes = new byte[buf.writerIndex()];
-            buf.getBytes(0, bytes);
+            buf.writeCollection(Set.<UUID>of(), (buffer, uuid) -> buffer.writeUUID(uuid));
 
-            player.sendPluginMessage(AxiomPaper.PLUGIN, "axiom:marker_data", bytes);
+            byte[] bytes = ByteBufUtil.getBytes(buf);
+            VersionHelper.sendCustomPayload(player, "axiom:marker_data", bytes);
         }
     }
 
@@ -111,13 +111,12 @@ public class WorldExtension {
         if (!changedData.isEmpty() || !oldUuids.isEmpty()) {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
             buf.writeCollection(changedData, MarkerData::write);
-            buf.writeCollection(oldUuids, FriendlyByteBuf::writeUUID);
-            byte[] bytes = new byte[buf.writerIndex()];
-            buf.getBytes(0, bytes);
+            buf.writeCollection(oldUuids, (buffer, uuid) -> buffer.writeUUID(uuid));
+            byte[] bytes = ByteBufUtil.getBytes(buf);
 
             for (ServerPlayer player : this.level.players()) {
                 if (AxiomPaper.PLUGIN.activeAxiomPlayers.contains(player.getUUID())) {
-                    player.getBukkitEntity().sendPluginMessage(AxiomPaper.PLUGIN, "axiom:marker_data", bytes);
+                    VersionHelper.sendCustomPayload(player, "axiom:marker_data", bytes);
                 }
             }
         }

@@ -3,6 +3,7 @@ package com.moulberry.axiom.annotations;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.annotations.data.AnnotationData;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
@@ -36,8 +37,7 @@ public class ServerAnnotations {
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.buffer());
         friendlyByteBuf.writeCollection(actions, (buffer, action) -> action.write(buffer));
 
-        byte[] bytes = new byte[friendlyByteBuf.writerIndex()];
-        friendlyByteBuf.getBytes(0, bytes);
+        byte[] bytes = ByteBufUtil.getBytes(friendlyByteBuf);
         for (ServerPlayer serverPlayer : players) {
             VersionHelper.sendCustomPayload(serverPlayer, VersionHelper.createResourceLocation("axiom:annotation_update"), bytes);
         }
