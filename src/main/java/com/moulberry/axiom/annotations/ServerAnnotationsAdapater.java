@@ -2,6 +2,7 @@ package com.moulberry.axiom.annotations;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.annotations.data.AnnotationData;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import org.bukkit.NamespacedKey;
@@ -37,9 +38,7 @@ public class ServerAnnotationsAdapater implements PersistentDataType<PersistentD
                 friendlyByteBuf.writerIndex(0);
                 entry.getValue().write(friendlyByteBuf);
 
-                byte[] bytes = new byte[friendlyByteBuf.writerIndex()];
-                friendlyByteBuf.getBytes(0, bytes);
-
+                byte[] bytes = ByteBufUtil.getBytes(friendlyByteBuf);
                 container.set(new NamespacedKey(AxiomPaper.PLUGIN, entry.getKey().toString()),
                     PersistentDataType.BYTE_ARRAY, bytes);
             } catch (Exception e) {
