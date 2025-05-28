@@ -1,5 +1,6 @@
 package com.moulberry.axiom;
 
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
@@ -56,10 +57,8 @@ public class ServerHeightmaps {
             buf.writeUtf(heightmap.name);
             buf.writeByteArray(heightmap.imageBytes);
 
-            byte[] packetBytes = new byte[buf.writerIndex()];
-            buf.getBytes(0, packetBytes);
-            VersionHelper.sendCustomPayload(((CraftPlayer)player).getHandle(), VersionHelper.createResourceLocation("axiom:add_server_heightmap"),
-                packetBytes);
+            byte[] packetBytes = ByteBufUtil.getBytes(buf);
+            VersionHelper.sendCustomPayload(((CraftPlayer)player).getHandle(), "axiom:add_server_heightmap", packetBytes);
             buf.clear();
         }
     }

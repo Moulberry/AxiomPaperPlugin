@@ -1,6 +1,7 @@
 package com.moulberry.axiom;
 
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
@@ -77,9 +78,8 @@ public class Restrictions {
             buf.writeBlockPos(new BlockPos(maxX, maxY, maxZ));
         }
 
-        byte[] bytes = new byte[buf.writerIndex()];
-        buf.getBytes(0, bytes);
-        player.sendPluginMessage(plugin, "axiom:restrictions", bytes);
+        byte[] bytes = ByteBufUtil.getBytes(buf);
+        VersionHelper.sendCustomPayload(player, "axiom:restrictions", bytes);
     }
 
     @Override
