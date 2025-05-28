@@ -36,6 +36,7 @@ public class HelloPacketListener implements PacketHandler {
     @Override
     public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.hasAxiomPermission(player)) {
+            this.plugin.failedPermissionAxiomPlayers.add(player.getUniqueId());
             return;
         }
 
