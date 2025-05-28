@@ -60,6 +60,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     public static AxiomPaper PLUGIN; // tsk tsk tsk
 
     public final Set<UUID> activeAxiomPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    public final Set<UUID> failedPermissionAxiomPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
     public final Map<UUID, RateLimiter> playerBlockBufferRateLimiters = new ConcurrentHashMap<>();
     public final Map<UUID, Restrictions> playerRestrictions = new ConcurrentHashMap<>();
     public final Map<UUID, IdMapper<BlockState>> playerBlockRegistry = new ConcurrentHashMap<>();
@@ -192,7 +193,8 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         ServerHeightmaps.load(heightmapsPath);
 
         Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
-            HashSet<UUID> stillActiveAxiomPlayers = new HashSet<>();
+            Set<UUID> stillActiveAxiomPlayers = new HashSet<>();
+            Set<UUID> stillFailedAxiomPlayers = new HashSet<>();
 
             int rateLimit = this.configuration.getInt("block-buffer-rate-limit");
             if (rateLimit > 0) {
@@ -202,22 +204,25 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             }
 
             for (Player player : Bukkit.getServer().getOnlinePlayers()) {
-                if (activeAxiomPlayers.contains(player.getUniqueId())) {
+                UUID uuid = player.getUniqueId();
+                if (this.activeAxiomPlayers.contains(uuid)) {
                     if (!this.hasAxiomPermission(player)) {
                         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
                         buf.writeBoolean(false);
                         byte[] bytes = ByteBufUtil.getBytes(buf);
                         VersionHelper.sendCustomPayload(player, "axiom:enable", bytes);
-                    } else {
-                        UUID uuid = player.getUniqueId();
-                        stillActiveAxiomPlayers.add(uuid);
 
+                        this.failedPermissionAxiomPlayers.add(uuid);
+                        this.activeAxiomPlayers.remove(uuid);
+                    } else {
                         boolean send = false;
 
-                        Restrictions restrictions = playerRestrictions.get(uuid);
+                        stillActiveAxiomPlayers.add(uuid);
+
+                        Restrictions restrictions = this.playerRestrictions.get(uuid);
                         if (restrictions == null) {
                             restrictions = new Restrictions();
-                            playerRestrictions.put(uuid, restrictions);
+                            this.playerRestrictions.put(uuid, restrictions);
                             send = true;
                         }
 
@@ -271,14 +276,22 @@ public class AxiomPaper extends JavaPlugin implements Listener {
                             restrictions.send(this, player);
                         }
                     }
+                } else if (this.failedPermissionAxiomPlayers.contains(uuid)) {
+                    if (this.hasAxiomPermission(player)) {
+                        this.failedPermissionAxiomPlayers.remove(uuid);
+                        VersionHelper.sendCustomPayload(player, "axiom:redo_handshake", new byte[]{});
+                    } else {
+                        stillFailedAxiomPlayers.add(uuid);
+                    }
                 }
             }
 
-            activeAxiomPlayers.retainAll(stillActiveAxiomPlayers);
-            playerBlockBufferRateLimiters.keySet().retainAll(stillActiveAxiomPlayers);
-            playerRestrictions.keySet().retainAll(stillActiveAxiomPlayers);
-            playerBlockRegistry.keySet().retainAll(stillActiveAxiomPlayers);
-            playerProtocolVersion.keySet().retainAll(stillActiveAxiomPlayers);
+            this.failedPermissionAxiomPlayers.retainAll(stillFailedAxiomPlayers);
+            this.activeAxiomPlayers.retainAll(stillActiveAxiomPlayers);
+            this.playerBlockBufferRateLimiters.keySet().retainAll(stillActiveAxiomPlayers);
+            this.playerRestrictions.keySet().retainAll(stillActiveAxiomPlayers);
+            this.playerBlockRegistry.keySet().retainAll(stillActiveAxiomPlayers);
+            this.playerProtocolVersion.keySet().retainAll(stillActiveAxiomPlayers);
         }, 20, 20);
 
         boolean sendMarkers = configuration.getBoolean("send-markers");
