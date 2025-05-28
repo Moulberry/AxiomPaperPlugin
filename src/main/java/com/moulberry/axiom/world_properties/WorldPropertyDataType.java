@@ -1,5 +1,6 @@
 package com.moulberry.axiom.world_properties;
 
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.FriendlyByteBuf;
@@ -45,10 +46,7 @@ public abstract class WorldPropertyDataType<T> {
 
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer(8));
             buf.writeVarInt(value);
-
-            byte[] bytes = new byte[buf.writerIndex()];
-            buf.getBytes(0, bytes);
-            return bytes;
+            return ByteBufUtil.getBytes(buf);
         }
 
         @Override
@@ -89,9 +87,7 @@ public abstract class WorldPropertyDataType<T> {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer(8));
             buf.writeId(BuiltInRegistries.ITEM, value);
 
-            byte[] bytes = new byte[buf.writerIndex()];
-            buf.getBytes(0, bytes);
-            return bytes;
+            return ByteBufUtil.getBytes(buf);
         }
 
         @Override
@@ -114,9 +110,7 @@ public abstract class WorldPropertyDataType<T> {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer(8));
             buf.writeId(BuiltInRegistries.BLOCK, value);
 
-            byte[] bytes = new byte[buf.writerIndex()];
-            buf.getBytes(0, bytes);
-            return bytes;
+            return ByteBufUtil.getBytes(buf);
         }
 
         @Override

@@ -6,6 +6,7 @@ import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.*;
 import net.kyori.adventure.text.Component;
@@ -179,12 +180,11 @@ public class RequestChunkDataPacketListener implements PacketHandler {
                     buf.writeLong(AxiomConstants.MIN_POSITION_LONG);
                     buf.writeLong(AxiomConstants.MIN_POSITION_LONG);
                     buf.writeBoolean(false);
-                    byte[] bytes = new byte[buf.writerIndex()];
-                    buf.getBytes(0, bytes);
+                    byte[] bytes = ByteBufUtil.getBytes(buf);
                     VersionHelper.sendCustomPayload(player, RESPONSE_ID, bytes);
 
                     // Continuation packet
-                    buf = new FriendlyByteBuf(Unpooled.buffer());
+                    buf.clear();
                     buf.writeLong(id);
                 } else {
                     // Copy extra bytes
@@ -199,12 +199,11 @@ public class RequestChunkDataPacketListener implements PacketHandler {
                     buf.writeLong(AxiomConstants.MIN_POSITION_LONG);
                     buf.writeLong(AxiomConstants.MIN_POSITION_LONG);
                     buf.writeBoolean(false);
-                    byte[] bytes = new byte[buf.writerIndex()];
-                    buf.getBytes(0, bytes);
+                    byte[] bytes = ByteBufUtil.getBytes(buf);
                     VersionHelper.sendCustomPayload(player, RESPONSE_ID, bytes);
 
                     // Continuation packet
-                    buf = new FriendlyByteBuf(Unpooled.buffer());
+                    buf.clear();
                     buf.writeLong(id);
 
                     // Write start of new packet
@@ -235,12 +234,11 @@ public class RequestChunkDataPacketListener implements PacketHandler {
                     // Finish and send current packet
                     buf.writeLong(AxiomConstants.MIN_POSITION_LONG);
                     buf.writeBoolean(false);
-                    byte[] bytes = new byte[buf.writerIndex()];
-                    buf.getBytes(0, bytes);
+                    byte[] bytes = ByteBufUtil.getBytes(buf);
                     VersionHelper.sendCustomPayload(player, RESPONSE_ID, bytes);
 
                     // Continuation packet
-                    buf = new FriendlyByteBuf(Unpooled.buffer());
+                    buf.clear();
                     buf.writeLong(id);
                     buf.writeLong(AxiomConstants.MIN_POSITION_LONG);
                 } else {
@@ -255,12 +253,11 @@ public class RequestChunkDataPacketListener implements PacketHandler {
                     // Finish and send current packet
                     buf.writeLong(AxiomConstants.MIN_POSITION_LONG);
                     buf.writeBoolean(false);
-                    byte[] bytes = new byte[buf.writerIndex()];
-                    buf.getBytes(0, bytes);
+                    byte[] bytes = ByteBufUtil.getBytes(buf);
                     VersionHelper.sendCustomPayload(player, RESPONSE_ID, bytes);
 
                     // Continuation packet
-                    buf = new FriendlyByteBuf(Unpooled.buffer());
+                    buf.clear();
                     buf.writeLong(id);
                     buf.writeLong(AxiomConstants.MIN_POSITION_LONG);
 
@@ -275,8 +272,7 @@ public class RequestChunkDataPacketListener implements PacketHandler {
 
         buf.writeLong(AxiomConstants.MIN_POSITION_LONG);
         buf.writeBoolean(true);
-        byte[] bytes = new byte[buf.writerIndex()];
-        buf.getBytes(0, bytes);
+        byte[] bytes = ByteBufUtil.getBytes(buf);
         VersionHelper.sendCustomPayload(player, RESPONSE_ID, bytes);
     }
 
@@ -287,8 +283,7 @@ public class RequestChunkDataPacketListener implements PacketHandler {
         buf.writeLong(AxiomConstants.MIN_POSITION_LONG); // no chunks
         buf.writeBoolean(true); // finished
 
-        byte[] bytes = new byte[buf.writerIndex()];
-        buf.getBytes(0, bytes);
+        byte[] bytes = ByteBufUtil.getBytes(buf);
         VersionHelper.sendCustomPayload(player, RESPONSE_ID, bytes);
     }
 
