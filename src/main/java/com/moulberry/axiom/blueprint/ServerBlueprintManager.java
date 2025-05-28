@@ -2,6 +2,7 @@ package com.moulberry.axiom.blueprint;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.VersionHelper;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -52,21 +53,19 @@ public class ServerBlueprintManager {
                 if (buf.writerIndex() > MAX_SIZE) {
                     // Finish and send current packet
                     buf.writeUtf("");
-                    byte[] bytes = new byte[buf.writerIndex()];
-                    buf.getBytes(0, bytes);
+                    byte[] bytes = ByteBufUtil.getBytes(buf);
                     for (ServerPlayer serverPlayer : sendTo) {
                         VersionHelper.sendCustomPayload(serverPlayer, PACKET_BLUEPRINT_MANIFEST_IDENTIFIER, bytes);
                     }
 
                     // Continue
-                    buf = new FriendlyByteBuf(Unpooled.buffer());
+                    buf.clear();
                     buf.writeBoolean(false); // don't replace
                 }
             }
 
             buf.writeUtf("");
-            byte[] bytes = new byte[buf.writerIndex()];
-            buf.getBytes(0, bytes);
+            byte[] bytes = ByteBufUtil.getBytes(buf);
             for (ServerPlayer serverPlayer : sendTo) {
                 VersionHelper.sendCustomPayload(serverPlayer, PACKET_BLUEPRINT_MANIFEST_IDENTIFIER, bytes);
             }

@@ -6,6 +6,7 @@ import com.moulberry.axiom.blueprint.RawBlueprint;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.blueprint.ServerBlueprintRegistry;
 import com.moulberry.axiom.packet.PacketHandler;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.SharedConstants;
@@ -51,8 +52,7 @@ public class BlueprintRequestPacketListener implements PacketHandler {
             buf.writeUtf(path);
             RawBlueprint.write(buf, rawBlueprint);
 
-            byte[] bytes = new byte[buf.writerIndex()];
-            buf.getBytes(0, bytes);
+            byte[] bytes = ByteBufUtil.getBytes(buf);
             VersionHelper.sendCustomPayload(((CraftPlayer)player).getHandle(), RESPONSE_PACKET_IDENTIFIER, bytes);
         }
     }
