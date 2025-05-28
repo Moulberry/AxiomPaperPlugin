@@ -27,6 +27,8 @@ import net.minecraft.network.ConnectionProtocol;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
+import net.minecraft.nbt.NbtAccounter;
+import net.minecraft.network.*;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.EntityType;
@@ -68,6 +70,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     public IdMapper<BlockState> allowedBlockRegistry = null;
     private boolean logLargeBlockBufferChanges = false;
     private int packetCollectionReadLimit = 1024;
+    private long maxNbtDecompressLimit = 131072;
     private Set<EntityType<?>> whitelistedEntities = new HashSet<>();
     private Set<EntityType<?>> blacklistedEntities = new HashSet<>();
 
@@ -95,6 +98,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
         if (this.configuration.getBoolean("allow-large-payload-for-all-packets")) {
             packetCollectionReadLimit = Short.MAX_VALUE;
+            maxNbtDecompressLimit = Long.MAX_VALUE;
         }
 
         this.whitelistedEntities.clear();
@@ -362,6 +366,10 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     public <T> IntFunction<T> limitCollection(IntFunction<T> applier) {
         return FriendlyByteBuf.limitValue(applier, this.packetCollectionReadLimit);
+    }
+
+    public NbtAccounter createNbtAccounter() {
+        return NbtAccounter.create(this.maxNbtDecompressLimit);
     }
 
     public boolean logLargeBlockBufferChanges() {
