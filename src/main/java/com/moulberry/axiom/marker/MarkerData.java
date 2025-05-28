@@ -9,9 +9,7 @@ import net.minecraft.world.entity.Marker;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
-import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
 
-import java.lang.reflect.Field;
 import java.util.UUID;
 
 public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nullable Vec3 minRegion, @Nullable Vec3 maxRegion,
@@ -86,25 +84,11 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
         }
     }
 
-    private static final Field dataField;
-    static {
-        ReflectionRemapper reflectionRemapper = ReflectionRemapper.forReobfMappingsInPaperJar();
-        String fieldName = reflectionRemapper.remapFieldName(Marker.class, "data");
-
-        try {
-            dataField = Marker.class.getDeclaredField(fieldName);
-            dataField.setAccessible(true);
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
-    }
-
     public static CompoundTag getData(Marker marker) {
         try {
-            return (CompoundTag) dataField.get(marker);
+            CustomData customData = marker.get(DataComponents.CUSTOM_DATA);
+            return customData == null ? new CompoundTag() : customData.copyTag();
         } catch (Exception e) {
-            e.printStackTrace();
             throw new RuntimeException(e);
         }
     }
