@@ -11,7 +11,7 @@ worldguard-bukkit = "7.0.9-SNAPSHOT"
 zstd-jni = "1.5.5-4"
 
 # Plugins
-paperweight-userdev = "2.0.0-beta.14"
+paperweight-userdev = "2.0.0-beta.17"
 run-paper = "2.3.0"
 shadow = "8.1.7"
 

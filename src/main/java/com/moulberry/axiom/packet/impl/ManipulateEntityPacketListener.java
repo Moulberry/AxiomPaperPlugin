@@ -215,21 +215,24 @@ public class ManipulateEntityPacketListener implements PacketHandler {
             return right;
         }
 
-        for (String key : right.getAllKeys()) {
+        for (String key : right.keySet()) {
             Tag tag = right.get(key);
             if (tag instanceof CompoundTag compound) {
                 if (compound.isEmpty()) {
                     left.remove(key);
-                } else if (left.contains(key, Tag.TAG_COMPOUND)) {
-                    CompoundTag child = left.getCompound(key);
-                    child = merge(child, compound);
-                    left.put(key, child);
                 } else {
-                    CompoundTag copied = compound.copy();
-                    if (copied.contains("axiom:modify")) {
-                        copied.remove("axiom:modify");
+                    var leftCompoundOptional = left.getCompound(key);
+                    if (leftCompoundOptional.isPresent()) {
+                        CompoundTag child = leftCompoundOptional.get();
+                        child = merge(child, compound);
+                        left.put(key, child);
+                    } else {
+                        CompoundTag copied = compound.copy();
+                        if (copied.contains("axiom:modify")) {
+                            copied.remove("axiom:modify");
+                        }
+                        left.put(key, copied);
                     }
-                    left.put(key, copied);
                 }
             } else {
                 left.put(key, tag.copy());
