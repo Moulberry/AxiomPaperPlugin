@@ -8,6 +8,7 @@ import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.viaversion.ViaVersionHelper;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -133,16 +134,15 @@ public class HelloPacketListener implements PacketHandler {
         buf.writeVarInt(0); // No rotation overrides
         buf.writeVarInt(1); // Blueprint version
 
-        byte[] enableBytes = new byte[buf.writerIndex()];
-        buf.getBytes(0, enableBytes);
-        player.sendPluginMessage(this.plugin, "axiom:enable", enableBytes);
+        byte[] enableBytes = ByteBufUtil.getBytes(buf);
+        VersionHelper.sendCustomPayload(player, "axiom:enable", enableBytes);
 
         // Register world properties
         World world = player.getWorld();
         ServerWorldPropertiesRegistry properties = plugin.getOrCreateWorldProperties(world);
 
         if (properties == null) {
-            player.sendPluginMessage(plugin, "axiom:register_world_properties", new byte[]{0});
+            VersionHelper.sendCustomPayload(player, "axiom:register_world_properties", new byte[]{0});
         } else {
             properties.registerFor(plugin, player);
         }

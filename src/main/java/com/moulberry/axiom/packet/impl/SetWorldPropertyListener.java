@@ -1,10 +1,12 @@
 package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertyHolder;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.network.FriendlyByteBuf;
@@ -61,9 +63,8 @@ public class SetWorldPropertyListener implements PacketHandler {
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
         buf.writeVarInt(updateId);
 
-        byte[] bytes = new byte[buf.writerIndex()];
-        buf.getBytes(0, bytes);
-        player.sendPluginMessage(AxiomPaper.PLUGIN, "axiom:ack_world_properties", bytes);
+        byte[] bytes = ByteBufUtil.getBytes(buf);
+        VersionHelper.sendCustomPayload(player, "axiom:ack_world_properties", bytes);
     }
 
 }
