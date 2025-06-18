@@ -47,7 +47,6 @@ import net.minecraft.world.level.storage.ValueInput;
 import org.bukkit.Location;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
-import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -62,11 +61,8 @@ public class SetBlockBufferPacketListener implements PacketHandler {
     public SetBlockBufferPacketListener(AxiomPaper plugin) {
         this.plugin = plugin;
 
-        ReflectionRemapper reflectionRemapper = ReflectionRemapper.forReobfMappingsInPaperJar();
-        String methodName = reflectionRemapper.remapMethodName(LevelChunk.class, "updateBlockEntityTicker", BlockEntity.class);
-
         try {
-            this.updateBlockEntityTicker = LevelChunk.class.getDeclaredMethod(methodName, BlockEntity.class);
+            this.updateBlockEntityTicker = LevelChunk.class.getDeclaredMethod("updateBlockEntityTicker", BlockEntity.class);
             this.updateBlockEntityTicker.setAccessible(true);
         } catch (Exception e) {
             e.printStackTrace();
