@@ -6,8 +6,6 @@ import com.moulberry.axiom.event.AxiomManipulateEntityEvent;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.viaversion.UnknownVersionHelper;
-import io.netty.buffer.Unpooled;
-import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -15,18 +13,19 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.TagValueOutput;
+import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Location;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.messaging.PluginMessageListener;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -119,9 +118,26 @@ public class ManipulateEntityPacketListener implements PacketHandler {
             if (entry.merge != null && !entry.merge.isEmpty()) {
                 NbtSanitization.sanitizeEntity(entry.merge);
 
-                CompoundTag compoundTag = entity.saveWithoutId(new CompoundTag());
-                compoundTag = merge(compoundTag, entry.merge);
-                entity.load(compoundTag);
+                try (final ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(
+                        entity.problemPath(), AxiomPaper.PLUGIN.getSLF4JLogger()
+                )) {
+                    TagValueOutput output = TagValueOutput.createWrappingWithContext(
+                            reporter,
+                            serverLevel.registryAccess(),
+                            new CompoundTag()
+                    );
+
+                    entity.saveWithoutId(output);
+                    CompoundTag compoundTag = output.buildResult();
+                    compoundTag = merge(compoundTag, entry.merge);
+
+                    ValueInput input = TagValueInput.create(
+                            reporter,
+                            serverLevel.registryAccess(),
+                            compoundTag
+                    );
+                    entity.load(input);
+                }
             }
 
             entity.setPosRaw(position.x, position.y, position.z);

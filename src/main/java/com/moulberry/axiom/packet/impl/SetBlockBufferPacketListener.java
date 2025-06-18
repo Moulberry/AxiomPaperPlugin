@@ -19,7 +19,6 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket;
@@ -27,6 +26,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.ai.village.poi.PoiType;
 import net.minecraft.world.entity.ai.village.poi.PoiTypes;
 import net.minecraft.world.level.ChunkPos;
@@ -42,6 +42,8 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.lighting.LightEngine;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.ValueInput;
 import org.bukkit.Location;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
@@ -283,7 +285,16 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                                         int key = x | (y << 4) | (z << 8);
                                         CompressedBlockEntity savedBlockEntity = blockEntityChunkMap.get((short) key);
                                         if (savedBlockEntity != null) {
-                                            blockEntity.loadWithComponents(savedBlockEntity.decompress(), player.registryAccess());
+                                            try (final ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(
+                                                    blockEntity.problemPath(), AxiomPaper.PLUGIN.getSLF4JLogger()
+                                            )) {
+                                                ValueInput input = TagValueInput.create(
+                                                        reporter,
+                                                        player.registryAccess(),
+                                                        savedBlockEntity.decompress()
+                                                );
+                                                blockEntity.loadWithComponents(input);
+                                            }
                                         }
                                     }
                                 } else if (old.hasBlockEntity()) {

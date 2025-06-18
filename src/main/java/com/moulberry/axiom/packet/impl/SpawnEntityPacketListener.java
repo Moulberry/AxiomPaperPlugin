@@ -5,14 +5,12 @@ import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.viaversion.UnknownVersionHelper;
-import io.netty.buffer.Unpooled;
-import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
@@ -20,12 +18,11 @@ import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Location;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.messaging.PluginMessageListener;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -85,10 +82,20 @@ public class SpawnEntityPacketListener implements PacketHandler {
             if (entry.copyFrom != null) {
                 Entity entityCopyFrom = serverLevel.getEntity(entry.copyFrom);
                 if (entityCopyFrom != null) {
-                    CompoundTag compoundTag = new CompoundTag();
-                    if (entityCopyFrom.saveAsPassenger(compoundTag)) {
-                        compoundTag.remove("Dimension");
-                        tag = tag.merge(compoundTag);
+                    try (final ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(
+                            entityCopyFrom.problemPath(), AxiomPaper.PLUGIN.getSLF4JLogger()
+                    )) {
+                        TagValueOutput output = TagValueOutput.createWrappingWithContext(
+                                reporter,
+                                serverLevel.registryAccess(),
+                                new CompoundTag()
+                        );
+
+                        if (entityCopyFrom.saveAsPassenger(output)) {
+                            CompoundTag compoundTag = output.buildResult();
+                            compoundTag.remove("Dimension");
+                            tag = tag.merge(compoundTag);
+                        }
                     }
                 }
             }

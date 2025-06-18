@@ -12,8 +12,10 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.storage.TagValueOutput;
 import org.bukkit.Location;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 
@@ -75,23 +77,33 @@ public class RequestEntityDataPacketListener implements PacketHandler {
                 continue;
             }
 
-            CompoundTag entityTag = new CompoundTag();
-            if (entity.save(entityTag)) {
-                int size = entityTag.sizeInBytes();
-                if (size >= maxPacketSize) {
-                    sendResponse(player, id, false, Map.of(uuid, entityTag));
-                    continue;
-                }
+            try (final ProblemReporter.ScopedCollector reporter = new ProblemReporter.ScopedCollector(
+                    entity.problemPath(), AxiomPaper.PLUGIN.getSLF4JLogger()
+            )) {
+                TagValueOutput output = TagValueOutput.createWrappingWithContext(
+                        reporter,
+                        serverLevel.registryAccess(),
+                        new CompoundTag()
+                );
 
-                // Send partial packet if we've run out of available bytes
-                if (remainingBytes - size < 0) {
-                    sendResponse(player, id, false, entityData);
-                    entityData.clear();
-                    remainingBytes = maxPacketSize;
-                }
+                if (entity.save(output)) {
+                    CompoundTag entityTag = output.buildResult();
+                    int size = entityTag.sizeInBytes();
+                    if (size >= maxPacketSize) {
+                        sendResponse(player, id, false, Map.of(uuid, entityTag));
+                        continue;
+                    }
 
-                entityData.put(uuid, entityTag);
-                remainingBytes -= size;
+                    // Send partial packet if we've run out of available bytes
+                    if (remainingBytes - size < 0) {
+                        sendResponse(player, id, false, entityData);
+                        entityData.clear();
+                        remainingBytes = maxPacketSize;
+                    }
+
+                    entityData.put(uuid, entityTag);
+                    remainingBytes -= size;
+                }
             }
         }
 
