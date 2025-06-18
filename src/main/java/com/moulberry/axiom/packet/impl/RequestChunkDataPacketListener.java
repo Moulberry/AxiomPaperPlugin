@@ -70,7 +70,7 @@ public class RequestChunkDataPacketListener implements PacketHandler {
 
         ResourceKey<Level> worldKey = friendlyByteBuf.readResourceKey(Registries.DIMENSION);
         ServerLevel level = server.getLevel(worldKey);
-        if (level == null || level != player.serverLevel()) {
+        if (level == null || level != player.level()) {
             sendEmptyResponse(player, id);
             return;
         }

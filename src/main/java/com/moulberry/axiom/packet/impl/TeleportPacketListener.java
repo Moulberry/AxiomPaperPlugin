@@ -40,7 +40,7 @@ public class TeleportPacketListener implements PacketHandler {
 
         // Prevent teleport based on config value
         boolean allowTeleportBetweenWorlds = this.plugin.configuration.getBoolean("allow-teleport-between-worlds");
-        if (!allowTeleportBetweenWorlds && !((CraftPlayer)player).getHandle().serverLevel().dimension().equals(resourceKey)) {
+        if (!allowTeleportBetweenWorlds && !((CraftPlayer)player).getHandle().level().dimension().equals(resourceKey)) {
             return;
         }
 

@@ -47,7 +47,7 @@ public class RequestEntityDataPacketListener implements PacketHandler {
         }
 
         List<UUID> request = friendlyByteBuf.readCollection(this.plugin.limitCollection(ArrayList::new), buf -> buf.readUUID());
-        ServerLevel serverLevel = player.serverLevel();
+        ServerLevel serverLevel = player.level();
 
         final int maxPacketSize = 0x100000;
         int remainingBytes = maxPacketSize;

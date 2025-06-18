@@ -64,7 +64,7 @@ public class HelloPacketListener implements PacketHandler {
         int dataVersion = friendlyByteBuf.readVarInt();
         int protocolVersion = friendlyByteBuf.readVarInt();
 
-        int serverDataVersion = SharedConstants.getCurrentVersion().getDataVersion().getVersion();
+        int serverDataVersion = SharedConstants.getCurrentVersion().dataVersion().version();
         if (protocolVersion != SharedConstants.getProtocolVersion()) {
             String incompatibleDataVersion = plugin.configuration.getString("incompatible-data-version");
             if (incompatibleDataVersion == null) incompatibleDataVersion = "warn";

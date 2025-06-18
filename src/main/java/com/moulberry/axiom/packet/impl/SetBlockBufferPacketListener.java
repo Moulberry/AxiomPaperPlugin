@@ -131,7 +131,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
     private void applyBlockBuffer(ServerPlayer player, MinecraftServer server, BlockBuffer buffer, ResourceKey<Level> worldKey) {
         server.execute(() -> {
             try {
-                ServerLevel world = player.serverLevel();
+                ServerLevel world = player.level();
                 if (!world.dimension().equals(worldKey)) return;
 
                 if (!this.plugin.canUseAxiom(player.getBukkitEntity(), "axiom.build.section")) {
@@ -324,7 +324,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
     private void applyBiomeBuffer(ServerPlayer player, MinecraftServer server, BiomeBuffer biomeBuffer, ResourceKey<Level> worldKey) {
         server.execute(() -> {
             try {
-                ServerLevel world = player.serverLevel();
+                ServerLevel world = player.level();
                 if (!world.dimension().equals(worldKey)) return;
 
                 if (!this.plugin.canUseAxiom(player.getBukkitEntity(), "axiom.build.section")) {
