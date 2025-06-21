@@ -15,12 +15,15 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Location;
 import org.bukkit.craftbukkit.CraftWorld;
@@ -119,9 +122,14 @@ public class ManipulateEntityPacketListener implements PacketHandler {
             if (entry.merge != null && !entry.merge.isEmpty()) {
                 NbtSanitization.sanitizeEntity(entry.merge);
 
-                CompoundTag compoundTag = entity.saveWithoutId(new CompoundTag());
+                var valueOutput = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, entity.registryAccess());
+                entity.saveWithoutId(valueOutput);
+                CompoundTag compoundTag = valueOutput.buildResult();
+
                 compoundTag = merge(compoundTag, entry.merge);
-                entity.load(compoundTag);
+
+                var valueInput = TagValueInput.create(ProblemReporter.DISCARDING, entity.registryAccess(), compoundTag);
+                entity.load(valueInput);
             }
 
             entity.setPosRaw(position.x, position.y, position.z);

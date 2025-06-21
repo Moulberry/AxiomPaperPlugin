@@ -13,6 +13,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
@@ -20,6 +21,7 @@ import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Location;
 import org.bukkit.craftbukkit.CraftWorld;
@@ -85,10 +87,11 @@ public class SpawnEntityPacketListener implements PacketHandler {
             if (entry.copyFrom != null) {
                 Entity entityCopyFrom = serverLevel.getEntity(entry.copyFrom);
                 if (entityCopyFrom != null) {
-                    CompoundTag compoundTag = new CompoundTag();
-                    if (entityCopyFrom.saveAsPassenger(compoundTag)) {
-                        compoundTag.remove("Dimension");
-                        tag = tag.merge(compoundTag);
+                    var valueOutput = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, entityCopyFrom.registryAccess());
+                    CompoundTag saved = entityCopyFrom.saveAsPassenger(valueOutput) ? valueOutput.buildResult() : null;
+                    if (saved != null) {
+                        saved.remove("Dimension");
+                        tag = tag.merge(saved);
                     }
                 }
             }

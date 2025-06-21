@@ -27,6 +27,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.ai.village.poi.PoiType;
 import net.minecraft.world.entity.ai.village.poi.PoiTypes;
 import net.minecraft.world.level.ChunkPos;
@@ -42,6 +43,7 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.lighting.LightEngine;
+import net.minecraft.world.level.storage.TagValueInput;
 import org.bukkit.Location;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
@@ -131,7 +133,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
     private void applyBlockBuffer(ServerPlayer player, MinecraftServer server, BlockBuffer buffer, ResourceKey<Level> worldKey) {
         server.execute(() -> {
             try {
-                ServerLevel world = player.serverLevel();
+                ServerLevel world = player.level();
                 if (!world.dimension().equals(worldKey)) return;
 
                 if (!this.plugin.canUseAxiom(player.getBukkitEntity(), "axiom.build.section")) {
@@ -283,7 +285,8 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                                         int key = x | (y << 4) | (z << 8);
                                         CompressedBlockEntity savedBlockEntity = blockEntityChunkMap.get((short) key);
                                         if (savedBlockEntity != null) {
-                                            blockEntity.loadWithComponents(savedBlockEntity.decompress(), player.registryAccess());
+                                            var input = TagValueInput.create(ProblemReporter.DISCARDING, player.registryAccess(), savedBlockEntity.decompress());
+                                            blockEntity.loadWithComponents(input);
                                         }
                                     }
                                 } else if (old.hasBlockEntity()) {
@@ -324,7 +327,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
     private void applyBiomeBuffer(ServerPlayer player, MinecraftServer server, BiomeBuffer biomeBuffer, ResourceKey<Level> worldKey) {
         server.execute(() -> {
             try {
-                ServerLevel world = player.serverLevel();
+                ServerLevel world = player.level();
                 if (!world.dimension().equals(worldKey)) return;
 
                 if (!this.plugin.canUseAxiom(player.getBukkitEntity(), "axiom.build.section")) {

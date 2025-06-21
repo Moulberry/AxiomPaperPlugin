@@ -62,7 +62,7 @@ public class BlueprintIo {
         byte[] thumbnailBytes = dataInputStream.readNBytes(thumbnailLength);
         if (thumbnailBytes.length < thumbnailLength) throw NOT_VALID_BLUEPRINT;
 
-        int currentDataVersion = SharedConstants.getCurrentVersion().getDataVersion().getVersion();
+        int currentDataVersion = DFUHelper.DATA_VERSION;
 
         // Block data
         dataInputStream.readInt(); // Ignore block data length
@@ -201,7 +201,7 @@ public class BlueprintIo {
             savedBlockRegions.add(tag);
         }
 
-        compound.putInt("DataVersion", SharedConstants.getCurrentVersion().getDataVersion().getVersion());
+        compound.putInt("DataVersion", DFUHelper.DATA_VERSION);
         compound.put("BlockRegion", savedBlockRegions);
 
         // Write Block Entities

@@ -12,8 +12,10 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.storage.TagValueOutput;
 import org.bukkit.Location;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 
@@ -47,7 +49,7 @@ public class RequestEntityDataPacketListener implements PacketHandler {
         }
 
         List<UUID> request = friendlyByteBuf.readCollection(this.plugin.limitCollection(ArrayList::new), buf -> buf.readUUID());
-        ServerLevel serverLevel = player.serverLevel();
+        ServerLevel serverLevel = player.level();
 
         final int maxPacketSize = 0x100000;
         int remainingBytes = maxPacketSize;
@@ -75,8 +77,9 @@ public class RequestEntityDataPacketListener implements PacketHandler {
                 continue;
             }
 
-            CompoundTag entityTag = new CompoundTag();
-            if (entity.save(entityTag)) {
+            var valueOutput = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, entity.registryAccess());
+            var entityTag = entity.save(valueOutput) ? valueOutput.buildResult() : null;
+            if (entityTag != null) {
                 int size = entityTag.sizeInBytes();
                 if (size >= maxPacketSize) {
                     sendResponse(player, id, false, Map.of(uuid, entityTag));

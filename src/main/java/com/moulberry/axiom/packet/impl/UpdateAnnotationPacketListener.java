@@ -45,7 +45,7 @@ public class UpdateAnnotationPacketListener implements PacketHandler {
         // Execute
         serverPlayer.getServer().execute(() -> {
             try {
-                ServerAnnotations.handleUpdates(serverPlayer.serverLevel().getWorld(), actions);
+                ServerAnnotations.handleUpdates(serverPlayer.level().getWorld(), actions);
             } catch (Throwable t) {
                 serverPlayer.getBukkitEntity().kick(net.kyori.adventure.text.Component.text(
                         "An error occured while updating annotations: " + t.getMessage()));

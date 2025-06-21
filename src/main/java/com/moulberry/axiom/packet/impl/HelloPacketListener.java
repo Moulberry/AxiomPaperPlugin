@@ -2,6 +2,7 @@ package com.moulberry.axiom.packet.impl;
 
 import com.google.common.util.concurrent.RateLimiter;
 import com.moulberry.axiom.*;
+import com.moulberry.axiom.blueprint.DFUHelper;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.event.AxiomHandshakeEvent;
 import com.moulberry.axiom.packet.PacketHandler;
@@ -65,7 +66,7 @@ public class HelloPacketListener implements PacketHandler {
         int dataVersion = friendlyByteBuf.readVarInt();
         int protocolVersion = friendlyByteBuf.readVarInt();
 
-        int serverDataVersion = SharedConstants.getCurrentVersion().getDataVersion().getVersion();
+        int serverDataVersion = DFUHelper.DATA_VERSION;
         if (protocolVersion != SharedConstants.getProtocolVersion()) {
             String incompatibleDataVersion = plugin.configuration.getString("incompatible-data-version");
             if (incompatibleDataVersion == null) incompatibleDataVersion = "warn";

@@ -11,7 +11,7 @@ import net.minecraft.util.datafix.fixes.References;
 
 public class DFUHelper {
 
-    private static final int DATA_VERSION = SharedConstants.getCurrentVersion().getDataVersion().getVersion();
+    public static final int DATA_VERSION = SharedConstants.getCurrentVersion().dataVersion().version();
 
     public static CompoundTag updatePalettedContainer(CompoundTag tag, int fromVersion) {
         if (!hasExpectedPaletteTag(tag)) {
