@@ -3,6 +3,8 @@ package com.moulberry.axiom;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundCustomPayloadPacket;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
@@ -28,6 +30,10 @@ public class VersionHelper {
 
     public static ResourceLocation createResourceLocation(String namespace, String path) {
         return new ResourceLocation(namespace, path);
+    }
+
+    public static ListTag getList(CompoundTag tag, String key, int type) {
+        return tag.getList(key, type);
     }
 
 }
