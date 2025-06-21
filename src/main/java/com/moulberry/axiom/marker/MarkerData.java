@@ -125,17 +125,17 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
             // Try to load min/max as absolute coordinates
             ListTag min = VersionHelper.getList(data, "min", Tag.TAG_DOUBLE);
             if (min.size() == 3) {
-                double minX = min.getDoubleOr(0, 0.0);
-                double minY = min.getDoubleOr(1, 0.0);
-                double minZ = min.getDoubleOr(2, 0.0);
+                double minX = min.getDouble(0);
+                double minY = min.getDouble(1);
+                double minZ = min.getDouble(2);
                 minRegion = new Vec3(minX, minY, minZ);
             }
 
             ListTag max = VersionHelper.getList(data, "max", Tag.TAG_DOUBLE);
             if (max.size() == 3) {
-                double maxX = max.getDoubleOr(0, 0.0);
-                double maxY = max.getDoubleOr(1, 0.0);
-                double maxZ = max.getDoubleOr(2, 0.0);
+                double maxX = max.getDouble(0);
+                double maxY = max.getDouble(1);
+                double maxZ = max.getDouble(2);
                 maxRegion = new Vec3(maxX, maxY, maxZ);
             }
 
@@ -143,9 +143,9 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
                 // Try to load min as string coordinates
                 min = VersionHelper.getList(data, "min", Tag.TAG_STRING);
                 if (min.size() == 3) {
-                    double minX = calculateCoordinate(min.getStringOr(0, ""), position.x);
-                    double minY = calculateCoordinate(min.getStringOr(1, ""), position.y);
-                    double minZ = calculateCoordinate(min.getStringOr(2, ""), position.z);
+                    double minX = calculateCoordinate(min.getString(0), position.x);
+                    double minY = calculateCoordinate(min.getString(1), position.y);
+                    double minZ = calculateCoordinate(min.getString(2), position.z);
                     if (Double.isFinite(minX) && Double.isFinite(minY) && Double.isFinite(minZ)) {
                         minRegion = new Vec3(minX, minY, minZ);
                     }
@@ -155,9 +155,9 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
                 // Try to load max as string coordinates
                 max = VersionHelper.getList(data, "max", Tag.TAG_STRING);
                 if (max.size() == 3) {
-                    double maxX = calculateCoordinate(max.getStringOr(0, ""), position.x);
-                    double maxY = calculateCoordinate(max.getStringOr(1, ""), position.y);
-                    double maxZ = calculateCoordinate(max.getStringOr(2, ""), position.z);
+                    double maxX = calculateCoordinate(max.getString(0), position.x);
+                    double maxY = calculateCoordinate(max.getString(1), position.y);
+                    double maxZ = calculateCoordinate(max.getString(2), position.z);
                     if (Double.isFinite(maxX) && Double.isFinite(maxY) && Double.isFinite(maxZ)) {
                         maxRegion = new Vec3(maxX, maxY, maxZ);
                     }
@@ -165,9 +165,9 @@ public record MarkerData(UUID uuid, Vec3 position, @Nullable String name, @Nulla
             }
 
             if (minRegion != null && maxRegion != null) {
-                lineArgb = data.getIntOr("line_argb", 0);
-                lineThickness = data.getIntOr("line_thickness", 0);
-                faceArgb = data.getIntOr("face_argb", 0);
+                lineArgb = data.getInt("line_argb");
+                lineThickness = data.getInt("line_thickness");
+                faceArgb = data.getInt("face_argb");
             }
         }
 
