@@ -360,8 +360,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
 
                     var holder = registry.getHolder(biome);
                     if (holder.isPresent()) {
-                        var chunk = (LevelChunk) world.getChunk(x >> 2, z >> 2, ChunkStatus.FULL, false);
-                        if (chunk == null) return;
+                        LevelChunk chunk = world.getChunk(x >> 2, z >> 2);
 
                         var section = chunk.getSection(cy - minSection);
                         PalettedContainer<Holder<Biome>> container = (PalettedContainer<Holder<Biome>>) section.getBiomes();
