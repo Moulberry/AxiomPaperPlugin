@@ -45,11 +45,7 @@ public record CompressedBlockEntity(int originalSize, byte compressionDict, byte
 
         try {
             byte[] nbt = Zstd.decompress(this.compressed, zstdDictDecompress, this.originalSize);
-<<<<<<< HEAD
-            return NbtIo.read(new DataInputStream(new ByteArrayInputStream(nbt)), new NbtAccounter(131072));
-=======
             return NbtIo.read(new DataInputStream(new ByteArrayInputStream(nbt)), AxiomPaper.PLUGIN.createNbtAccounter());
->>>>>>> 1c98367 (Raise NBT limit to maximum when 'allow-large-payload-for-all-packets' is used)
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
