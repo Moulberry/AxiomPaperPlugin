@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.moulberry.axiom"
-version = "4.0.4+1.21.5"
+version = "4.0.5+1.21.6"
 description = "Serverside component for Axiom on Paper"
 
 java {
@@ -26,9 +26,10 @@ repositories {
     maven("https://maven.playpro.com")
 }
 
+paperweight.reobfArtifactConfiguration = io.papermc.paperweight.userdev.ReobfArtifactConfiguration.MOJANG_PRODUCTION
+
 dependencies {
-    paperweight.paperDevBundle("1.21.5-R0.1-SNAPSHOT")
-    implementation(libs.reflection.remapper)
+    paperweight.paperDevBundle("1.21.6-R0.1-SNAPSHOT")
     implementation(libs.cloud.paper)
 
     // Zstd Compression Library
@@ -51,8 +52,8 @@ dependencies {
 
 tasks {
     // Configure reobfJar to run when invoking the build task
-    assemble {
-        dependsOn(reobfJar)
+    build {
+        dependsOn(shadowJar)
     }
 
     compileJava {

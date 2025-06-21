@@ -5,13 +5,10 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
-import io.netty.buffer.Unpooled;
-import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.IdMapper;
 import net.minecraft.core.SectionPos;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -42,10 +39,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.plugin.messaging.PluginMessageListener;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -64,11 +58,8 @@ public class SetBlockPacketListener implements PacketHandler {
     public SetBlockPacketListener(AxiomPaper plugin) {
         this.plugin = plugin;
 
-        ReflectionRemapper reflectionRemapper = ReflectionRemapper.forReobfMappingsInPaperJar();
-        String methodName = reflectionRemapper.remapMethodName(LevelChunk.class, "updateBlockEntityTicker", BlockEntity.class);
-
         try {
-            this.updateBlockEntityTicker = LevelChunk.class.getDeclaredMethod(methodName, BlockEntity.class);
+            this.updateBlockEntityTicker = LevelChunk.class.getDeclaredMethod("updateBlockEntityTicker", BlockEntity.class);
             this.updateBlockEntityTicker.setAccessible(true);
         } catch (Exception e) {
             e.printStackTrace();
@@ -135,9 +126,9 @@ public class SetBlockPacketListener implements PacketHandler {
 
             // Call BlockMultiPlace / BlockPlace event
             List<org.bukkit.block.BlockState> blockStates = new ArrayList<>();
-            World world = player.serverLevel().getWorld();
+            World world = player.level().getWorld();
             for (Map.Entry<BlockPos, BlockState> entry : blocks.entrySet()) {
-                BlockState existing = player.serverLevel().getBlockState(entry.getKey());
+                BlockState existing = player.level().getBlockState(entry.getKey());
                 if (existing.canBeReplaced()) {
                     blockStates.add(new AxiomPlacingCraftBlockState(world, entry.getKey(), entry.getValue()));
                 }
@@ -146,10 +137,10 @@ public class SetBlockPacketListener implements PacketHandler {
             if (!blockStates.isEmpty()) {
                 Cancellable event;
                 if (blockStates.size() > 1) {
-                    event = CraftEventFactory.callBlockMultiPlaceEvent(player.serverLevel(),
+                    event = CraftEventFactory.callBlockMultiPlaceEvent(player.level(),
                             player, hand, blockStates, blockHit.getBlockPos());
                 } else {
-                    event = CraftEventFactory.callBlockPlaceEvent(player.serverLevel(),
+                    event = CraftEventFactory.callBlockPlaceEvent(player.level(),
                             player, hand, blockStates.get(0), blockHit.getBlockPos());
                 }
                 if (event.isCancelled()) {
@@ -233,7 +224,7 @@ public class SetBlockPacketListener implements PacketHandler {
                 int cy = by >> 4;
                 int cz = bz >> 4;
 
-                ServerLevel level = player.serverLevel();
+                ServerLevel level = player.level();
                 LevelChunk chunk = level.getChunk(cx, cz);
                 chunk.markUnsaved();
 
