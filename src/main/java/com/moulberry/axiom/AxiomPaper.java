@@ -25,10 +25,8 @@ import net.minecraft.core.IdMapper;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.network.*;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
-import net.minecraft.network.protocol.common.custom.DiscardedPayload;
 import net.minecraft.network.protocol.game.GameProtocols;
 import net.minecraft.network.protocol.game.ServerGamePacketListener;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.state.BlockState;
@@ -136,6 +134,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerOutgoingPluginChannel(this, "axiom:marker_nbt_response");
         msg.registerOutgoingPluginChannel(this, "axiom:annotation_update");
         msg.registerOutgoingPluginChannel(this, "axiom:add_server_heightmap");
+        msg.registerOutgoingPluginChannel(this, "axiom:allowed_gamemodes");
 
         Map<String, PacketHandler> largePayloadHandlers = new HashMap<>();
 
@@ -191,6 +190,13 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             Files.createDirectories(heightmapsPath);
         } catch (IOException ignored) {}
         ServerHeightmaps.load(heightmapsPath);
+
+        AllowedGamemodes allowedGamemodes;
+        if (this.configuration.contains("allowed-gamemodes")) {
+            allowedGamemodes = new AllowedGamemodes(this.configuration.getStringList("allowed-gamemodes"));
+        } else {
+            allowedGamemodes = new AllowedGamemodes(null);
+        }
 
         Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
             Set<UUID> stillActiveAxiomPlayers = new HashSet<>();
@@ -287,6 +293,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
                         stillFailedAxiomPlayers.add(uuid);
                     }
                 }
+                allowedGamemodes.send(player);
             }
 
             this.failedPermissionAxiomPlayers.retainAll(stillFailedAxiomPlayers);

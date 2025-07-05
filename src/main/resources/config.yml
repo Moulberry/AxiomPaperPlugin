@@ -88,6 +88,12 @@ infinite-reach-limit: 256
 # Whether to log Axiom changes with CoreProtect (if CoreProtect is installed)
 log-core-protect-changes: true
 
+allowed-gamemodes:
+  - "survival"
+  - "creative"
+  - "adventure"
+  - "spectator"
+
 # Toggles for individual packet handlers. May break certain features
 packet-handlers:
   hello: true
