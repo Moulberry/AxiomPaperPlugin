@@ -54,6 +54,7 @@ permissions:
     description: Allows use of all editor-related features
     default: op
     children:
+      axiom.editor.use: true
       axiom.editor.views: true
   axiom.player.*:
     description: Allows use of all player-related features

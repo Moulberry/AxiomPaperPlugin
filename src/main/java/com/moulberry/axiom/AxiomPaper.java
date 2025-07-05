@@ -256,18 +256,21 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
                         boolean allowImportingBlocks = player.hasPermission("axiom.can_import_blocks");
                         boolean canCreateAnnotations = this.allowAnnotations && player.hasPermission("axiom.annotation.create");
+                        boolean canUseEditor = player.hasPermission("axiom.editor.use");
 
                         if (restrictions.maxSectionsPerSecond != rateLimit ||
                                 restrictions.canImportBlocks != allowImportingBlocks ||
                                 restrictions.canCreateAnnotations != canCreateAnnotations ||
                                 restrictions.allowedCapabilities != allowedCapabilities ||
                                 restrictions.infiniteReachLimit != infiniteReachLimit ||
+                                restrictions.canUseEditor != canUseEditor ||
                                 !Objects.equals(restrictions.bounds, bounds)) {
                             restrictions.maxSectionsPerSecond = rateLimit;
                             restrictions.canImportBlocks = allowImportingBlocks;
                             restrictions.canCreateAnnotations = canCreateAnnotations;
                             restrictions.allowedCapabilities = allowedCapabilities;
                             restrictions.infiniteReachLimit = infiniteReachLimit;
+                            restrictions.canUseEditor = canUseEditor;
                             restrictions.bounds = bounds;
                             send = true;
                         }
