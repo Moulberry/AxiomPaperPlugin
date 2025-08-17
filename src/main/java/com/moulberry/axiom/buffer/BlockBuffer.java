@@ -1,6 +1,7 @@
 package com.moulberry.axiom.buffer;
 
 import com.google.common.util.concurrent.RateLimiter;
+import com.mojang.serialization.Codec;
 import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
@@ -11,16 +12,27 @@ import it.unimi.dsi.fastutil.shorts.Short2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.IdMapper;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.PalettedContainer;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BlockBuffer {
 
-    public static final BlockState EMPTY_STATE = Blocks.STRUCTURE_VOID.defaultBlockState();
+    public static final BlockState EMPTY_STATE = Blocks.VOID_AIR.defaultBlockState();
+
+    private static final Map<BlockState, Codec<PalettedContainer<BlockState>>> BLOCK_STATE_CODECS = new HashMap<>();
+
+    public static Codec<PalettedContainer<BlockState>> getCodecForEmptyBlockState(BlockState empty) {
+        return BLOCK_STATE_CODECS.computeIfAbsent(empty, emptyState -> {
+            return PalettedContainer.codecRW(Block.BLOCK_STATE_REGISTRY, BlockState.CODEC, PalettedContainer.Strategy.SECTION_STATES, emptyState);
+        });
+    }
 
     private final Long2ObjectMap<PalettedContainer<BlockState>> values;
 
@@ -56,8 +68,7 @@ public class BlockBuffer {
         friendlyByteBuf.writeLong(AxiomConstants.MIN_POSITION_LONG);
     }
 
-    public static BlockBuffer load(FriendlyByteBuf friendlyByteBuf, @Nullable RateLimiter rateLimiter, AtomicBoolean reachedRateLimit,
-                                   IdMapper<BlockState> registry) {
+    public static BlockBuffer load(FriendlyByteBuf friendlyByteBuf, IdMapper<BlockState> registry) {
         BlockBuffer buffer = new BlockBuffer(registry);
 
         long totalBlockEntities = 0;
@@ -66,15 +77,6 @@ public class BlockBuffer {
         while (true) {
             long index = friendlyByteBuf.readLong();
             if (index == AxiomConstants.MIN_POSITION_LONG) break;
-
-            if (rateLimiter != null) {
-                if (!rateLimiter.tryAcquire()) {
-                    reachedRateLimit.set(true);
-                    buffer.totalBlockEntities = totalBlockEntities;
-                    buffer.totalBlockEntityBytes = totalBlockEntityBytes;
-                    return buffer;
-                }
-            }
 
             PalettedContainer<BlockState> palettedContainer = buffer.getOrCreateSection(index);
             palettedContainer.read(friendlyByteBuf);
@@ -127,6 +129,10 @@ public class BlockBuffer {
         } else {
             return state;
         }
+    }
+
+    public int getSectionCount() {
+        return this.values.size();
     }
 
     public void set(int x, int y, int z, BlockState state) {

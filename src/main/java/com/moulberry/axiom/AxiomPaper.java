@@ -1,6 +1,5 @@
 package com.moulberry.axiom;
 
-import com.google.common.util.concurrent.RateLimiter;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.commands.AxiomDebugCommand;
@@ -10,6 +9,9 @@ import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.*;
 import com.moulberry.axiom.packet.impl.*;
+import com.moulberry.axiom.restrictions.AxiomPermission;
+import com.moulberry.axiom.restrictions.AxiomPermissionSet;
+import com.moulberry.axiom.restrictions.Restrictions;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -18,18 +20,20 @@ import io.papermc.paper.event.player.PlayerFailMoveEvent;
 import io.papermc.paper.event.world.WorldGameRuleChangeEvent;
 import io.papermc.paper.network.ChannelInitializeListener;
 import io.papermc.paper.network.ChannelInitializeListenerHolder;
+import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.kyori.adventure.key.Key;
+import net.kyori.adventure.util.TriState;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.IdMapper;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.network.*;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
-import net.minecraft.network.protocol.common.custom.DiscardedPayload;
 import net.minecraft.network.protocol.game.GameProtocols;
 import net.minecraft.network.protocol.game.ServerGamePacketListener;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.*;
@@ -61,10 +65,12 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     public final Set<UUID> activeAxiomPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
     public final Set<UUID> failedPermissionAxiomPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
-    public final Map<UUID, RateLimiter> playerBlockBufferRateLimiters = new ConcurrentHashMap<>();
     public final Map<UUID, Restrictions> playerRestrictions = new ConcurrentHashMap<>();
     public final Map<UUID, IdMapper<BlockState>> playerBlockRegistry = new ConcurrentHashMap<>();
     public final Map<UUID, Integer> playerProtocolVersion = new ConcurrentHashMap<>();
+    private final Map<UUID, AxiomPermissionSet> playerPermissions = new HashMap<>();
+    private final Map<UUID, PlotSquaredIntegration.PlotBounds> lastPlotBoundsForPlayers = new HashMap<>();
+    private final Object2IntOpenHashMap<UUID> availableDispatchSends = new Object2IntOpenHashMap<>();
     public Configuration configuration;
 
     public IdMapper<BlockState> allowedBlockRegistry = null;
@@ -74,10 +80,16 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     private Set<EntityType<?>> whitelistedEntities = new HashSet<>();
     private Set<EntityType<?>> blacklistedEntities = new HashSet<>();
 
+    private int allowedDispatchSendsPerSecond = 1024;
+
     public boolean logCoreProtectChanges = true;
 
     public Path blueprintFolder = null;
     public boolean allowAnnotations = false;
+    private int infiniteReachLimit = -1;
+    private boolean sendMarkers = false;
+    private int maxChunkRelightsPerTick = 0;
+    private int maxChunkSendsPerTick = 0;
 
     @Override
     public void onEnable() {
@@ -114,9 +126,9 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         this.allowedBlockRegistry = DisallowedBlocks.createAllowedBlockRegistry(disallowedBlocks);
 
         this.allowAnnotations = this.configuration.getBoolean("allow-annotations");
+        boolean allowServerBlueprints = this.configuration.getBoolean("blueprint-sharing");
 
-        int allowedCapabilities = calculateAllowedCapabilities();
-        int infiniteReachLimit = this.configuration.getInt("infinite-reach-limit");
+        this.infiniteReachLimit = this.configuration.getInt("infinite-reach-limit");
 
         Bukkit.getPluginManager().registerEvents(this, this);
         // Bukkit.getPluginManager().registerEvents(new WorldPropertiesExample(), this);
@@ -144,21 +156,26 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         registerPacketHandler("set_fly_speed", new SetFlySpeedPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
         registerPacketHandler("set_world_time", new SetTimePacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
         registerPacketHandler("set_world_property", new SetWorldPropertyListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
-        registerPacketHandler("set_block", new SetBlockPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers); // set-single-block
+        registerPacketHandler("set_block", new SetBlockPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
         registerPacketHandler("teleport", new TeleportPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
-        registerPacketHandler("request_chunk_data", new RequestChunkDataPacketListener(this, !configuration.getBoolean("packet-handlers.request-chunk-data")), msg,
+        registerPacketHandler("request_chunk_data", new RequestChunkDataPacketListener(this), msg,
                 this.configuration.getBoolean("allow-large-chunk-data-request") ? LargePayloadBehaviour.FORCE_LARGE : LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
-        registerPacketHandler("request_entity_data", new RequestEntityDataPacketListener(this, !configuration.getBoolean("packet-handlers.request-entity-data")), msg,
+        registerPacketHandler("request_entity_data", new RequestEntityDataPacketListener(this), msg,
                 this.configuration.getBoolean("allow-large-chunk-data-request") ? LargePayloadBehaviour.FORCE_LARGE : LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
         registerPacketHandler("spawn_entity", new SpawnEntityPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
         registerPacketHandler("manipulate_entity", new ManipulateEntityPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
         registerPacketHandler("delete_entity", new DeleteEntityPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
         registerPacketHandler("marker_nbt_request", new MarkerNbtRequestPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
-        registerPacketHandler("request_blueprint", new BlueprintRequestPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
 
         registerPacketHandler("set_buffer", new SetBlockBufferPacketListener(this), msg, LargePayloadBehaviour.FORCE_LARGE, largePayloadHandlers);
-        registerPacketHandler("upload_blueprint", new UploadBlueprintPacketListener(this), msg, LargePayloadBehaviour.FORCE_LARGE, largePayloadHandlers);
-        registerPacketHandler("annotation_update", new UpdateAnnotationPacketListener(this), msg, LargePayloadBehaviour.FORCE_LARGE, largePayloadHandlers);
+
+        if (allowServerBlueprints) {
+            registerPacketHandler("upload_blueprint", new UploadBlueprintPacketListener(this), msg, LargePayloadBehaviour.FORCE_LARGE, largePayloadHandlers);
+            registerPacketHandler("request_blueprint", new BlueprintRequestPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        }
+        if (this.allowAnnotations) {
+            registerPacketHandler("annotation_update", new UpdateAnnotationPacketListener(this), msg, LargePayloadBehaviour.FORCE_LARGE, largePayloadHandlers);
+        }
 
         if (!largePayloadHandlers.isEmpty()) {
             // Hack to figure out the id of the CustomPayload packet
@@ -183,7 +200,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             });
         }
 
-        if (this.configuration.getBoolean("blueprint-sharing")) {
+        if (allowServerBlueprints) {
             this.blueprintFolder = this.getDataFolder().toPath().resolve("blueprints");
             try {
                 Files.createDirectories(this.blueprintFolder);
@@ -197,117 +214,18 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         } catch (IOException ignored) {}
         ServerHeightmaps.load(heightmapsPath);
 
-        Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
-            Set<UUID> stillActiveAxiomPlayers = new HashSet<>();
-            Set<UUID> stillFailedAxiomPlayers = new HashSet<>();
+        Bukkit.getScheduler().scheduleSyncRepeatingTask(this, this::tick, 1, 1);
 
-            int rateLimit = this.configuration.getInt("block-buffer-rate-limit");
-            if (rateLimit > 0) {
-                // Reduce by 20% just to prevent synchronization/timing issues
-                rateLimit = rateLimit * 8/10;
-                if (rateLimit <= 0) rateLimit = 1;
-            }
+        this.sendMarkers = this.configuration.getBoolean("send-markers");
+        this.maxChunkRelightsPerTick = this.configuration.getInt("max-chunk-relights-per-tick");
+        this.maxChunkSendsPerTick = this.configuration.getInt("max-chunk-sends-per-tick");
 
-            for (Player player : Bukkit.getServer().getOnlinePlayers()) {
-                UUID uuid = player.getUniqueId();
-                if (this.activeAxiomPlayers.contains(uuid)) {
-                    if (!this.hasAxiomPermission(player)) {
-                        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-                        buf.writeBoolean(false);
-                        byte[] bytes = ByteBufUtil.getBytes(buf);
-                        VersionHelper.sendCustomPayload(player, "axiom:enable", bytes);
+        this.logCoreProtectChanges = this.configuration.getBoolean("log-core-protect-changes");
 
-                        this.failedPermissionAxiomPlayers.add(uuid);
-                        this.activeAxiomPlayers.remove(uuid);
-                    } else {
-                        boolean send = false;
-
-                        stillActiveAxiomPlayers.add(uuid);
-
-                        Restrictions restrictions = this.playerRestrictions.get(uuid);
-                        if (restrictions == null) {
-                            restrictions = new Restrictions();
-                            this.playerRestrictions.put(uuid, restrictions);
-                            send = true;
-                        }
-
-                        Set<PlotSquaredIntegration.PlotBox> bounds = Set.of();
-
-                        if (!player.hasPermission("axiom.allow_copying_other_plots")) {
-                            if (PlotSquaredIntegration.isPlotWorld(player.getWorld())) {
-                                PlotSquaredIntegration.PlotBounds editable = PlotSquaredIntegration.getCurrentEditablePlot(player);
-                                if (editable != null) {
-                                    restrictions.lastPlotBounds = editable;
-                                    bounds = editable.boxes();
-                                } else if (restrictions.lastPlotBounds != null && restrictions.lastPlotBounds.worldName().equals(player.getWorld().getName())) {
-                                    bounds = restrictions.lastPlotBounds.boxes();
-                                } else {
-                                    bounds = Set.of(new PlotSquaredIntegration.PlotBox(BlockPos.ZERO, BlockPos.ZERO));
-                                }
-                            }
-
-                            if (bounds.size() == 1) {
-                                PlotSquaredIntegration.PlotBox plotBounds = bounds.iterator().next();
-
-                                int min = Integer.MIN_VALUE;
-                                int max = Integer.MAX_VALUE;
-
-                                if (plotBounds.min().getX() == min && plotBounds.min().getY() == min && plotBounds.min().getZ() == min &&
-                                        plotBounds.max().getX() == max && plotBounds.max().getY() == max && plotBounds.max().getZ() == max) {
-                                    bounds = Set.of();
-                                }
-                            }
-                        }
-
-                        boolean allowImportingBlocks = player.hasPermission("axiom.can_import_blocks");
-                        boolean canCreateAnnotations = this.allowAnnotations && player.hasPermission("axiom.annotation.create");
-
-                        if (restrictions.maxSectionsPerSecond != rateLimit ||
-                                restrictions.canImportBlocks != allowImportingBlocks ||
-                                restrictions.canCreateAnnotations != canCreateAnnotations ||
-                                restrictions.allowedCapabilities != allowedCapabilities ||
-                                restrictions.infiniteReachLimit != infiniteReachLimit ||
-                                !Objects.equals(restrictions.bounds, bounds)) {
-                            restrictions.maxSectionsPerSecond = rateLimit;
-                            restrictions.canImportBlocks = allowImportingBlocks;
-                            restrictions.canCreateAnnotations = canCreateAnnotations;
-                            restrictions.allowedCapabilities = allowedCapabilities;
-                            restrictions.infiniteReachLimit = infiniteReachLimit;
-                            restrictions.bounds = bounds;
-                            send = true;
-                        }
-
-                        if (send) {
-                            restrictions.send(this, player);
-                        }
-                    }
-                } else if (this.failedPermissionAxiomPlayers.contains(uuid)) {
-                    if (this.hasAxiomPermission(player)) {
-                        this.failedPermissionAxiomPlayers.remove(uuid);
-                        VersionHelper.sendCustomPayload(player, "axiom:redo_handshake", new byte[]{});
-                    } else {
-                        stillFailedAxiomPlayers.add(uuid);
-                    }
-                }
-            }
-
-            this.failedPermissionAxiomPlayers.retainAll(stillFailedAxiomPlayers);
-            this.activeAxiomPlayers.retainAll(stillActiveAxiomPlayers);
-            this.playerBlockBufferRateLimiters.keySet().retainAll(stillActiveAxiomPlayers);
-            this.playerRestrictions.keySet().retainAll(stillActiveAxiomPlayers);
-            this.playerBlockRegistry.keySet().retainAll(stillActiveAxiomPlayers);
-            this.playerProtocolVersion.keySet().retainAll(stillActiveAxiomPlayers);
-        }, 20, 20);
-
-        boolean sendMarkers = configuration.getBoolean("send-markers");
-        int maxChunkRelightsPerTick = configuration.getInt("max-chunk-relights-per-tick");
-        int maxChunkSendsPerTick = configuration.getInt("max-chunk-sends-per-tick");
-
-        this.logCoreProtectChanges = configuration.getBoolean("log-core-protect-changes");
-
-        Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
-            WorldExtension.tick(MinecraftServer.getServer(), sendMarkers, maxChunkRelightsPerTick, maxChunkSendsPerTick);
-        }, 1, 1);
+        this.allowedDispatchSendsPerSecond = configuration.getInt("block-buffer-rate-limit");
+        if (this.allowedDispatchSendsPerSecond <= 0) {
+            this.allowedDispatchSendsPerSecond = 1024;
+        }
 
         try {
             LegacyPaperCommandManager<CommandSender> manager = LegacyPaperCommandManager.createNative(
@@ -335,47 +253,190 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         FORCE_SMALL
     }
 
-    private void registerPacketHandler(String name, PacketHandler handler, Messenger messenger, LargePayloadBehaviour behaviour,
-                                       Map<String, PacketHandler> largePayloadHandlers) {
-        String configEntry = "packet-handlers." + name.replace("_", "-");
-        if (name.equals("set_block")) {
-            configEntry = "packet-handlers.set-single-block";
-        } else if (name.equals("request_blueprint")) {
-            configEntry = "packet-handlers.blueprint-request";
-        }
-        if (name.equals("request_chunk_data") || name.equals("request_entity_data") || this.configuration.getBoolean(configEntry, true)) {
-            boolean isLargePayload = switch (behaviour) {
-                case DEFAULT -> this.configuration.getBoolean("allow-large-payload-for-all-packets");
-                case FORCE_LARGE -> true;
-                case FORCE_SMALL -> false;
-            };
+    private void tick() {
+        Set<UUID> stillActiveAxiomPlayers = new HashSet<>();
+        Set<UUID> stillFailedAxiomPlayers = new HashSet<>();
 
-            if (isLargePayload) {
-                largePayloadHandlers.put("axiom:"+name, handler);
-                messenger.registerIncomingPluginChannel(this, "axiom:"+name, new DummyPacketListener());
-            } else {
-                messenger.registerIncomingPluginChannel(this, "axiom:"+name, new WrapperPacketListener(handler));
+        // Clear cached permissions
+        this.playerPermissions.clear();
+
+        for (Player player : Bukkit.getServer().getOnlinePlayers()) {
+            UUID uuid = player.getUniqueId();
+            if (this.activeAxiomPlayers.contains(uuid)) {
+                if (!this.hasPermission(player, AxiomPermission.USE)) {
+                    FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+                    buf.writeBoolean(false);
+                    byte[] bytes = ByteBufUtil.getBytes(buf);
+                    VersionHelper.sendCustomPayload(player, "axiom:enable", bytes);
+
+                    this.failedPermissionAxiomPlayers.add(uuid);
+                } else {
+                    stillActiveAxiomPlayers.add(uuid);
+                    tickPlayer(player);
+                }
+            } else if (this.failedPermissionAxiomPlayers.contains(uuid)) {
+                if (this.hasPermission(player, AxiomPermission.USE)) {
+                    VersionHelper.sendCustomPayload(player, "axiom:redo_handshake", new byte[]{});
+                    this.failedPermissionAxiomPlayers.remove(uuid);
+                } else {
+                    stillFailedAxiomPlayers.add(uuid);
+                }
             }
+        }
+
+        this.activeAxiomPlayers.retainAll(stillActiveAxiomPlayers);
+        this.availableDispatchSends.keySet().retainAll(stillActiveAxiomPlayers);
+        this.playerRestrictions.keySet().retainAll(stillActiveAxiomPlayers);
+        this.playerBlockRegistry.keySet().retainAll(stillActiveAxiomPlayers);
+        this.playerProtocolVersion.keySet().retainAll(stillActiveAxiomPlayers);
+        this.lastPlotBoundsForPlayers.keySet().retainAll(stillActiveAxiomPlayers);
+
+        this.failedPermissionAxiomPlayers.retainAll(stillFailedAxiomPlayers);
+
+        WorldExtension.tick(MinecraftServer.getServer(), this.sendMarkers, this.maxChunkRelightsPerTick, this.maxChunkSendsPerTick);
+    }
+
+    public boolean consumeDispatchSends(Player player, int sends, int clientAvailableDispatchSends) {
+        int currentSends = this.availableDispatchSends.getOrDefault(player.getUniqueId(), this.allowedDispatchSendsPerSecond*20);
+        currentSends -= sends*20;
+        currentSends = Math.min(currentSends, clientAvailableDispatchSends*20);
+        this.availableDispatchSends.put(player.getUniqueId(), currentSends);
+
+        if (currentSends < -this.allowedDispatchSendsPerSecond*20) {
+            player.kick(net.kyori.adventure.text.Component.text("You are sending updates too fast!"));
+            return false;
+        } else {
+            return true;
         }
     }
 
-    private int calculateAllowedCapabilities() {
-        Set<String> allowed = new HashSet<>(this.configuration.getStringList("allow-capabilities"));
-        if (allowed.contains("all")) {
-            return -1;
+    public void tickPlayer(Player player) {
+        if (!this.availableDispatchSends.containsKey(player.getUniqueId())) {
+            this.availableDispatchSends.put(player.getUniqueId(), this.allowedDispatchSendsPerSecond*20);
+            sendUpdateAvailableDispatchSends(player, this.allowedDispatchSendsPerSecond, this.allowedDispatchSendsPerSecond);
+        } else {
+            int previousAllowed20 = this.availableDispatchSends.getInt(player.getUniqueId());
+            int newAllowed20 = Math.min(this.allowedDispatchSendsPerSecond*20, previousAllowed20 + this.allowedDispatchSendsPerSecond);
+            this.availableDispatchSends.put(player.getUniqueId(), newAllowed20);
+
+            int previousAllowed = previousAllowed20 / 20;
+            int newAllowed = newAllowed20 / 20;
+            if (previousAllowed != newAllowed) {
+                sendUpdateAvailableDispatchSends(player, newAllowed - previousAllowed, this.allowedDispatchSendsPerSecond);
+            }
         }
 
-        int allowedCapabilities = 0;
-        if (allowed.contains("bulldozer")) allowedCapabilities |= Restrictions.ALLOW_BULLDOZER;
-        if (allowed.contains("replace_mode")) allowedCapabilities |= Restrictions.ALLOW_REPLACE_MODE;
-        if (allowed.contains("force_place")) allowedCapabilities |= Restrictions.ALLOW_FORCE_PLACE;
-        if (allowed.contains("no_updates")) allowedCapabilities |= Restrictions.ALLOW_NO_UPDATES;
-        if (allowed.contains("tinker")) allowedCapabilities |= Restrictions.ALLOW_TINKER;
-        if (allowed.contains("infinite_reach")) allowedCapabilities |= Restrictions.ALLOW_INFINITE_REACH;
-        if (allowed.contains("fast_place")) allowedCapabilities |= Restrictions.ALLOW_FAST_PLACE;
-        if (allowed.contains("angel_placement")) allowedCapabilities |= Restrictions.ALLOW_ANGEL_PLACEMENT;
-        if (allowed.contains("no_clip")) allowedCapabilities |= Restrictions.ALLOW_NO_CLIP;
-        return allowedCapabilities;
+        Restrictions restrictions = this.calculateRestrictions(player);
+
+        boolean restrictionsChanged;
+
+        if (this.playerRestrictions.containsKey(player.getUniqueId())) {
+            Restrictions oldRestrictions = this.playerRestrictions.get(player.getUniqueId());
+            restrictionsChanged = !Objects.equals(restrictions, oldRestrictions);
+        } else {
+            restrictionsChanged = true;
+        }
+
+        if (restrictionsChanged) {
+            restrictions.send(player);
+            this.playerRestrictions.put(player.getUniqueId(), restrictions);
+        }
+    }
+
+    private void sendUpdateAvailableDispatchSends(Player player, int add, int max) {
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+        buf.writeVarInt(add);
+        buf.writeVarInt(max);
+        byte[] bytes = ByteBufUtil.getBytes(buf);
+        VersionHelper.sendCustomPayload(player, "axiom:update_available_dispatch_sends", bytes);
+    }
+
+    private Restrictions calculateRestrictions(Player player) {
+        if (player.isOp()) {
+            Restrictions restrictions = new Restrictions();
+            restrictions.allowedPermissions = EnumSet.of(AxiomPermission.ALL);
+            restrictions.infiniteReachLimit = this.infiniteReachLimit;
+            return restrictions;
+        }
+
+        AxiomPermissionSet permissionSet = this.getPermissions(player);
+
+        if (permissionSet.contains(AxiomPermission.ALL)) {
+            Restrictions restrictions = new Restrictions();
+            restrictions.allowedPermissions = EnumSet.of(AxiomPermission.ALL);
+            restrictions.infiniteReachLimit = this.infiniteReachLimit;
+            return restrictions;
+        }
+
+        Set<PlotSquaredIntegration.PlotBox> bounds = Set.of();
+
+        if (!player.hasPermission("axiom.allow_copying_other_plots")) {
+            if (PlotSquaredIntegration.isPlotWorld(player.getWorld())) {
+                PlotSquaredIntegration.PlotBounds editable = PlotSquaredIntegration.getCurrentEditablePlot(player);
+                if (editable != null) {
+                    lastPlotBoundsForPlayers.put(player.getUniqueId(), editable);
+                    bounds = editable.boxes();
+                } else {
+                    PlotSquaredIntegration.PlotBounds lastPlotBounds = lastPlotBoundsForPlayers.get(player.getUniqueId());
+                    if (lastPlotBounds != null && lastPlotBounds.worldName().equals(player.getWorld().getName())) {
+                        bounds = lastPlotBounds.boxes();
+                    } else {
+                        bounds = Set.of(new PlotSquaredIntegration.PlotBox(BlockPos.ZERO, BlockPos.ZERO));
+                    }
+                }
+            }
+
+            if (bounds.size() == 1) {
+                PlotSquaredIntegration.PlotBox plotBounds = bounds.iterator().next();
+
+                int min = Integer.MIN_VALUE;
+                int max = Integer.MAX_VALUE;
+
+                if (plotBounds.min().getX() == min && plotBounds.min().getY() == min && plotBounds.min().getZ() == min &&
+                        plotBounds.max().getX() == max && plotBounds.max().getY() == max && plotBounds.max().getZ() == max) {
+                    bounds = Set.of();
+                }
+            }
+        }
+
+        EnumSet<AxiomPermission> allowed = EnumSet.noneOf(AxiomPermission.class);
+        EnumSet<AxiomPermission> denied = EnumSet.noneOf(AxiomPermission.class);
+
+        for (AxiomPermission permission : permissionSet.explicitlyAllowed) {
+            if (permission.parent != null && permissionSet.explicitlyAllowed.contains(permission.parent)) {
+                continue;
+            }
+            allowed.add(permission);
+        }
+        for (AxiomPermission permission : permissionSet.explicitlyDenied) {
+            if (permission.parent != null && permissionSet.explicitlyDenied.contains(permission.parent)) {
+                continue;
+            }
+            denied.add(permission);
+        }
+
+        Restrictions restrictions = new Restrictions();
+        restrictions.allowedPermissions = allowed;
+        restrictions.deniedPermissions = denied;
+        restrictions.infiniteReachLimit = this.infiniteReachLimit;
+        restrictions.bounds = bounds;
+        return restrictions;
+    }
+
+    private void registerPacketHandler(String name, PacketHandler handler, Messenger messenger, LargePayloadBehaviour behaviour,
+                                       Map<String, PacketHandler> largePayloadHandlers) {
+        boolean isLargePayload = switch (behaviour) {
+            case DEFAULT -> this.configuration.getBoolean("allow-large-payload-for-all-packets");
+            case FORCE_LARGE -> true;
+            case FORCE_SMALL -> false;
+        };
+
+        if (isLargePayload) {
+            largePayloadHandlers.put("axiom:"+name, handler);
+            messenger.registerIncomingPluginChannel(this, "axiom:"+name, new DummyPacketListener());
+        } else {
+            messenger.registerIncomingPluginChannel(this, "axiom:"+name, new WrapperPacketListener(handler));
+        }
     }
 
     public <T> IntFunction<T> limitCollection(IntFunction<T> applier) {
@@ -390,29 +451,48 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         return this.logLargeBlockBufferChanges;
     }
 
-    public boolean hasAxiomPermission(Player player) {
-        return hasAxiomPermission(player, null, false);
-    }
-
-    public boolean hasAxiomPermission(Player player, String permission, boolean strict) {
-        if (player.hasPermission("axiom.*") || player.isOp()) {
-            return !strict || permission == null || player.hasPermission("axiom.all") || player.hasPermission(permission);
-        } else if (permission != null && !player.hasPermission(permission)) {
-            return false;
-        }
-        return player.hasPermission("axiom.use");
-    }
-
     public boolean canUseAxiom(Player player) {
-        return canUseAxiom(player, null, false);
+        return this.activeAxiomPlayers.contains(player.getUniqueId());
     }
 
-    public boolean canUseAxiom(Player player, String permission) {
-        return canUseAxiom(player, permission, false);
+    public boolean canUseAxiom(Player player, AxiomPermission axiomPermission) {
+        return this.activeAxiomPlayers.contains(player.getUniqueId()) && hasPermission(player, axiomPermission);
     }
 
-    public boolean canUseAxiom(Player player, String permission, boolean strict) {
-        return activeAxiomPlayers.contains(player.getUniqueId()) && hasAxiomPermission(player, permission, strict);
+    public AxiomPermissionSet getPermissions(Player player) {
+        return this.playerPermissions.computeIfAbsent(player.getUniqueId(), uuid -> {
+            return this.calculatePermissions(player);
+        });
+    }
+
+    public boolean hasPermission(Player player, AxiomPermission axiomPermission) {
+        if (player.isOp()) {
+            return true;
+        }
+        return this.getPermissions(player).contains(axiomPermission);
+    }
+
+    private AxiomPermissionSet calculatePermissions(Player player) {
+        if (player.isOp()) {
+            return AxiomPermissionSet.ALL;
+        }
+
+        EnumSet<AxiomPermission> allowed = EnumSet.noneOf(AxiomPermission.class);
+        EnumSet<AxiomPermission> denied = EnumSet.noneOf(AxiomPermission.class);
+
+        // todo nobuild: support disabled capabilities
+
+        for (AxiomPermission permission : AxiomPermission.values()) {
+            TriState value = player.permissionValue(permission.name);
+            switch (value) {
+                case FALSE -> denied.add(permission);
+                case NOT_SET -> {
+                }
+                case TRUE -> allowed.add(permission);
+            }
+        }
+
+        return new AxiomPermissionSet(allowed, denied);
     }
 
     public boolean canEntityBeManipulated(EntityType<?> entityType) {
@@ -426,10 +506,6 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             return false;
         }
         return true;
-    }
-
-    public @Nullable RateLimiter getBlockBufferRateLimiter(UUID uuid) {
-        return this.playerBlockBufferRateLimiters.get(uuid);
     }
 
     public boolean isMismatchedDataVersion(UUID uuid) {
@@ -478,7 +554,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onFailMove(PlayerFailMoveEvent event) {
-        if (!this.activeAxiomPlayers.contains(event.getPlayer().getUniqueId())) {
+        if (!this.canUseAxiom(event.getPlayer(), AxiomPermission.PLAYER_BYPASS_MOVEMENT_RESTRICTIONS)) {
             return;
         }
         if (event.getFailReason() == PlayerFailMoveEvent.FailReason.MOVED_INTO_UNLOADED_CHUNK) {

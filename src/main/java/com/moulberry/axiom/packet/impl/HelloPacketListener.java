@@ -6,6 +6,7 @@ import com.moulberry.axiom.blueprint.DFUHelper;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.event.AxiomHandshakeEvent;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import com.moulberry.axiom.viaversion.ViaVersionHelper;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
@@ -36,7 +37,7 @@ public class HelloPacketListener implements PacketHandler {
 
     @Override
     public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.hasAxiomPermission(player)) {
+        if (!this.plugin.hasPermission(player, AxiomPermission.USE)) {
             this.plugin.failedPermissionAxiomPlayers.add(player.getUniqueId());
             return;
         }
@@ -118,26 +119,20 @@ public class HelloPacketListener implements PacketHandler {
         }
 
         this.plugin.activeAxiomPlayers.add(player.getUniqueId());
-        int rateLimit = this.plugin.configuration.getInt("block-buffer-rate-limit");
-        if (rateLimit > 0) {
-            this.plugin.playerBlockBufferRateLimiters.putIfAbsent(player.getUniqueId(), RateLimiter.create(rateLimit));
-        }
+        this.plugin.failedPermissionAxiomPlayers.remove(player.getUniqueId());
 
         // Enable
         RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
         buf.writeBoolean(true);
         buf.writeInt(handshakeEvent.getMaxBufferSize()); // Max Buffer Size
-        buf.writeBoolean(false); // No source info
-        buf.writeBoolean(false); // No source settings
-        buf.writeVarInt(5); // Maximum Reach
-        buf.writeVarInt(16); // Max editor views
-        buf.writeBoolean(true); // Editable Views
+        buf.writeVarInt(2); // Blueprint version
         buf.writeVarInt(0); // No custom data overrides
         buf.writeVarInt(0); // No rotation overrides
-        buf.writeVarInt(1); // Blueprint version
 
         byte[] enableBytes = ByteBufUtil.getBytes(buf);
         VersionHelper.sendCustomPayload(player, "axiom:enable", enableBytes);
+
+        this.plugin.tickPlayer(player);
 
         // Register world properties
         World world = player.getWorld();

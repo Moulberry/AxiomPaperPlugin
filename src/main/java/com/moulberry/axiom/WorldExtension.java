@@ -38,7 +38,7 @@ public class WorldExtension {
         ServerLevel level = ((CraftWorld)world).getHandle();
         get(level).onPlayerJoin(player);
 
-        if (AxiomPaper.PLUGIN.canUseAxiom(player, "axiom.annotations.view")) {
+        if (AxiomPaper.PLUGIN.canUseAxiom(player)) {
             ServerAnnotations.sendAll(world, ((CraftPlayer)player).getHandle());
         }
     }

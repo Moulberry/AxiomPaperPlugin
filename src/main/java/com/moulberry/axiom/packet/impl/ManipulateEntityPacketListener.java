@@ -5,6 +5,7 @@ import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.event.AxiomManipulateEntityEvent;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import com.moulberry.axiom.viaversion.UnknownVersionHelper;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
@@ -18,6 +19,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.Marker;
 import net.minecraft.world.entity.Relative;
 import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.decoration.ItemFrame;
@@ -85,7 +87,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
 
     @Override
     public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.canUseAxiom(player, "axiom.entity.manipulate", true)) {
+        if (!this.plugin.canUseAxiom(player, AxiomPermission.ENTITY_MANIPULATE)) {
             return;
         }
 
@@ -167,49 +169,57 @@ public class ManipulateEntityPacketListener implements PacketHandler {
                 entity.setYHeadRot(newYaw);
             }
 
-            switch (entry.passengerManipulation) {
-                case NONE -> {}
-                case REMOVE_ALL -> entity.ejectPassengers();
-                case ADD_LIST -> {
-                    for (UUID passengerUuid : entry.passengers) {
-                        Entity passenger = serverLevel.getEntity(passengerUuid);
+            if (canManipulatePassengers(entity)) {
+                switch (entry.passengerManipulation) {
+                    case NONE -> {}
+                    case REMOVE_ALL -> entity.ejectPassengers();
+                    case ADD_LIST -> {
+                        for (UUID passengerUuid : entry.passengers) {
+                            Entity passenger = serverLevel.getEntity(passengerUuid);
 
-                        if (passenger == null || passenger.isPassenger() ||
-                            passenger instanceof net.minecraft.world.entity.player.Player || passenger.hasPassenger(ManipulateEntityPacketListener::isPlayer)) continue;
+                            if (passenger == null || passenger.isPassenger()) {
+                                continue;
+                            }
+                            if (!canManipulatePassengers(passenger) || passenger.hasPassenger(ManipulateEntityPacketListener::cannotManipulatePassengers)) {
+                                continue;
+                            }
+                            if (!this.plugin.canEntityBeManipulated(passenger.getType())) {
+                                continue;
+                            }
 
-                        if (!this.plugin.canEntityBeManipulated(passenger.getType())) {
-                            continue;
-                        }
+                            // Prevent mounting loop
+                            if (passenger.getSelfAndPassengers().anyMatch(entity2 -> entity2 == entity)) {
+                                continue;
+                            }
 
-                        // Prevent mounting loop
-                        if (passenger.getSelfAndPassengers().anyMatch(entity2 -> entity2 == entity)) {
-                            continue;
-                        }
+                            position = passenger.position();
+                            containing = BlockPos.containing(position.x, position.y, position.z);
 
-                        position = passenger.position();
-                        containing = BlockPos.containing(position.x, position.y, position.z);
-
-                        if (!Integration.canPlaceBlock(player, new Location(player.getWorld(),
+                            if (!Integration.canPlaceBlock(player, new Location(player.getWorld(),
                                 containing.getX(), containing.getY(), containing.getZ()))) {
-                            continue;
-                        }
+                                continue;
+                            }
 
-                        passenger.startRiding(entity, true);
+                            passenger.startRiding(entity, true);
+                        }
                     }
-                }
-                case REMOVE_LIST -> {
-                    for (UUID passengerUuid : entry.passengers) {
-                        Entity passenger = serverLevel.getEntity(passengerUuid);
-                        if (passenger == null || passenger == entity || passenger instanceof net.minecraft.world.entity.player.Player ||
-                            passenger.hasPassenger(ManipulateEntityPacketListener::isPlayer)) continue;
+                    case REMOVE_LIST -> {
+                        for (UUID passengerUuid : entry.passengers) {
+                            Entity passenger = serverLevel.getEntity(passengerUuid);
+                            if (passenger == null || passenger == entity) {
+                                continue;
+                            }
+                            if (!canManipulatePassengers(passenger) || passenger.hasPassenger(ManipulateEntityPacketListener::cannotManipulatePassengers)) {
+                                continue;
+                            }
+                            if (!this.plugin.canEntityBeManipulated(passenger.getType())) {
+                                continue;
+                            }
 
-                        if (!this.plugin.canEntityBeManipulated(passenger.getType())) {
-                            continue;
-                        }
-
-                        Entity vehicle = passenger.getVehicle();
-                        if (vehicle == entity) {
-                            passenger.stopRiding();
+                            Entity vehicle = passenger.getVehicle();
+                            if (vehicle == entity) {
+                                passenger.stopRiding();
+                            }
                         }
                     }
                 }
@@ -247,6 +257,14 @@ public class ManipulateEntityPacketListener implements PacketHandler {
             }
         }
         return left;
+    }
+
+    private static boolean canManipulatePassengers(Entity entity) {
+        return entity != null && entity.getType().canSerialize() && !(entity instanceof net.minecraft.world.entity.player.Player) && !(entity instanceof Marker);
+    }
+
+    private static boolean cannotManipulatePassengers(Entity entity) {
+        return !canManipulatePassengers(entity);
     }
 
     private static boolean isPlayer(Entity entity) {

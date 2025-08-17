@@ -3,6 +3,7 @@ package com.moulberry.axiom.packet.impl;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.network.FriendlyByteBuf;
@@ -28,7 +29,7 @@ public class DeleteEntityPacketListener implements PacketHandler {
 
     @Override
     public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.canUseAxiom(player, "axiom.entity.delete", true)) {
+        if (!this.plugin.canUseAxiom(player, AxiomPermission.ENTITY_DELETE)) {
             return;
         }
 

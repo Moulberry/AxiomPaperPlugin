@@ -4,6 +4,7 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import com.moulberry.axiom.viaversion.UnknownVersionHelper;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
@@ -50,7 +51,7 @@ public class SpawnEntityPacketListener implements PacketHandler {
 
     @Override
     public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.canUseAxiom(player, "axiom.entity.spawn", true)) {
+        if (!this.plugin.canUseAxiom(player, AxiomPermission.ENTITY_SPAWN)) {
             return;
         }
 

@@ -1,6 +1,5 @@
 package com.moulberry.axiom.packet.impl;
 
-import com.google.common.util.concurrent.RateLimiter;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.WorldExtension;
 import com.moulberry.axiom.buffer.BiomeBuffer;
@@ -10,7 +9,7 @@ import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.SectionPermissionChecker;
 import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
-import com.moulberry.axiom.viaversion.UnknownVersionHelper;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
 import net.minecraft.ChatFormatting;
@@ -19,7 +18,6 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket;
@@ -35,9 +33,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.GameMasterBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
@@ -52,7 +50,6 @@ import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SetBlockBufferPacketListener implements PacketHandler {
 
@@ -86,57 +83,42 @@ public class SetBlockBufferPacketListener implements PacketHandler {
 
         ResourceKey<Level> worldKey = friendlyByteBuf.readResourceKey(Registries.DIMENSION);
         friendlyByteBuf.readUUID(); // Discard, we don't need to associate buffers
-        boolean continuation = friendlyByteBuf.readBoolean();
-
-        if (!continuation) {
-            UnknownVersionHelper.skipTagUnknown(friendlyByteBuf, serverPlayer.getBukkitEntity());
-        }
-
-        RateLimiter rateLimiter = this.plugin.getBlockBufferRateLimiter(serverPlayer.getUUID());
 
         byte type = friendlyByteBuf.readByte();
         if (type == 0) {
-            AtomicBoolean reachedRateLimit = new AtomicBoolean(false);
-            BlockBuffer buffer = BlockBuffer.load(friendlyByteBuf, rateLimiter, reachedRateLimit, this.plugin.getBlockRegistry(serverPlayer.getUUID()));
-            if (reachedRateLimit.get()) {
-                serverPlayer.sendSystemMessage(Component.literal("[Axiom] Exceeded server rate-limit of " + (int)rateLimiter.getRate() + " sections per second")
-                    .withStyle(ChatFormatting.RED));
-            }
+            BlockBuffer buffer = BlockBuffer.load(friendlyByteBuf, this.plugin.getBlockRegistry(serverPlayer.getUUID()));
+            int clientAvailableDispatchSends = friendlyByteBuf.readVarInt();
 
-            if (this.plugin.logLargeBlockBufferChanges()) {
-                this.plugin.getLogger().info("Player " + serverPlayer.getUUID() + " modified " + buffer.entrySet().size() + " chunk sections (blocks)");
-                if (buffer.getTotalBlockEntities() > 0) {
-                    this.plugin.getLogger().info("Player " + serverPlayer.getUUID() + " modified " + buffer.getTotalBlockEntities() + " block entities, compressed bytes = " +
-                        buffer.getTotalBlockEntityBytes());
-                }
-            }
-
-            applyBlockBuffer(serverPlayer, server, buffer, worldKey);
+            applyBlockBuffer(serverPlayer, server, buffer, worldKey, clientAvailableDispatchSends);
         } else if (type == 1) {
-            AtomicBoolean reachedRateLimit = new AtomicBoolean(false);
-            BiomeBuffer buffer = BiomeBuffer.load(friendlyByteBuf, rateLimiter, reachedRateLimit);
-            if (reachedRateLimit.get()) {
-                serverPlayer.sendSystemMessage(Component.literal("[Axiom] Exceeded server rate-limit of " + (int)rateLimiter.getRate() + " sections per second")
-                                                  .withStyle(ChatFormatting.RED));
-            }
+            BiomeBuffer buffer = BiomeBuffer.load(friendlyByteBuf);
+            int clientAvailableDispatchSends = friendlyByteBuf.readVarInt();
 
-            if (this.plugin.logLargeBlockBufferChanges()) {
-                this.plugin.getLogger().info("Player " + serverPlayer.getUUID() + " modified " + buffer.size() + " chunk sections (biomes)");
-            }
-
-            applyBiomeBuffer(serverPlayer, server, buffer, worldKey);
+            applyBiomeBuffer(serverPlayer, server, buffer, worldKey, clientAvailableDispatchSends);
         } else {
             throw new RuntimeException("Unknown buffer type: " + type);
         }
     }
 
-    private void applyBlockBuffer(ServerPlayer player, MinecraftServer server, BlockBuffer buffer, ResourceKey<Level> worldKey) {
+    private void applyBlockBuffer(ServerPlayer player, MinecraftServer server, BlockBuffer buffer, ResourceKey<Level> worldKey, int clientAvailableDispatchSends) {
         server.execute(() -> {
             try {
                 ServerLevel world = player.level();
                 if (!world.dimension().equals(worldKey)) return;
 
-                if (!this.plugin.canUseAxiom(player.getBukkitEntity(), "axiom.build.section")) {
+                if (this.plugin.logLargeBlockBufferChanges()) {
+                    this.plugin.getLogger().info("Player " + player.getUUID() + " modified " + buffer.getSectionCount() + " chunk sections (blocks)");
+                    if (buffer.getTotalBlockEntities() > 0) {
+                        this.plugin.getLogger().info("Player " + player.getUUID() + " modified " + buffer.getTotalBlockEntities() + " block entities, compressed bytes = " +
+                            buffer.getTotalBlockEntityBytes());
+                    }
+                }
+
+                if (!this.plugin.consumeDispatchSends(player.getBukkitEntity(), buffer.getSectionCount(), clientAvailableDispatchSends)) {
+                    return;
+                }
+
+                if (!this.plugin.canUseAxiom(player.getBukkitEntity(), AxiomPermission.BUILD_SECTION)) {
                     return;
                 }
 
@@ -144,13 +126,30 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                     return;
                 }
 
+                boolean sendGameMasterBlockWarning = false;
+                boolean canEditNbt = this.plugin.canUseAxiom(player.getBukkitEntity(), AxiomPermission.BUILD_NBT);
+
+                int sortChunkX = player.getBlockX() >> 4;
+                int sortChunkY = player.getBlockY() >> 4;
+                int sortChunkZ = player.getBlockZ() >> 4;
+
+                // Sort based on distance to player
+                List<Long2ObjectMap.Entry<PalettedContainer<BlockState>>> entries = new ArrayList<>(buffer.entrySet());
+                entries.sort(Comparator.comparingLong(entry -> {
+                    long pos = entry.getLongKey();
+                    int posX = BlockPos.getX(pos);
+                    int posY = BlockPos.getY(pos);
+                    int posZ = BlockPos.getZ(pos);
+                    return Math.abs(posX - sortChunkX) + Math.abs(posY - sortChunkY) + Math.abs(posZ - sortChunkZ);
+                }));
+
                 // Allowed, apply buffer
                 BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
                 WorldExtension extension = WorldExtension.get(world);
 
                 BlockState emptyState = BlockBuffer.EMPTY_STATE;
 
-                for (Long2ObjectMap.Entry<PalettedContainer<BlockState>> entry : buffer.entrySet()) {
+                for (Long2ObjectMap.Entry<PalettedContainer<BlockState>> entry : entries) {
                     int cx = BlockPos.getX(entry.getLongKey());
                     int cy = BlockPos.getY(entry.getLongKey());
                     int cz = BlockPos.getZ(entry.getLongKey());
@@ -191,7 +190,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                     boolean containerMaybeHasPoi = container.maybeHas(PoiTypes::hasPoi);
                     boolean sectionMaybeHasPoi = section.maybeHas(PoiTypes::hasPoi);
 
-                    Short2ObjectMap<CompressedBlockEntity> blockEntityChunkMap = buffer.getBlockEntityChunkMap(entry.getLongKey());
+                    Short2ObjectMap<CompressedBlockEntity> blockEntityChunkMap = canEditNbt ? buffer.getBlockEntityChunkMap(entry.getLongKey()) : null;
 
                     int minX = 0;
                     int minY = 0;
@@ -282,11 +281,16 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                                         }
                                     }
                                     if (blockEntity != null && blockEntityChunkMap != null) {
-                                        int key = x | (y << 4) | (z << 8);
-                                        CompressedBlockEntity savedBlockEntity = blockEntityChunkMap.get((short) key);
-                                        if (savedBlockEntity != null) {
-                                            var input = TagValueInput.create(ProblemReporter.DISCARDING, player.registryAccess(), savedBlockEntity.decompress());
-                                            blockEntity.loadWithComponents(input);
+                                        if (blockEntity instanceof GameMasterBlock && !player.hasPermissions(2)) {
+                                            sendGameMasterBlockWarning = true;
+                                        } else {
+                                            int key = x | (y << 4) | (z << 8);
+                                            CompressedBlockEntity savedBlockEntity = blockEntityChunkMap.get((short) key);
+                                            if (savedBlockEntity != null) {
+                                                var input = TagValueInput.create(ProblemReporter.DISCARDING, player.registryAccess(), savedBlockEntity.decompress());
+                                                blockEntity.loadWithComponents(input);
+                                                sectionChanged = true;
+                                            }
                                         }
                                     }
                                 } else if (old.hasBlockEntity()) {
@@ -318,19 +322,31 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                         extension.lightChunk(cx, cz);
                     }
                 }
+
+                if (sendGameMasterBlockWarning) {
+                    player.sendSystemMessage(Component.literal("Unable to set data for Game Master block since you don't have op").withStyle(ChatFormatting.RED));
+                }
             } catch (Throwable t) {
                 player.getBukkitEntity().kick(net.kyori.adventure.text.Component.text("An error occured while processing block change: " + t.getMessage()));
             }
         });
     }
 
-    private void applyBiomeBuffer(ServerPlayer player, MinecraftServer server, BiomeBuffer biomeBuffer, ResourceKey<Level> worldKey) {
+    private void applyBiomeBuffer(ServerPlayer player, MinecraftServer server, BiomeBuffer biomeBuffer, ResourceKey<Level> worldKey, int clientAvailableDispatchSends) {
         server.execute(() -> {
             try {
                 ServerLevel world = player.level();
                 if (!world.dimension().equals(worldKey)) return;
 
-                if (!this.plugin.canUseAxiom(player.getBukkitEntity(), "axiom.build.section")) {
+                if (this.plugin.logLargeBlockBufferChanges()) {
+                    this.plugin.getLogger().info("Player " + player.getUUID() + " modified " + biomeBuffer.getSectionCount() + " chunk sections (biomes)");
+                }
+
+                if (!this.plugin.consumeDispatchSends(player.getBukkitEntity(), biomeBuffer.getSectionCount(), clientAvailableDispatchSends)) {
+                    return;
+                }
+
+                if (!this.plugin.canUseAxiom(player.getBukkitEntity(), AxiomPermission.BUILD_SECTION)) {
                     return;
                 }
 

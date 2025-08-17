@@ -37,7 +37,7 @@ whitelist-world-regex: null
 # If the regex matches the world's name, the world can't be modified
 blacklist-world-regex: null
 
-# Block buffer rate-limit (in chunk sections per second), 0 = no limit
+# Block buffer rate-limit (in chunk sections per second), 0 = default limit
 block-buffer-rate-limit: 0
 
 # Log large block buffer changes
@@ -71,41 +71,7 @@ disallowed-blocks:
 #  - "minecraft:wheat"
 #  - "minecraft:oak_stairs[waterlogged=true]"
 
-allow-capabilities:
-  - "all"
-  # - "bulldozer"
-  # - "replace_mode"
-  # - "force_place"
-  # - "no_updates"
-  # - "tinker"
-  # - "infinite_reach"
-  # - "fast_place"
-  # - "angel_placement"
-  # - "no_clip"
-
 infinite-reach-limit: 256
 
 # Whether to log Axiom changes with CoreProtect (if CoreProtect is installed)
 log-core-protect-changes: true
-
-# Toggles for individual packet handlers. May break certain features
-packet-handlers:
-  hello: true
-  set-gamemode: true
-  set-fly-speed: true
-  set-world-time: true
-  set-world-property: true
-  set-single-block: true
-  set-hotbar-slot: true
-  switch-active-hotbar: true
-  teleport: true
-  set-editor-views: true
-  request-chunk-data: true
-  request-entity-data: true
-  set-buffer: true
-  spawn-entity: true
-  manipulate-entity: true
-  delete-entity: true
-  marker-nbt-request: true
-  upload-blueprint: true
-  annotation-update: true

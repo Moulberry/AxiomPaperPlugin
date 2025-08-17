@@ -6,6 +6,7 @@ import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.*;
@@ -28,6 +29,7 @@ import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
+import org.bukkit.World;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
@@ -40,10 +42,8 @@ public class RequestChunkDataPacketListener implements PacketHandler {
     private static final ResourceLocation RESPONSE_ID = VersionHelper.createResourceLocation("axiom:response_chunk_data");
 
     private final AxiomPaper plugin;
-    private final boolean forceFail;
-    public RequestChunkDataPacketListener(AxiomPaper plugin, boolean forceFail) {
+    public RequestChunkDataPacketListener(AxiomPaper plugin) {
         this.plugin = plugin;
-        this.forceFail = forceFail;
     }
 
     @Override
@@ -51,7 +51,7 @@ public class RequestChunkDataPacketListener implements PacketHandler {
         ServerPlayer player = ((CraftPlayer)bukkitPlayer).getHandle();
         long id = friendlyByteBuf.readLong();
 
-        if (this.forceFail || !this.plugin.canUseAxiom(bukkitPlayer, "axiom.chunk.request") || this.plugin.isMismatchedDataVersion(bukkitPlayer.getUniqueId())) {
+        if (!this.plugin.canUseAxiom(bukkitPlayer, AxiomPermission.CHUNK_REQUEST) || this.plugin.isMismatchedDataVersion(bukkitPlayer.getUniqueId())) {
             // We always send an 'empty' response in order to make the client happy
             sendEmptyResponse(player, id);
             return;
@@ -75,7 +75,8 @@ public class RequestChunkDataPacketListener implements PacketHandler {
             return;
         }
 
-        boolean sendBlockEntitiesInChunks = friendlyByteBuf.readBoolean();
+        boolean shouldSendBlockEntities = this.plugin.hasPermission(bukkitPlayer, AxiomPermission.CHUNK_REQUESTBLOCKENTITY);
+        boolean sendBlockEntitiesInChunks = friendlyByteBuf.readBoolean() && shouldSendBlockEntities;
 
         Long2ObjectMap<CompressedBlockEntity> blockEntityMap = new Long2ObjectOpenHashMap<>();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -97,7 +98,9 @@ public class RequestChunkDataPacketListener implements PacketHandler {
             long pos = friendlyByteBuf.readLong();
             mutableBlockPos.set(pos);
 
-            if (level.isOutsideBuildHeight(mutableBlockPos)) continue;
+            if (!shouldSendBlockEntities || level.isOutsideBuildHeight(mutableBlockPos)) {
+                continue;
+            }
 
             int chunkX = mutableBlockPos.getX() >> 4;
             int chunkZ = mutableBlockPos.getZ() >> 4;

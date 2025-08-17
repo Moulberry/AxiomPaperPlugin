@@ -3,6 +3,7 @@ package com.moulberry.axiom.blueprint;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.Dynamic;
 import com.moulberry.axiom.VersionHelper;
+import com.moulberry.axiom.buffer.BlockBuffer;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -71,7 +72,7 @@ public class BlueprintIo {
         if (blueprintDataVersion == 0) blueprintDataVersion = currentDataVersion;
 
         ListTag listTag = blockDataTag.getListOrEmpty("BlockRegion");
-        Long2ObjectMap<PalettedContainer<BlockState>> blockMap = readBlocks(listTag, blueprintDataVersion);
+        Long2ObjectMap<PalettedContainer<BlockState>> blockMap = readBlocks(listTag, blueprintDataVersion, header.emptyBlockState());
 
         // Block Entities
         ListTag blockEntitiesTag = blockDataTag.getListOrEmpty("BlockEntities");
@@ -139,11 +140,10 @@ public class BlueprintIo {
         return new RawBlueprint(header, thumbnailBytes, blockMap, blockEntities, entities);
     }
 
-    public static final Codec<PalettedContainer<BlockState>> BLOCK_STATE_CODEC = PalettedContainer.codecRW(Block.BLOCK_STATE_REGISTRY, BlockState.CODEC,
-        PalettedContainer.Strategy.SECTION_STATES, Blocks.STRUCTURE_VOID.defaultBlockState());
-
-    public static Long2ObjectMap<PalettedContainer<BlockState>> readBlocks(ListTag list, int dataVersion) {
+    public static Long2ObjectMap<PalettedContainer<BlockState>> readBlocks(ListTag list, int dataVersion, BlockState empty) {
         Long2ObjectMap<PalettedContainer<BlockState>> map = new Long2ObjectOpenHashMap<>();
+
+        Codec<PalettedContainer<BlockState>> containerCodec = BlockBuffer.getCodecForEmptyBlockState(empty);
 
         for (Tag tag : list) {
             if (tag instanceof CompoundTag compoundTag) {
@@ -153,8 +153,7 @@ public class BlueprintIo {
 
                 CompoundTag blockStates = compoundTag.getCompoundOrEmpty("BlockStates");
                 blockStates = DFUHelper.updatePalettedContainer(blockStates, dataVersion);
-                PalettedContainer<BlockState> container = BLOCK_STATE_CODEC.parse(NbtOps.INSTANCE, blockStates)
-                               .getOrThrow();
+                PalettedContainer<BlockState> container = containerCodec.parse(NbtOps.INSTANCE, blockStates).getOrThrow();
                 map.put(BlockPos.asLong(cx, cy, cz), container);
             }
         }
@@ -184,6 +183,8 @@ public class BlueprintIo {
         CompoundTag compound = new CompoundTag();
         ListTag savedBlockRegions = new ListTag();
 
+        Codec<PalettedContainer<BlockState>> blockStateCodec = BlockBuffer.getCodecForEmptyBlockState(rawBlueprint.header().emptyBlockState());
+
         for (Long2ObjectMap.Entry<PalettedContainer<BlockState>> entry : rawBlueprint.blocks().long2ObjectEntrySet()) {
             long pos = entry.getLongKey();
             PalettedContainer<BlockState> container = entry.getValue();
@@ -196,7 +197,7 @@ public class BlueprintIo {
             tag.putInt("X", cx);
             tag.putInt("Y", cy);
             tag.putInt("Z", cz);
-            Tag encoded = BlueprintIo.BLOCK_STATE_CODEC.encodeStart(NbtOps.INSTANCE, container).getOrThrow();
+            Tag encoded = blockStateCodec.encodeStart(NbtOps.INSTANCE, container).getOrThrow();
             tag.put("BlockStates", encoded);
             savedBlockRegions.add(tag);
         }

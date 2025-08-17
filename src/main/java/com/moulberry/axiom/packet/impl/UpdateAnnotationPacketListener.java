@@ -4,6 +4,7 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.annotations.AnnotationUpdateAction;
 import com.moulberry.axiom.annotations.ServerAnnotations;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
@@ -21,7 +22,7 @@ public class UpdateAnnotationPacketListener implements PacketHandler {
     }
 
     public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.allowAnnotations || !this.plugin.canUseAxiom(player, "axiom.annotation.create")) {
+        if (!this.plugin.allowAnnotations || !this.plugin.canUseAxiom(player, AxiomPermission.ANNOTATION_CREATE)) {
             friendlyByteBuf.writerIndex(friendlyByteBuf.readerIndex());
             return;
         }

@@ -66,12 +66,13 @@ public record RawBlueprint(BlueprintHeader header, byte[] thumbnail, Long2Object
 
         Long2ObjectMap<PalettedContainer<BlockState>> blocks = new Long2ObjectOpenHashMap<>();
 
+        BlockState emptyBlockState = header.emptyBlockState();
+
         int chunkCount = friendlyByteBuf.readVarInt();
         for (int i = 0; i < chunkCount; i++) {
             long pos = friendlyByteBuf.readLong();
 
-            PalettedContainer<BlockState> palettedContainer = new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY,
-                    Blocks.STRUCTURE_VOID.defaultBlockState(), PalettedContainer.Strategy.SECTION_STATES);
+            PalettedContainer<BlockState> palettedContainer = new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY, emptyBlockState, PalettedContainer.Strategy.SECTION_STATES);
             palettedContainer.read(friendlyByteBuf);
 
             blocks.put(pos, palettedContainer);
