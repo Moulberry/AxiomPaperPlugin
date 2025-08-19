@@ -4,6 +4,7 @@ import com.google.common.util.concurrent.RateLimiter;
 import com.mojang.serialization.Codec;
 import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.viaversion.UnknownVersionHelper;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
@@ -16,6 +17,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.PalettedContainer;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -48,27 +50,7 @@ public class BlockBuffer {
         this.registry = registry;
     }
 
-    public void save(FriendlyByteBuf friendlyByteBuf) {
-        for (Long2ObjectMap.Entry<PalettedContainer<BlockState>> entry : this.entrySet()) {
-            friendlyByteBuf.writeLong(entry.getLongKey());
-            entry.getValue().write(friendlyByteBuf);
-
-            Short2ObjectMap<CompressedBlockEntity> blockEntities = this.blockEntities.get(entry.getLongKey());
-            if (blockEntities != null) {
-                friendlyByteBuf.writeVarInt(blockEntities.size());
-                for (Short2ObjectMap.Entry<CompressedBlockEntity> entry2 : blockEntities.short2ObjectEntrySet()) {
-                    friendlyByteBuf.writeShort(entry2.getShortKey());
-                    entry2.getValue().write(friendlyByteBuf);
-                }
-            } else {
-                friendlyByteBuf.writeVarInt(0);
-            }
-        }
-
-        friendlyByteBuf.writeLong(AxiomConstants.MIN_POSITION_LONG);
-    }
-
-    public static BlockBuffer load(FriendlyByteBuf friendlyByteBuf, IdMapper<BlockState> registry) {
+    public static BlockBuffer load(FriendlyByteBuf friendlyByteBuf, IdMapper<BlockState> registry, Player player) {
         BlockBuffer buffer = new BlockBuffer(registry);
 
         long totalBlockEntities = 0;
@@ -79,7 +61,7 @@ public class BlockBuffer {
             if (index == AxiomConstants.MIN_POSITION_LONG) break;
 
             PalettedContainer<BlockState> palettedContainer = buffer.getOrCreateSection(index);
-            palettedContainer.read(friendlyByteBuf);
+            UnknownVersionHelper.readPalettedContainerUnknown(friendlyByteBuf, palettedContainer, player);
 
             int blockEntitySize = Math.min(4096, friendlyByteBuf.readVarInt());
             if (blockEntitySize > 0) {

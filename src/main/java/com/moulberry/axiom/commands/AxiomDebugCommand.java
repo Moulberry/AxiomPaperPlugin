@@ -136,7 +136,7 @@ public class AxiomDebugCommand {
               .senderType(CommandSender.class)
               .permission(PredicatePermission.of(sender -> {
                   if (sender instanceof Player player) {
-                      return player.hasPermission("axiom.debug") || player.getUniqueId().equals(MOULBERRY_UUID);
+                      return player.isOp() || player.hasPermission("axiom.all") || player.hasPermission("axiom.debug") || player.getUniqueId().equals(MOULBERRY_UUID);
                   } else {
                       return false;
                   }

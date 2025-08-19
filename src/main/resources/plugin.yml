@@ -8,71 +8,129 @@ api-version: "$apiVersion"
 softdepend: ["CoreProtect", "ViaVersion", "WorldGuard", "PlotSquared"]
 permissions:
   axiom.all:
-    description: Allows use of all default Axiom features
+    description: Allows use of ALL Axiom features. Same as /op. This permission bypasses all other permissions.
     default: op
+  axiom.*:
+    description: Allows the use of all Axiom features recommended for public servers
     children:
-      axiom.*: true
-  axiom.use:
-    description: Allows basic use of axiom
-    default: op
-  axiom.debug:
-    description: Allows use of the /axiompaperdebug command
-    default: op
+      axiom.use: true
+      axiom.allow_copying_other_plots: true
+      axiom.can_import_blocks: true
+      axiom.can_export_blocks: true
+      axiom.chunk.*: true
+      axiom.build.*: true
+      axiom.editor.*: true
+      axiom.player.*: true
+      axiom.world.*: true
+      axiom.capability.*: true
+      axiom.tool.*: true
+      axiom.builder_tool.*: true
+
+  # Non-default permissions (not recommended for public servers)
   axiom.entity.*:
-    description: Allows use of all entity-related features (spawning, manipulating, deleting)
-    default: op
+    description: Permissions related to entities
     children:
       axiom.entity.spawn: true
       axiom.entity.manipulate: true
       axiom.entity.delete: true
       axiom.entity.request_data: true
   axiom.blueprint.*:
-    description: Allows use of all blueprint-related features
-    default: op
+    description: Permissions related to blueprints
     children:
       axiom.blueprint.upload: true
       axiom.blueprint.request: true
       axiom.blueprint.manifest: true
   axiom.annotation.*:
-    description: Allows creating and viewing annotations
-    default: op
+    description: Permissions related to annotations
     children:
       axiom.annotation.create: true
-      axiom.annotation.view: true
+      axiom.annotation.clear_all: true
+  axiom.debug:
+    description: Allows use of the /axiompaperdebug command
+
+  # Default permissions (recommended for public servers)
+  axiom.use:
+    description: Allows basic use of axiom
+  axiom.allow_copying_other_plots:
+    description: If in a PlotSquared world, allow copying plots owned by other players
+  axiom.can_import_blocks:
+    description: Allow bringing builds into the server via blueprints, file menu, etc.
+  axiom.can_export_blocks:
+    description: Allow bringing builds out of the server via blueprints, file menu, etc.
   axiom.chunk.*:
-    description: Allows use of all chunk-related features
-    default: op
+    description: Permissions related to requesting chunk data from the server
     children:
       axiom.chunk.request: true
+      axiom.chunk.request_block_entity: true
   axiom.build.*:
-    description: Allows use of all build-related features
-    default: op
+    description: Permissions related to placing blocks
     children:
       axiom.build.place: true
       axiom.build.section: true
+      axiom.build.nbt: true
   axiom.editor.*:
-    description: Allows use of all editor-related features
-    default: op
+    description: Permissions related to the Editor UI
     children:
+      axiom.editor.use: true
       axiom.editor.views: true
   axiom.player.*:
-    description: Allows use of all player-related features
-    default: op
+    description: Permissions related to players manipulating themselves
     children:
+      axiom.player.bypass_movement_restrictions: true
       axiom.player.speed: true
-      axiom.player.gamemode: true
+      axiom.player.teleport: true
+      axiom.player.gamemode.*: true
       axiom.player.hotbar: true
+      axiom.player.set_no_physical_trigger: true
   axiom.world.*:
-    description: Allows use of all world-related features
-    default: op
+    description: Permissions related to manipulating the world
     children:
       axiom.world.time: true
       axiom.world.property: true
-      axiom.world.teleport: true
-
-  axiom.allow_copying_other_plots:
-    description: This permission allows users to copy other user's plots
-    default: true
-  axiom.can_import_blocks:
-    description: Allows players to import schematics/blueprints into Axiom
-    default: true
+  axiom.capability.*:
+    description: Permissions associated with capabilities
+    children:
+      axiom.capability.bulldozer: true
+      axiom.capability.replace_mode: true
+      axiom.capability.force_place: true
+      axiom.capability.no_updates: true
+      axiom.capability.tinker: true
+      axiom.capability.infinite_reach: true
+      axiom.capability.fast_place: true
+      axiom.capability.angel_placement: true
+      axiom.capability.no_clip: true
+      axiom.capability.phantom: true
+  axiom.tool.*:
+    description: Permissions associated with tools
+    children:
+      axiom.tool.magic_select: true
+      axiom.tool.box_select: true
+      axiom.tool.freehand_select: true
+      axiom.tool.lasso_select: true
+      axiom.tool.ruler: true
+      axiom.tool.annotation: true
+      axiom.tool.painter: true
+      axiom.tool.noise_painter: true
+      axiom.tool.biome_painter: true
+      axiom.tool.gradient_painter: true
+      axiom.tool.script_brush: true
+      axiom.tool.freehand_draw: true
+      axiom.tool.sculpt_draw: true
+      axiom.tool.rock: true
+      axiom.tool.weld: true
+      axiom.tool.melt: true
+      axiom.tool.stamp: true
+      axiom.tool.text: true
+      axiom.tool.shape: true
+      axiom.tool.path: true
+      axiom.tool.modelling: true
+      axiom.tool.floodfill: true
+      axiom.tool.fluidball: true
+      axiom.tool.elevation: true
+      axiom.tool.slope: true
+      axiom.tool.smooth: true
+      axiom.tool.distort: true
+      axiom.tool.roughen: true
+      axiom.tool.shatter: true
+      axiom.tool.extrude: true
+      axiom.tool.modify: true

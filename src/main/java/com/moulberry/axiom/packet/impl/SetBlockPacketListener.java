@@ -3,18 +3,16 @@ package com.moulberry.axiom.packet.impl;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.AxiomReflection;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
-import io.netty.buffer.Unpooled;
-import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.IdMapper;
 import net.minecraft.core.SectionPos;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -32,7 +30,6 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.Vec3;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.BlockFace;
@@ -45,13 +42,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.plugin.messaging.PluginMessageListener;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import xyz.jpenilla.reflectionremapper.ReflectionRemapper;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -64,21 +57,9 @@ import java.util.function.IntFunction;
 public class SetBlockPacketListener implements PacketHandler {
 
     private final AxiomPaper plugin;
-    private final Method updateBlockEntityTicker;
 
     public SetBlockPacketListener(AxiomPaper plugin) {
         this.plugin = plugin;
-
-        ReflectionRemapper reflectionRemapper = ReflectionRemapper.forReobfMappingsInPaperJar();
-        String methodName = reflectionRemapper.remapMethodName(LevelChunk.class, "updateBlockEntityTicker", BlockEntity.class);
-
-        try {
-            this.updateBlockEntityTicker = LevelChunk.class.getDeclaredMethod(methodName, BlockEntity.class);
-            this.updateBlockEntityTicker.setAccessible(true);
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException(e);
-        }
     }
 
     public static class AxiomPlacingCraftBlockState extends CraftBlockState {
@@ -313,7 +294,8 @@ public class SetBlockPacketListener implements PacketHandler {
         int cz = bz >> 4;
 
         ServerLevel level = player.level();
-        LevelChunk chunk = level.getChunk(cx, cz);
+        LevelChunk chunk = level.getChunkIfLoaded(cx, cz);
+        if (chunk == null) return;
         chunk.markUnsaved();
 
         int sectionIndex = level.getSectionIndexFromSectionY(cy);
@@ -357,12 +339,7 @@ public class SetBlockPacketListener implements PacketHandler {
                     // Block entity is here and the type is correct
                     // Just update the state and ticker and move on
                     blockEntity.setBlockState(blockState);
-
-                    try {
-                        this.updateBlockEntityTicker.invoke(chunk, blockEntity);
-                    } catch (IllegalAccessException | InvocationTargetException e) {
-                        throw new RuntimeException(e);
-                    }
+                    AxiomReflection.updateBlockEntityTicker(chunk, blockEntity);
                 } else {
                     // Block entity type isn't correct, we need to recreate it
                     chunk.removeBlockEntity(blockPos);

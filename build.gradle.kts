@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.moulberry.axiom"
-version = "4.0.5+1.21.6"
+version = "5.0.0+BETA1.21.6"
 description = "Serverside component for Axiom on Paper"
 
 java {
@@ -22,8 +22,8 @@ repositories {
     maven("https://s01.oss.sonatype.org/content/repositories/snapshots/")
     maven("https://jitpack.io")
     maven("https://repo.papermc.io/repository/maven-public/")
-    maven("https://maven.enginehub.org/repo/")
-    maven("https://maven.playpro.com")
+    maven("https://maven.enginehub.org/repo/") // WorldGuard
+    maven("https://maven.playpro.com") // CoreProtect
 }
 
 dependencies {

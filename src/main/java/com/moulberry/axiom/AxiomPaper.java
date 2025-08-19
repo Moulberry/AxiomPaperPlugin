@@ -7,8 +7,12 @@ import com.moulberry.axiom.event.AxiomCreateWorldPropertiesEvent;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
+import com.moulberry.axiom.operations.OperationQueue;
+import com.moulberry.axiom.operations.PendingOperation;
 import com.moulberry.axiom.packet.*;
 import com.moulberry.axiom.packet.impl.*;
+import com.moulberry.axiom.paperapi.AxiomAlreadyRegisteredException;
+import com.moulberry.axiom.paperapi.AxiomCustomBlocksAPI;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import com.moulberry.axiom.restrictions.AxiomPermissionSet;
 import com.moulberry.axiom.restrictions.Restrictions;
@@ -28,21 +32,23 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.IdMapper;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.network.*;
-import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.network.protocol.game.GameProtocols;
 import net.minecraft.network.protocol.game.ServerGamePacketListener;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.*;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.Orientable;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.Messenger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -70,6 +76,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     public final Map<UUID, Integer> playerProtocolVersion = new ConcurrentHashMap<>();
     private final Map<UUID, AxiomPermissionSet> playerPermissions = new HashMap<>();
     private final Map<UUID, PlotSquaredIntegration.PlotBounds> lastPlotBoundsForPlayers = new HashMap<>();
+    private final OperationQueue operationQueue = new OperationQueue();
     private final Object2IntOpenHashMap<UUID> availableDispatchSends = new Object2IntOpenHashMap<>();
     public Configuration configuration;
 
@@ -90,10 +97,13 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     private boolean sendMarkers = false;
     private int maxChunkRelightsPerTick = 0;
     private int maxChunkSendsPerTick = 0;
+    private int maxChunkLoadDistance = 256;
 
     @Override
     public void onEnable() {
         PLUGIN = this;
+
+        AxiomReflection.init();
 
         this.saveDefaultConfig();
         configuration = this.getConfig();
@@ -137,8 +147,6 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         Messenger msg = Bukkit.getMessenger();
 
         msg.registerOutgoingPluginChannel(this, "axiom:enable");
-        msg.registerOutgoingPluginChannel(this, "axiom:initialize_hotbars");
-        msg.registerOutgoingPluginChannel(this, "axiom:set_editor_views");
         msg.registerOutgoingPluginChannel(this, "axiom:response_chunk_data");
         msg.registerOutgoingPluginChannel(this, "axiom:register_world_properties");
         msg.registerOutgoingPluginChannel(this, "axiom:set_world_property");
@@ -148,30 +156,34 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerOutgoingPluginChannel(this, "axiom:marker_nbt_response");
         msg.registerOutgoingPluginChannel(this, "axiom:annotation_update");
         msg.registerOutgoingPluginChannel(this, "axiom:add_server_heightmap");
+        msg.registerOutgoingPluginChannel(this, "axiom:custom_blocks");
+        msg.registerOutgoingPluginChannel(this, "axiom:register_custom_block_v2");
 
         Map<String, PacketHandler> largePayloadHandlers = new HashMap<>();
 
         registerPacketHandler("hello", new HelloPacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
-        registerPacketHandler("set_gamemode", new SetGamemodePacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
-        registerPacketHandler("set_fly_speed", new SetFlySpeedPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
-        registerPacketHandler("set_world_time", new SetTimePacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
-        registerPacketHandler("set_world_property", new SetWorldPropertyListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
-        registerPacketHandler("set_block", new SetBlockPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
-        registerPacketHandler("teleport", new TeleportPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        registerPacketHandler("set_gamemode", new SetGamemodePacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
+        registerPacketHandler("set_fly_speed", new SetFlySpeedPacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
+        registerPacketHandler("teleport", new TeleportPacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
+        registerPacketHandler("set_world_time", new SetTimePacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
+        registerPacketHandler("set_world_property", new SetWorldPropertyListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
+
         registerPacketHandler("request_chunk_data", new RequestChunkDataPacketListener(this), msg,
                 this.configuration.getBoolean("allow-large-chunk-data-request") ? LargePayloadBehaviour.FORCE_LARGE : LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
         registerPacketHandler("request_entity_data", new RequestEntityDataPacketListener(this), msg,
                 this.configuration.getBoolean("allow-large-chunk-data-request") ? LargePayloadBehaviour.FORCE_LARGE : LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+
         registerPacketHandler("spawn_entity", new SpawnEntityPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
         registerPacketHandler("manipulate_entity", new ManipulateEntityPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
         registerPacketHandler("delete_entity", new DeleteEntityPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
-        registerPacketHandler("marker_nbt_request", new MarkerNbtRequestPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        registerPacketHandler("marker_nbt_request", new MarkerNbtRequestPacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
 
+        registerPacketHandler("set_block", new SetBlockPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
         registerPacketHandler("set_buffer", new SetBlockBufferPacketListener(this), msg, LargePayloadBehaviour.FORCE_LARGE, largePayloadHandlers);
 
         if (allowServerBlueprints) {
             registerPacketHandler("upload_blueprint", new UploadBlueprintPacketListener(this), msg, LargePayloadBehaviour.FORCE_LARGE, largePayloadHandlers);
-            registerPacketHandler("request_blueprint", new BlueprintRequestPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+            registerPacketHandler("request_blueprint", new BlueprintRequestPacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
         }
         if (this.allowAnnotations) {
             registerPacketHandler("annotation_update", new UpdateAnnotationPacketListener(this), msg, LargePayloadBehaviour.FORCE_LARGE, largePayloadHandlers);
@@ -194,8 +206,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
                 @Override
                 public void afterInitChannel(@NonNull Channel channel) {
                     Connection connection = (Connection) channel.pipeline().get("packet_handler");
-                    channel.pipeline().addBefore("decoder", "axiom-big-payload-handler",
-                        new AxiomBigPayloadHandler(payloadId, connection, largePayloadHandlers));
+                    AxiomBigPayloadHandler.apply(channel.pipeline(), new AxiomBigPayloadHandler(payloadId, connection, largePayloadHandlers));
                 }
             });
         }
@@ -219,6 +230,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         this.sendMarkers = this.configuration.getBoolean("send-markers");
         this.maxChunkRelightsPerTick = this.configuration.getInt("max-chunk-relights-per-tick");
         this.maxChunkSendsPerTick = this.configuration.getInt("max-chunk-sends-per-tick");
+        this.maxChunkLoadDistance = this.configuration.getInt("max-chunk-load-distance");
 
         this.logCoreProtectChanges = this.configuration.getBoolean("log-core-protect-changes");
 
@@ -245,6 +257,31 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         if (CoreProtectIntegration.isEnabled()) {
             this.getLogger().info("CoreProtect integration enabled");
         }
+        // todo nobuild
+        Orientable a = (Orientable) Material.OAK_LOG.createBlockData();
+        a.setAxis(Axis.X);
+        Orientable b = (Orientable) Material.CHERRY_LOG.createBlockData();
+        b.setAxis(Axis.Y);
+        Orientable c = (Orientable) Material.SPRUCE_LOG.createBlockData();
+        c.setAxis(Axis.Z);
+        var result = AxiomCustomBlocksAPI.getAPI().createAxis(Key.key("test:block"), "hello world", a, b, c);
+        result.pickBlockItemStack(new ItemStack(Material.APPLE));
+        try {
+            AxiomCustomBlocksAPI.getAPI().register(result);
+        } catch (AxiomAlreadyRegisteredException exception) {
+            exception.printStackTrace();
+        }
+    }
+
+    public int getMaxChunkLoadDistance(World world) {
+        int maxChunkLoadDistance = this.maxChunkLoadDistance;
+
+        // Don't allow loading chunks outside render distance for plot worlds
+        if (PlotSquaredIntegration.isPlotWorld(world)) {
+            maxChunkLoadDistance = 0;
+        }
+
+        return maxChunkLoadDistance;
     }
 
     private enum LargePayloadBehaviour {
@@ -293,7 +330,13 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
         this.failedPermissionAxiomPlayers.retainAll(stillFailedAxiomPlayers);
 
+        this.operationQueue.tick();
+
         WorldExtension.tick(MinecraftServer.getServer(), this.sendMarkers, this.maxChunkRelightsPerTick, this.maxChunkSendsPerTick);
+    }
+
+    public void addPendingOperation(ServerLevel level, PendingOperation operation) {
+        this.operationQueue.add(level, operation);
     }
 
     public boolean consumeDispatchSends(Player player, int sends, int clientAvailableDispatchSends) {
@@ -352,7 +395,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     }
 
     private Restrictions calculateRestrictions(Player player) {
-        if (player.isOp()) {
+        if (player.isOp() || player.hasPermission("axiom.all")) {
             Restrictions restrictions = new Restrictions();
             restrictions.allowedPermissions = EnumSet.of(AxiomPermission.ALL);
             restrictions.infiniteReachLimit = this.infiniteReachLimit;
@@ -370,7 +413,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
         Set<PlotSquaredIntegration.PlotBox> bounds = Set.of();
 
-        if (!player.hasPermission("axiom.allow_copying_other_plots")) {
+        if (!permissionSet.contains(AxiomPermission.ALLOW_COPYING_OTHER_PLOTS)) {
             if (PlotSquaredIntegration.isPlotWorld(player.getWorld())) {
                 PlotSquaredIntegration.PlotBounds editable = PlotSquaredIntegration.getCurrentEditablePlot(player);
                 if (editable != null) {
@@ -452,6 +495,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     }
 
     public boolean canUseAxiom(Player player) {
+        player.getListeningPluginChannels();
         return this.activeAxiomPlayers.contains(player.getUniqueId());
     }
 
@@ -479,8 +523,6 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
         EnumSet<AxiomPermission> allowed = EnumSet.noneOf(AxiomPermission.class);
         EnumSet<AxiomPermission> denied = EnumSet.noneOf(AxiomPermission.class);
-
-        // todo nobuild: support disabled capabilities
 
         for (AxiomPermission permission : AxiomPermission.values()) {
             TriState value = player.permissionValue(permission.name);

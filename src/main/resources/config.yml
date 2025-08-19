@@ -4,9 +4,9 @@ max-chunk-sends-per-tick: 0
 # Max chunk relights per tick (per-world), 0 = no limit
 max-chunk-relights-per-tick: 0
 
-# Maximum distance from which players can load chunks
+# Maximum distance (in chunks) from which players can load chunks
 # Set to 0 to only allow editing within render distance
-max-chunk-load-distance: 128
+max-chunk-load-distance: 256
 
 # Whether players are allowed to teleport between worlds using views
 allow-teleport-between-worlds: true

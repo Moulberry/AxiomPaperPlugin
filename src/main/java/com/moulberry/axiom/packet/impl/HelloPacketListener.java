@@ -6,6 +6,7 @@ import com.moulberry.axiom.blueprint.DFUHelper;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.event.AxiomHandshakeEvent;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.paperapi.ImplServerCustomBlocks;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import com.moulberry.axiom.viaversion.ViaVersionHelper;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
@@ -149,6 +150,7 @@ public class HelloPacketListener implements PacketHandler {
         ServerBlueprintManager.sendManifest(List.of(((CraftPlayer)player).getHandle()));
 
         ServerHeightmaps.sendTo(player);
+        ImplServerCustomBlocks.sendAll(((CraftPlayer)player).getHandle());
     }
 
 }

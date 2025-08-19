@@ -17,12 +17,14 @@ import net.minecraft.world.entity.Marker;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
+import org.bukkit.Chunk;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 public class WorldExtension {
 
@@ -134,7 +136,11 @@ public class WorldExtension {
             List<ServerPlayer> players = chunkMap.getPlayers(chunkPos, false);
             if (players.isEmpty()) continue;
 
-            LevelChunk chunk = this.level.getChunk(chunkPos.x, chunkPos.z);
+            LevelChunk chunk = this.level.getChunkIfLoaded(chunkPos.x, chunkPos.z);
+            if (chunk == null) {
+                continue;
+            }
+
             var packet = new ClientboundLevelChunkWithLightPacket(chunk, this.level.getLightEngine(), null, null, false);
             for (ServerPlayer player : players) {
                 player.connection.send(packet);
