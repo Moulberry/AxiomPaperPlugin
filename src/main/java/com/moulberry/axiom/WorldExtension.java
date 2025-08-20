@@ -6,6 +6,8 @@ import com.moulberry.axiom.paperapi.entity.ImplAxiomHiddenEntities;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.*;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.resources.ResourceKey;
@@ -77,6 +79,14 @@ public class WorldExtension {
             byte[] bytes = ByteBufUtil.getBytes(buf);
             VersionHelper.sendCustomPayload(player, "axiom:marker_data", bytes);
         }
+
+        try {
+            ServerPlayer serverPlayer = ((CraftPlayer)player).getHandle();
+            if (this.level.chunkPacketBlockController.shouldModify(serverPlayer, this.level.getChunkIfLoaded(serverPlayer.blockPosition()))) {
+                Component text = Component.text("Axiom: Warning, anti-xray is enabled. This will cause issues when copying blocks. Please turn anti-xray off");
+                player.sendMessage(text.color(NamedTextColor.RED));
+            }
+        } catch (Throwable ignored) {}
     }
 
     public void tick(boolean sendMarkers, int maxChunkRelightsPerTick, int maxChunkSendsPerTick) {
