@@ -2,6 +2,7 @@ package com.moulberry.axiom;
 
 import com.moulberry.axiom.annotations.ServerAnnotations;
 import com.moulberry.axiom.marker.MarkerData;
+import com.moulberry.axiom.paperapi.entity.ImplAxiomHiddenEntities;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.longs.*;
@@ -17,14 +18,12 @@ import net.minecraft.world.entity.Marker;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
-import org.bukkit.Chunk;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 
 public class WorldExtension {
 
@@ -94,6 +93,10 @@ public class WorldExtension {
 
         for (Entity entity : this.level.getEntities().getAll()) {
             if (entity instanceof Marker marker) {
+                if (ImplAxiomHiddenEntities.isMarkerHidden((org.bukkit.entity.Marker) marker.getBukkitEntity())) {
+                    continue;
+                }
+
                 MarkerData currentData = MarkerData.createFrom(marker);
 
                 MarkerData previousData = this.previousMarkerData.get(marker.getUUID());
@@ -106,21 +109,25 @@ public class WorldExtension {
             }
         }
 
-        Set<UUID> oldUuids = new HashSet<>(this.previousMarkerData.keySet());
-        oldUuids.removeAll(allMarkers);
-        this.previousMarkerData.keySet().removeAll(oldUuids);
+        Set<UUID> missingUuids = new HashSet<>(this.previousMarkerData.keySet());
+        missingUuids.removeAll(allMarkers);
+        this.previousMarkerData.keySet().removeAll(missingUuids);
 
-        if (!changedData.isEmpty() || !oldUuids.isEmpty()) {
+        if (!changedData.isEmpty() || !missingUuids.isEmpty()) {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
             buf.writeCollection(changedData, MarkerData::write);
-            buf.writeCollection(oldUuids, (buffer, uuid) -> buffer.writeUUID(uuid));
+            buf.writeCollection(missingUuids, (buffer, uuid) -> buffer.writeUUID(uuid));
             byte[] bytes = ByteBufUtil.getBytes(buf);
 
+            List<ServerPlayer> players = new ArrayList<>();
+
             for (ServerPlayer player : this.level.players()) {
-                if (AxiomPaper.PLUGIN.activeAxiomPlayers.contains(player.getUUID())) {
-                    VersionHelper.sendCustomPayload(player, "axiom:marker_data", bytes);
+                if (AxiomPaper.PLUGIN.canUseAxiom(player.getBukkitEntity())) {
+                    players.add(player);
                 }
             }
+
+            VersionHelper.sendCustomPayloadToAll(players, "axiom:marker_data", bytes);
         }
     }
 

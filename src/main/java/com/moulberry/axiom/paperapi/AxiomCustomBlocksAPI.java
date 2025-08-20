@@ -1,11 +1,20 @@
 package com.moulberry.axiom.paperapi;
 
+import com.moulberry.axiom.paperapi.block.AxiomCustomBlockBuilder;
+import com.moulberry.axiom.paperapi.block.AxiomPlacementLogic;
+import com.moulberry.axiom.paperapi.block.AxiomProperty;
+import com.moulberry.axiom.paperapi.block.ImplServerCustomBlocks;
 import net.kyori.adventure.key.Key;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.CheckReturnValue;
 
 import java.util.List;
 
+/**
+ * API methods for registering custom blocks with Axiom
+ * Works by associating existing vanilla BlockStates (e.g. a noteblock) with custom information
+ */
 public class AxiomCustomBlocksAPI {
 
     private static final AxiomCustomBlocksAPI INSTANCE = new AxiomCustomBlocksAPI();
@@ -48,8 +57,12 @@ public class AxiomCustomBlocksAPI {
         return builder;
     }
 
-    public void register(AxiomCustomBlockBuilder customBlock) throws AxiomAlreadyRegisteredException {
-        ImplServerCustomBlocks.register(customBlock.build());
+    public void register(Plugin plugin, AxiomCustomBlockBuilder customBlock) throws AxiomAlreadyRegisteredException {
+        ImplServerCustomBlocks.register(plugin, customBlock);
+    }
+
+    public void unregisterAll(Plugin plugin) {
+        ImplServerCustomBlocks.unregisterAll(plugin);
     }
 
 

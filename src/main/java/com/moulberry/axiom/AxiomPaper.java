@@ -11,8 +11,9 @@ import com.moulberry.axiom.operations.OperationQueue;
 import com.moulberry.axiom.operations.PendingOperation;
 import com.moulberry.axiom.packet.*;
 import com.moulberry.axiom.packet.impl.*;
-import com.moulberry.axiom.paperapi.AxiomAlreadyRegisteredException;
-import com.moulberry.axiom.paperapi.AxiomCustomBlocksAPI;
+import com.moulberry.axiom.paperapi.display.ImplServerCustomDisplays;
+import com.moulberry.axiom.paperapi.entity.ImplAxiomHiddenEntities;
+import com.moulberry.axiom.paperapi.block.ImplServerCustomBlocks;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import com.moulberry.axiom.restrictions.AxiomPermissionSet;
 import com.moulberry.axiom.restrictions.Restrictions;
@@ -40,15 +41,13 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.*;
-import org.bukkit.block.data.BlockData;
-import org.bukkit.block.data.Orientable;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
-import org.bukkit.inventory.ItemStack;
+import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.Messenger;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -257,20 +256,6 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         if (CoreProtectIntegration.isEnabled()) {
             this.getLogger().info("CoreProtect integration enabled");
         }
-        // todo nobuild
-        Orientable a = (Orientable) Material.OAK_LOG.createBlockData();
-        a.setAxis(Axis.X);
-        Orientable b = (Orientable) Material.CHERRY_LOG.createBlockData();
-        b.setAxis(Axis.Y);
-        Orientable c = (Orientable) Material.SPRUCE_LOG.createBlockData();
-        c.setAxis(Axis.Z);
-        var result = AxiomCustomBlocksAPI.getAPI().createAxis(Key.key("test:block"), "hello world", a, b, c);
-        result.pickBlockItemStack(new ItemStack(Material.APPLE));
-        try {
-            AxiomCustomBlocksAPI.getAPI().register(result);
-        } catch (AxiomAlreadyRegisteredException exception) {
-            exception.printStackTrace();
-        }
     }
 
     public int getMaxChunkLoadDistance(World world) {
@@ -333,6 +318,10 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         this.operationQueue.tick();
 
         WorldExtension.tick(MinecraftServer.getServer(), this.sendMarkers, this.maxChunkRelightsPerTick, this.maxChunkSendsPerTick);
+
+        ImplServerCustomBlocks.tick();
+        ImplServerCustomDisplays.tick();
+        ImplAxiomHiddenEntities.tick();
     }
 
     public void addPendingOperation(ServerLevel level, PendingOperation operation) {
@@ -495,7 +484,6 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     }
 
     public boolean canUseAxiom(Player player) {
-        player.getListeningPluginChannels();
         return this.activeAxiomPlayers.contains(player.getUniqueId());
     }
 
@@ -592,6 +580,12 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         AxiomModifyWorldEvent modifyWorldEvent = new AxiomModifyWorldEvent(player, world);
         Bukkit.getPluginManager().callEvent(modifyWorldEvent);
         return !modifyWorldEvent.isCancelled();
+    }
+
+    @EventHandler
+    public void onPluginUnload(PluginDisableEvent disableEvent) {
+        ImplServerCustomBlocks.unregisterAll(disableEvent.getPlugin());
+        ImplServerCustomDisplays.unregisterAll(disableEvent.getPlugin());
     }
 
     @EventHandler

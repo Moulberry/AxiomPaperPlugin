@@ -1,4 +1,4 @@
-package com.moulberry.axiom.paperapi;
+package com.moulberry.axiom.paperapi.block;
 
 public enum AxiomPlacementLogic {
 

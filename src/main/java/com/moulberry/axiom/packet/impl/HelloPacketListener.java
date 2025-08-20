@@ -1,12 +1,13 @@
 package com.moulberry.axiom.packet.impl;
 
-import com.google.common.util.concurrent.RateLimiter;
 import com.moulberry.axiom.*;
 import com.moulberry.axiom.blueprint.DFUHelper;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.event.AxiomHandshakeEvent;
 import com.moulberry.axiom.packet.PacketHandler;
-import com.moulberry.axiom.paperapi.ImplServerCustomBlocks;
+import com.moulberry.axiom.paperapi.display.ImplServerCustomDisplays;
+import com.moulberry.axiom.paperapi.entity.ImplAxiomHiddenEntities;
+import com.moulberry.axiom.paperapi.block.ImplServerCustomBlocks;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import com.moulberry.axiom.viaversion.ViaVersionHelper;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
@@ -17,9 +18,9 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.IdMapper;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -147,10 +148,13 @@ public class HelloPacketListener implements PacketHandler {
 
         WorldExtension.onPlayerJoin(world, player);
 
-        ServerBlueprintManager.sendManifest(List.of(((CraftPlayer)player).getHandle()));
+        ServerPlayer serverPlayer = ((CraftPlayer)player).getHandle();
+        ServerBlueprintManager.sendManifest(List.of(serverPlayer));
 
         ServerHeightmaps.sendTo(player);
-        ImplServerCustomBlocks.sendAll(((CraftPlayer)player).getHandle());
+        ImplServerCustomBlocks.sendAll(serverPlayer);
+        ImplServerCustomDisplays.sendAll(serverPlayer);
+        ImplAxiomHiddenEntities.sendAll(List.of(serverPlayer));
     }
 
 }

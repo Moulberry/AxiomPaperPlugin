@@ -1,4 +1,4 @@
-package com.moulberry.axiom.paperapi;
+package com.moulberry.axiom.paperapi.block;
 
 import net.kyori.adventure.key.Key;
 import org.bukkit.block.data.BlockData;

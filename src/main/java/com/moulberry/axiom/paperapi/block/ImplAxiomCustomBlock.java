@@ -1,8 +1,7 @@
-package com.moulberry.axiom.paperapi;
+package com.moulberry.axiom.paperapi.block;
 
 import com.moulberry.axiom.VersionHelper;
 import net.kyori.adventure.key.Key;
-import net.minecraft.SharedConstants;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;

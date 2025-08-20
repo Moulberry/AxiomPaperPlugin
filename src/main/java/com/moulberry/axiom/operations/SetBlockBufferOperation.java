@@ -127,7 +127,6 @@ public class SetBlockBufferOperation implements PendingOperation {
             }
         }
 
-        System.out.println("Processing futures: " + this.chunkFutures.size());
         Iterator<CompletableFuture<LevelChunk>> chunkFutureIterator = this.chunkFutures.iterator();
         while (chunkFutureIterator.hasNext()) {
             CompletableFuture<LevelChunk> future = chunkFutureIterator.next();

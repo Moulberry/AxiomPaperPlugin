@@ -1,4 +1,4 @@
-package com.moulberry.axiom.paperapi;
+package com.moulberry.axiom.paperapi.block;
 
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Property;
