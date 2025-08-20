@@ -113,7 +113,7 @@ public class HelloPacketListener implements PacketHandler {
         }
 
         // Call handshake event
-        int maxBufferSize = plugin.configuration.getInt("max-block-buffer-packet-size");
+        int maxBufferSize = this.plugin.configuration.getInt("max-block-buffer-packet-size");
         AxiomHandshakeEvent handshakeEvent = new AxiomHandshakeEvent(player, maxBufferSize);
         Bukkit.getPluginManager().callEvent(handshakeEvent);
         if (handshakeEvent.isCancelled()) {
@@ -155,6 +155,11 @@ public class HelloPacketListener implements PacketHandler {
         ImplServerCustomBlocks.sendAll(serverPlayer);
         ImplServerCustomDisplays.sendAll(serverPlayer);
         ImplAxiomHiddenEntities.sendAll(List.of(serverPlayer));
+
+        if (!player.isOp() && !player.hasPermission("*") && player.hasPermission("axiom.*")) {
+            Component text = Component.text("Axiom: Using deprecated axiom.* permission. Please switch to axiom.default for public servers, or axiom.all for private servers");
+            player.sendMessage(text.color(NamedTextColor.YELLOW));
+        }
     }
 
 }

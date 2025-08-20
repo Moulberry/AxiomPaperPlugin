@@ -21,7 +21,7 @@ public enum AxiomPermission {
     ANNOTATION_CLEARALL(ANNOTATION, "axiom.annotation.clear_all"),
 
     // The following permissions are the default permissions
-    DEFAULT(null, "axiom.*"),
+    DEFAULT(null, "axiom.default"),
 
     USE(DEFAULT, "axiom.use"),
 
@@ -113,11 +113,23 @@ public enum AxiomPermission {
     BUILDERTOOL_SETUPSYMMETRY(BUILDERTOOL, "axiom.builder_tool.setup_symmetry");
 
     public final AxiomPermission parent;
-    public final String name;
+    private final String name;
 
     AxiomPermission(AxiomPermission parent, String name) {
         this.parent = parent;
         this.name = name;
+    }
+
+    public String getPermissionNode() {
+        return this.name;
+    }
+
+    public String getInternalName() {
+        if (this == DEFAULT) {
+            return "axiom.*";
+        } else {
+            return this.name;
+        }
     }
 
 }

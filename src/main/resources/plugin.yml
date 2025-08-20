@@ -10,7 +10,7 @@ permissions:
   axiom.all:
     description: Allows use of ALL Axiom features. Same as /op. This permission bypasses all other permissions.
     default: op
-  axiom.*:
+  axiom.default:
     description: Allows the use of all Axiom features recommended for public servers
     children:
       axiom.use: true
@@ -134,3 +134,14 @@ permissions:
       axiom.tool.shatter: true
       axiom.tool.extrude: true
       axiom.tool.modify: true
+  axiom.builder_tool.*:
+    description: Permissions associated with tools
+    children:
+      axiom.builder_tool.move: true
+      axiom.builder_tool.clone: true
+      axiom.builder_tool.stack: true
+      axiom.builder_tool.smear: true
+      axiom.builder_tool.ruler: true
+      axiom.builder_tool.extrude: true
+      axiom.builder_tool.erase: true
+      axiom.builder_tool.setup_symmetry: true

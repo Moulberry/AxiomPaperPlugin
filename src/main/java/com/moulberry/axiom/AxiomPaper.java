@@ -7,6 +7,7 @@ import com.moulberry.axiom.event.AxiomCreateWorldPropertiesEvent;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
+import com.moulberry.axiom.listener.NoPhysicalTriggerListener;
 import com.moulberry.axiom.operations.OperationQueue;
 import com.moulberry.axiom.operations.PendingOperation;
 import com.moulberry.axiom.packet.*;
@@ -75,6 +76,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     public final Map<UUID, Integer> playerProtocolVersion = new ConcurrentHashMap<>();
     private final Map<UUID, AxiomPermissionSet> playerPermissions = new HashMap<>();
     private final Map<UUID, PlotSquaredIntegration.PlotBounds> lastPlotBoundsForPlayers = new HashMap<>();
+    private final Set<UUID> noPhysicalTriggerPlayers = new HashSet<>();
     private final OperationQueue operationQueue = new OperationQueue();
     private final Object2IntOpenHashMap<UUID> availableDispatchSends = new Object2IntOpenHashMap<>();
     public Configuration configuration;
@@ -83,11 +85,12 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     private boolean logLargeBlockBufferChanges = false;
     private int packetCollectionReadLimit = 1024;
     private long maxNbtDecompressLimit = 131072;
-    private Set<EntityType<?>> whitelistedEntities = new HashSet<>();
-    private Set<EntityType<?>> blacklistedEntities = new HashSet<>();
+    private final Set<EntityType<?>> whitelistedEntities = new HashSet<>();
+    private final Set<EntityType<?>> blacklistedEntities = new HashSet<>();
 
     private int allowedDispatchSendsPerSecond = 1024;
 
+    private boolean registeredNoPhysicalTriggerListener = false;
     public boolean logCoreProtectChanges = true;
 
     public Path blueprintFolder = null;
@@ -157,6 +160,8 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerOutgoingPluginChannel(this, "axiom:add_server_heightmap");
         msg.registerOutgoingPluginChannel(this, "axiom:custom_blocks");
         msg.registerOutgoingPluginChannel(this, "axiom:register_custom_block_v2");
+        msg.registerOutgoingPluginChannel(this, "axiom:ignore_display_entities");
+        msg.registerOutgoingPluginChannel(this, "axiom:register_custom_items");
 
         Map<String, PacketHandler> largePayloadHandlers = new HashMap<>();
 
@@ -165,6 +170,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         registerPacketHandler("set_fly_speed", new SetFlySpeedPacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
         registerPacketHandler("teleport", new TeleportPacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
         registerPacketHandler("set_world_time", new SetTimePacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
+        registerPacketHandler("set_no_physical_trigger", new SetNoPhysicalTriggerPacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
         registerPacketHandler("set_world_property", new SetWorldPropertyListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
 
         registerPacketHandler("request_chunk_data", new RequestChunkDataPacketListener(this), msg,
@@ -312,6 +318,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         this.playerBlockRegistry.keySet().retainAll(stillActiveAxiomPlayers);
         this.playerProtocolVersion.keySet().retainAll(stillActiveAxiomPlayers);
         this.lastPlotBoundsForPlayers.keySet().retainAll(stillActiveAxiomPlayers);
+        this.noPhysicalTriggerPlayers.retainAll(stillActiveAxiomPlayers);
 
         this.failedPermissionAxiomPlayers.retainAll(stillFailedAxiomPlayers);
 
@@ -513,7 +520,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         EnumSet<AxiomPermission> denied = EnumSet.noneOf(AxiomPermission.class);
 
         for (AxiomPermission permission : AxiomPermission.values()) {
-            TriState value = player.permissionValue(permission.name);
+            TriState value = player.permissionValue(permission.getPermissionNode());
             switch (value) {
                 case FALSE -> denied.add(permission);
                 case NOT_SET -> {
@@ -536,6 +543,23 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             return false;
         }
         return true;
+    }
+
+    public boolean isNoPhysicalTrigger(UUID uuid) {
+        return this.noPhysicalTriggerPlayers.contains(uuid);
+    }
+
+    public void setNoPhysicalTrigger(UUID uuid, boolean noPhysicalTrigger) {
+        if (noPhysicalTrigger) {
+            if (!this.registeredNoPhysicalTriggerListener) {
+                this.registeredNoPhysicalTriggerListener = true;
+                Bukkit.getPluginManager().registerEvents(new NoPhysicalTriggerListener(this), this);
+            }
+
+            this.noPhysicalTriggerPlayers.add(uuid);
+        } else {
+            this.noPhysicalTriggerPlayers.remove(uuid);
+        }
     }
 
     public boolean isMismatchedDataVersion(UUID uuid) {

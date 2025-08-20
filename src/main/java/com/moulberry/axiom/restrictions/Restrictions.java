@@ -20,7 +20,7 @@ public class Restrictions {
     private static final Map<String, AxiomPermission> PERMISSION_BY_NAME = new LinkedHashMap<>();
     static {
         for (AxiomPermission value : AxiomPermission.values()) {
-            PERMISSION_BY_NAME.put(value.name, value);
+            PERMISSION_BY_NAME.put(value.getInternalName(), value);
         }
     }
 
@@ -37,12 +37,12 @@ public class Restrictions {
 
         friendlyByteBuf.writeVarInt(this.allowedPermissions.size());
         for (AxiomPermission allowedPermission : this.allowedPermissions) {
-            friendlyByteBuf.writeUtf(allowedPermission.name);
+            friendlyByteBuf.writeUtf(allowedPermission.getInternalName());
         }
 
         friendlyByteBuf.writeVarInt(this.deniedPermissions.size());
         for (AxiomPermission disallowedPermission : this.deniedPermissions) {
-            friendlyByteBuf.writeUtf(disallowedPermission.name);
+            friendlyByteBuf.writeUtf(disallowedPermission.getInternalName());
         }
 
         friendlyByteBuf.writeInt(this.infiniteReachLimit);

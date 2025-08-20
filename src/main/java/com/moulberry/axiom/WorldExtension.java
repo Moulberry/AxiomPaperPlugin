@@ -150,11 +150,14 @@ public class WorldExtension {
         LongIterator longIterator = this.pendingChunksToSend.longIterator();
         while (longIterator.hasNext()) {
             ChunkPos chunkPos = new ChunkPos(longIterator.nextLong());
-            List<ServerPlayer> players = chunkMap.getPlayers(chunkPos, false);
-            if (players.isEmpty()) continue;
 
             LevelChunk chunk = this.level.getChunkIfLoaded(chunkPos.x, chunkPos.z);
             if (chunk == null) {
+                continue;
+            }
+
+            List<ServerPlayer> players = chunkMap.getPlayers(chunkPos, false);
+            if (players.isEmpty()) {
                 continue;
             }
 
