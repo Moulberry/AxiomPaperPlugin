@@ -679,12 +679,12 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     public boolean canModifyWorld(Player player, World world) {
         String whitelist = this.configuration.getString("whitelist-world-regex");
-        if (whitelist != null && !world.getName().matches(whitelist)) {
+        if (whitelist != null && !whitelist.isBlank() && !world.getName().matches(whitelist)) {
             return false;
         }
 
         String blacklist = this.configuration.getString("blacklist-world-regex");
-        if (blacklist != null && world.getName().matches(blacklist)) {
+        if (blacklist != null && !blacklist.isBlank() && world.getName().matches(blacklist)) {
             return false;
         }
 
