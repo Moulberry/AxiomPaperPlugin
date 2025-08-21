@@ -3,6 +3,7 @@ package com.moulberry.axiom;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.commands.AxiomDebugCommand;
+import com.moulberry.axiom.commands.AxiomMigrateCommand;
 import com.moulberry.axiom.event.AxiomCreateWorldPropertiesEvent;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
@@ -28,6 +29,8 @@ import io.papermc.paper.network.ChannelInitializeListener;
 import io.papermc.paper.network.ChannelInitializeListenerHolder;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.kyori.adventure.key.Key;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.util.TriState;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
@@ -44,6 +47,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.*;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.Configuration;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -61,6 +65,7 @@ import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.IntFunction;
@@ -101,6 +106,9 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     private int maxChunkSendsPerTick = 0;
     private int maxChunkLoadDistance = 256;
 
+    public int configRemovedEntries = 0;
+    public int configAddedEntries = 0;
+
     @Override
     public void onEnable() {
         PLUGIN = this;
@@ -108,21 +116,23 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         AxiomReflection.init();
 
         this.saveDefaultConfig();
-        configuration = this.getConfig();
+        this.configuration = this.getConfig();
 
         Set<String> validResolutions = Set.of("kick", "warn", "ignore");
-        if (!validResolutions.contains(configuration.getString("incompatible-data-version"))) {
+        if (!validResolutions.contains(this.configuration.getString("incompatible-data-version"))) {
             this.getLogger().warning("Invalid value for incompatible-data-version, expected 'kick', 'warn' or 'ignore'");
         }
-        if (!validResolutions.contains(configuration.getString("unsupported-axiom-version"))) {
+        if (!validResolutions.contains(this.configuration.getString("unsupported-axiom-version"))) {
             this.getLogger().warning("Invalid value for unsupported-axiom-version, expected 'kick', 'warn' or 'ignore'");
         }
+
+        checkOutdatedConfig();
 
         this.logLargeBlockBufferChanges = this.configuration.getBoolean("log-large-block-buffer-changes");
 
         if (this.configuration.getBoolean("allow-large-payload-for-all-packets")) {
-            packetCollectionReadLimit = Short.MAX_VALUE;
-            maxNbtDecompressLimit = Long.MAX_VALUE;
+            this.packetCollectionReadLimit = Short.MAX_VALUE;
+            this.maxNbtDecompressLimit = Long.MAX_VALUE;
         }
 
         this.whitelistedEntities.clear();
@@ -239,7 +249,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
         this.logCoreProtectChanges = this.configuration.getBoolean("log-core-protect-changes");
 
-        this.allowedDispatchSendsPerSecond = configuration.getInt("block-buffer-rate-limit");
+        this.allowedDispatchSendsPerSecond = this.configuration.getInt("block-buffer-rate-limit");
         if (this.allowedDispatchSendsPerSecond <= 0) {
             this.allowedDispatchSendsPerSecond = 1024;
         }
@@ -255,6 +265,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             }
 
             AxiomDebugCommand.register(this, manager);
+            AxiomMigrateCommand.register(manager);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -262,6 +273,81 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         if (CoreProtectIntegration.isEnabled()) {
             this.getLogger().info("CoreProtect integration enabled");
         }
+    }
+
+    private void checkOutdatedConfig() {
+        this.configAddedEntries = 0;
+        this.configRemovedEntries = 0;
+
+        Configuration defaultConfig = this.configuration.getDefaults();
+        if (defaultConfig == null) {
+            return;
+        }
+
+        Set<String> defaultKeys = defaultConfig.getKeys(false);
+        Set<String> currentKeys = this.configuration.getKeys(false);
+
+        var a = new HashSet<>(defaultKeys);
+        a.removeAll(currentKeys);
+        this.configAddedEntries = a.size();
+
+        var b = new HashSet<>(currentKeys);
+        b.removeAll(defaultKeys);
+        this.configRemovedEntries = b.size();
+    }
+
+    public void migrateConfig(CommandSender commandSender) {
+        if (this.configAddedEntries == 0 && this.configRemovedEntries == 0) {
+            commandSender.sendMessage(Component.text("No migration necessary").color(NamedTextColor.YELLOW));
+            return;
+        }
+
+        this.configAddedEntries = 0;
+        this.configRemovedEntries = 0;
+
+        Configuration defaultConfig = this.configuration.getDefaults();
+        if (!(defaultConfig instanceof FileConfiguration fileConfiguration)) {
+            commandSender.sendMessage(Component.text("Internal error: Default config doesn't implement FileConfiguration").color(NamedTextColor.RED));
+            return;
+        }
+
+        Path dataFolder = this.getDataFolder().toPath();
+        Path configPath = dataFolder.resolve("config.yml");
+        Path backupPath = dataFolder.resolve("config.yml.bak");
+        if (!Files.exists(configPath)) {
+            commandSender.sendMessage(Component.text("Internal error: config.yml doesn't exist").color(NamedTextColor.RED));
+            return;
+        }
+
+        // Backup
+        try {
+            Files.copy(configPath, backupPath, StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            e.printStackTrace();
+            commandSender.sendMessage(Component.text("Internal error: couldn't backup existing config").color(NamedTextColor.RED));
+            return;
+        }
+
+        commandSender.sendMessage(Component.text("Successfully backed up current config to config.yml.bak").color(NamedTextColor.GREEN));
+
+        // Set new values
+        Set<String> keys = defaultConfig.getKeys(false);
+        for (String key : keys) {
+            Object object = this.configuration.get(key);
+            if (object != null) {
+                fileConfiguration.set(key, object);
+            }
+        }
+
+        // Save
+        try {
+            fileConfiguration.save(configPath.toFile());
+        } catch (IOException e) {
+            commandSender.sendMessage(Component.text("Internal error: failed to save migrated config.yml").color(NamedTextColor.RED));
+            e.printStackTrace();
+        }
+
+        commandSender.sendMessage(Component.text("Successfully migrated config.yml").color(NamedTextColor.GREEN));
     }
 
     public int getMaxChunkLoadDistance(World world) {
@@ -298,6 +384,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
                     VersionHelper.sendCustomPayload(player, "axiom:enable", bytes);
 
                     this.failedPermissionAxiomPlayers.add(uuid);
+                    stillFailedAxiomPlayers.add(uuid);
                 } else {
                     stillActiveAxiomPlayers.add(uuid);
                     tickPlayer(player);

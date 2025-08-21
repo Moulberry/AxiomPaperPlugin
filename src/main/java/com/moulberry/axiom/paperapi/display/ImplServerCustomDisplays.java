@@ -50,24 +50,8 @@ public class ImplServerCustomDisplays {
         registeredDisplays.put(customDisplay.id(), customDisplay);
         byPlugin.computeIfAbsent(plugin, k -> new ArrayList<>()).add(customDisplay.id());
 
-        // Send
-        if (!pendingReregisterAll && hasRegisteredToAPlayer) {
-            List<ServerPlayer> players = new ArrayList<>();
-            for (ServerPlayer player : MinecraftServer.getServer().getPlayerList().getPlayers()) {
-                if (AxiomPaper.PLUGIN.canUseAxiom(player.getBukkitEntity())) {
-                    int playerProtocolVersion = AxiomPaper.PLUGIN.getProtocolVersionFor(player.getUUID());
-                    if (playerProtocolVersion == SharedConstants.getProtocolVersion()) {
-                        players.add(player);
-                    }
-                }
-            }
-            if (!players.isEmpty()) {
-                var registryAccess = MinecraftServer.getServer().registryAccess();
-                RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), registryAccess);
-                write(buf);
-                byte[] bytes = ByteBufUtil.getBytes(buf);
-                VersionHelper.sendCustomPayloadToAll(players, "axiom:register_custom_items", bytes);
-            }
+        if (hasRegisteredToAPlayer) {
+            pendingReregisterAll = true;
         }
     }
 

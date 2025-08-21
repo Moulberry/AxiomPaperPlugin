@@ -15,7 +15,9 @@ import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.IdMapper;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -159,6 +161,28 @@ public class HelloPacketListener implements PacketHandler {
         if (!player.isOp() && !player.hasPermission("*") && player.hasPermission("axiom.*")) {
             Component text = Component.text("Axiom: Using deprecated axiom.* permission. Please switch to axiom.default for public servers, or axiom.all for private servers");
             player.sendMessage(text.color(NamedTextColor.YELLOW));
+        }
+
+        if (player.isOp() && (this.plugin.configAddedEntries != 0 || this.plugin.configRemovedEntries != 0)) {
+            StringBuilder builder = new StringBuilder("Axiom: Plugin config is outdated (");
+            if (this.plugin.configAddedEntries != 0) {
+                builder.append(this.plugin.configAddedEntries).append(" new entries");
+            }
+            if (this.plugin.configRemovedEntries != 0) {
+                if (this.plugin.configAddedEntries != 0) {
+                    builder.append(", ");
+                }
+                builder.append(this.plugin.configRemovedEntries).append(" removed entries");
+            }
+            builder.append(")");
+
+            Component text = Component.text(builder.toString());
+            player.sendMessage(text.color(NamedTextColor.YELLOW));
+
+            Component click = Component.text("CLICK HERE").color(NamedTextColor.GREEN).decorate(TextDecoration.BOLD)
+                                       .hoverEvent(Component.text("/axiompapermigrateconfig"))
+                                       .clickEvent(ClickEvent.runCommand("axiompapermigrateconfig"));
+            player.sendMessage(Component.text().append(click).append(Component.text(" to migrate the config").color(NamedTextColor.YELLOW)));
         }
     }
 

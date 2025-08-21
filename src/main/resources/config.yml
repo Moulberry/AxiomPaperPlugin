@@ -31,11 +31,11 @@ max-block-buffer-packet-size: 0x100000
 
 # Regex for whitelisting worlds
 # The world can only be modified if the regex matches the world's name
-whitelist-world-regex: null
+whitelist-world-regex: ""
 
 # Regex for blacklisting worlds
 # If the regex matches the world's name, the world can't be modified
-blacklist-world-regex: null
+blacklist-world-regex: ""
 
 # Block buffer rate-limit (in chunk sections per second), 0 = default limit
 block-buffer-rate-limit: 0
@@ -44,18 +44,12 @@ block-buffer-rate-limit: 0
 log-large-block-buffer-changes: false
 
 # Whitelist entities that can be spawned/manipulated/deleted by the client
-whitelist-entities:
-#  - "minecraft:item_display"
-#  - "minecraft:block_display"
-#  - "minecraft:text_display"
-#  - "minecraft:painting"
-#  - "minecraft:armor_stand"
-#  - "minecraft:item_frame"
-#  - "minecraft:glow_item_frame"
+# e.g. ["item_display", "block_display", "text_display"]
+whitelist-entities: []
 
 # Blacklist entities that can be spawned/manipulated/deleted by the client
-blacklist-entities:
-#  - "minecraft:ender_dragon"
+# e.g. ["ender_dragon"]
+blacklist-entities: []
 
 # Disables entity data sanitization. NOT RECOMMENDED FOR PUBLIC SERVERS
 disable-entity-sanitization: false
@@ -67,9 +61,8 @@ send-markers: false
 allow-annotations: false
 
 # Disallowed blocks
-disallowed-blocks:
-#  - "minecraft:wheat"
-#  - "minecraft:oak_stairs[waterlogged=true]"
+# e.g. ["minecraft:wheat", "minecraft:oak_stairs[waterlogged=true]"]
+disallowed-blocks: []
 
 infinite-reach-limit: 256
 
