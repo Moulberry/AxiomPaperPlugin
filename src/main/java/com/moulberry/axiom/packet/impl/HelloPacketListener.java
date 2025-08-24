@@ -122,9 +122,6 @@ public class HelloPacketListener implements PacketHandler {
             return;
         }
 
-        this.plugin.activeAxiomPlayers.add(player.getUniqueId());
-        this.plugin.failedPermissionAxiomPlayers.remove(player.getUniqueId());
-
         // Enable
         RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
         buf.writeBoolean(true);
@@ -136,7 +133,7 @@ public class HelloPacketListener implements PacketHandler {
         byte[] enableBytes = ByteBufUtil.getBytes(buf);
         VersionHelper.sendCustomPayload(player, "axiom:enable", enableBytes);
 
-        this.plugin.tickPlayer(player);
+        this.plugin.onAxiomActive(player);
 
         // Register world properties
         World world = player.getWorld();

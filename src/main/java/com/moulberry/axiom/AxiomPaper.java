@@ -436,7 +436,17 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         }
     }
 
-    public void tickPlayer(Player player) {
+    public void onAxiomActive(Player player) {
+        this.activeAxiomPlayers.add(player.getUniqueId());
+        this.failedPermissionAxiomPlayers.remove(player.getUniqueId());
+
+        this.playerPermissions.remove(player.getUniqueId());
+        this.playerRestrictions.remove(player.getUniqueId());
+
+        this.tickPlayer(player);
+    }
+
+    private void tickPlayer(Player player) {
         if (!this.availableDispatchSends.containsKey(player.getUniqueId())) {
             this.availableDispatchSends.put(player.getUniqueId(), this.allowedDispatchSendsPerSecond*20);
             sendUpdateAvailableDispatchSends(player, this.allowedDispatchSendsPerSecond, this.allowedDispatchSendsPerSecond);
