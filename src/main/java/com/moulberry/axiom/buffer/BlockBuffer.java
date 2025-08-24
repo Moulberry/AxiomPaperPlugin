@@ -11,6 +11,7 @@ import it.unimi.dsi.fastutil.objects.ObjectSet;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.IdMap;
 import net.minecraft.core.IdMapper;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.block.Block;
@@ -23,16 +24,53 @@ import org.jetbrains.annotations.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 
 public class BlockBuffer {
 
     public static final BlockState EMPTY_STATE = Blocks.VOID_AIR.defaultBlockState();
 
     private static final Map<BlockState, Codec<PalettedContainer<BlockState>>> BLOCK_STATE_CODECS = new HashMap<>();
+    private static final Map<BlockState, IdMap<BlockState>> ID_MAPPERS = new HashMap<>();
+
+    public static PalettedContainer<BlockState> createPalettedContainerForEmptyBlockState(BlockState emptyBlockState) {
+        return new PalettedContainer<>(BlockBuffer.getIdMapForEmptyBlockState(emptyBlockState), EMPTY_STATE, PalettedContainer.Strategy.SECTION_STATES);
+    }
+
+    public static IdMap<BlockState> getIdMapForEmptyBlockState(BlockState empty) {
+        if (empty == EMPTY_STATE) {
+            return Block.BLOCK_STATE_REGISTRY;
+        }
+        return ID_MAPPERS.computeIfAbsent(empty, emptyState -> {
+            IdMapper<BlockState> mapper = new IdMapper<>(Block.BLOCK_STATE_REGISTRY.size());
+            for (BlockState blockState : Block.BLOCK_STATE_REGISTRY) {
+                mapper.addMapping(blockState, Block.BLOCK_STATE_REGISTRY.getId(blockState));
+            }
+            mapper.addMapping(EMPTY_STATE, Block.BLOCK_STATE_REGISTRY.getId(emptyState));
+            mapper.addMapping(EMPTY_STATE, Block.BLOCK_STATE_REGISTRY.getId(EMPTY_STATE));
+            return mapper;
+        });
+    }
 
     public static Codec<PalettedContainer<BlockState>> getCodecForEmptyBlockState(BlockState empty) {
         return BLOCK_STATE_CODECS.computeIfAbsent(empty, emptyState -> {
-            return PalettedContainer.codecRW(Block.BLOCK_STATE_REGISTRY, BlockState.CODEC, PalettedContainer.Strategy.SECTION_STATES, emptyState);
+            IdMap<BlockState> mapping = getIdMapForEmptyBlockState(emptyState);
+            Codec<BlockState> blockStateCodec;
+
+            if (emptyState == EMPTY_STATE) {
+                blockStateCodec = BlockState.CODEC;
+            } else {
+                Function<BlockState, BlockState> mapFunction = blockState -> {
+                    if (blockState == emptyState) {
+                        return EMPTY_STATE;
+                    } else {
+                        return blockState;
+                    }
+                };
+                blockStateCodec = BlockState.CODEC.xmap(mapFunction, mapFunction);
+            }
+
+            return PalettedContainer.codecRW(mapping, blockStateCodec, PalettedContainer.Strategy.SECTION_STATES, EMPTY_STATE);
         });
     }
 
