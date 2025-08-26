@@ -1,23 +1,37 @@
 package com.moulberry.axiom.viaversion;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.buffer.BlockBuffer;
 import com.viaversion.viaversion.api.Via;
 import com.viaversion.viaversion.api.data.MappingData;
 import com.viaversion.viaversion.api.data.Mappings;
+import com.viaversion.viaversion.api.minecraft.chunks.DataPalette;
+import com.viaversion.viaversion.api.minecraft.chunks.PaletteType;
 import com.viaversion.viaversion.api.protocol.ProtocolPathEntry;
 import com.viaversion.viaversion.api.type.Type;
 import com.viaversion.viaversion.api.type.Types;
+import com.viaversion.viaversion.api.type.types.chunk.PaletteType1_18;
+import com.viaversion.viaversion.api.type.types.chunk.PaletteType1_21_5;
+import com.viaversion.viaversion.api.type.types.chunk.PaletteTypeBase;
+import com.viaversion.viaversion.util.MathUtil;
 import io.netty.buffer.Unpooled;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.SharedConstants;
+import net.minecraft.core.IdMap;
 import net.minecraft.core.IdMapper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.PalettedContainer;
 import org.bukkit.entity.Player;
 
 import java.util.List;
+import java.util.Map;
 
 public class ViaVersionHelper {
 
@@ -98,19 +112,7 @@ public class ViaVersionHelper {
 
     private static final int UNNAMED_COMPOUND_TAG_CHANGE_VERSION = 764; // 1.20.2
 
-    public static void skipTagViaVersion(FriendlyByteBuf friendlyByteBuf, Player player) throws Exception {
-        skipTagViaVersion(friendlyByteBuf, AxiomPaper.PLUGIN.getProtocolVersionFor(player.getUniqueId()));
-    }
-
-    public static void skipTagViaVersion(FriendlyByteBuf friendlyByteBuf, int playerVersion) throws Exception {
-        getTagType(playerVersion).read(friendlyByteBuf);
-    }
-
-    public static CompoundTag readTagViaVersion(FriendlyByteBuf friendlyByteBuf, Player player) throws Exception {
-        return readTagViaVersion(friendlyByteBuf, AxiomPaper.PLUGIN.getProtocolVersionFor(player.getUniqueId()));
-    }
-
-    public static CompoundTag readTagViaVersion(FriendlyByteBuf friendlyByteBuf, int playerVersion) throws Exception {
+    public static CompoundTag readTagViaVersion(FriendlyByteBuf friendlyByteBuf, int playerVersion) {
         Type<com.viaversion.nbt.tag.CompoundTag> from = getTagType(playerVersion);
         Type<com.viaversion.nbt.tag.CompoundTag> to = getTagType(SharedConstants.getProtocolVersion());
 
@@ -126,16 +128,51 @@ public class ViaVersionHelper {
     }
 
     private static CompoundTag readTagViaVersion(FriendlyByteBuf friendlyByteBuf,
-            Type<com.viaversion.nbt.tag.CompoundTag> from,
-            Type<com.viaversion.nbt.tag.CompoundTag> to) throws Exception {
+        Type<com.viaversion.nbt.tag.CompoundTag> from,
+        Type<com.viaversion.nbt.tag.CompoundTag> to) {
         if (from == to) {
             return friendlyByteBuf.readNbt();
         }
 
-        com.viaversion.nbt.tag.CompoundTag tag = from.read(friendlyByteBuf);
         FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
-        to.write(buffer, tag);
+        to.write(buffer, from.read(friendlyByteBuf));
         return buffer.readNbt();
+    }
+
+    public static void readPalettedContainerViaVersion(FriendlyByteBuf friendlyByteBuf, PalettedContainer<BlockState> container, int playerVersion) {
+        Type<DataPalette> from = getPalettedContainerType(playerVersion, container.registry);
+        Type<DataPalette> to = getPalettedContainerType(SharedConstants.getProtocolVersion(), container.registry);
+
+        if (from == to) {
+            container.read(friendlyByteBuf);
+            return;
+        }
+
+        FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
+        to.write(buffer, from.read(friendlyByteBuf));
+        container.read(buffer);
+    }
+
+    private static final LoadingCache<Integer, Type<DataPalette>> PALETTE_TYPE_1_21_5 = CacheBuilder.newBuilder().build(new CacheLoader<>() {
+        @Override
+        public Type<DataPalette> load(Integer size) {
+            return new PaletteType1_21_5(PaletteType.BLOCKS, size);
+        }
+    });
+
+    private static final LoadingCache<Integer, Type<DataPalette>> PALETTE_TYPE_1_18 = CacheBuilder.newBuilder().build(new CacheLoader<>() {
+        @Override
+        public Type<DataPalette> load(Integer size) {
+            return new PaletteType1_18(PaletteType.BLOCKS, size);
+        }
+    });
+
+    private static Type<DataPalette> getPalettedContainerType(int version, IdMap<BlockState> registry) {
+        if (version >= 770) { // 1.21.5
+            return PALETTE_TYPE_1_21_5.getUnchecked(MathUtil.ceilLog2(registry.size()));
+        } else {
+            return PALETTE_TYPE_1_18.getUnchecked(MathUtil.ceilLog2(registry.size()));
+        }
     }
 
 }

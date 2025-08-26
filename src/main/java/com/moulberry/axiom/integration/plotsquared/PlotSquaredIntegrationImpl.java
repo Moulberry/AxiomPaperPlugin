@@ -179,7 +179,7 @@ public class PlotSquaredIntegrationImpl {
     }
 
     private static PlotSquaredIntegration.PlotBounds createBounds(Plot plot, String worldName) {
-        Set<PlotSquaredIntegration.PlotBox> boxes = new HashSet<>();
+        Set<PlotSquaredIntegration.PlotBox> boxes = new LinkedHashSet<>();
 
         for (CuboidRegion region : plot.getRegions()) {
             BlockPos min = new BlockPos(
