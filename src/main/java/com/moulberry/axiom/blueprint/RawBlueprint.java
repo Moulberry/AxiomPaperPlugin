@@ -1,5 +1,6 @@
 package com.moulberry.axiom.blueprint;
 
+import com.moulberry.axiom.buffer.BlockBuffer;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -66,12 +67,13 @@ public record RawBlueprint(BlueprintHeader header, byte[] thumbnail, Long2Object
 
         Long2ObjectMap<PalettedContainer<BlockState>> blocks = new Long2ObjectOpenHashMap<>();
 
+        BlockState emptyBlockState = header.emptyBlockState();
+
         int chunkCount = friendlyByteBuf.readVarInt();
         for (int i = 0; i < chunkCount; i++) {
             long pos = friendlyByteBuf.readLong();
 
-            PalettedContainer<BlockState> palettedContainer = new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY,
-                    Blocks.STRUCTURE_VOID.defaultBlockState(), PalettedContainer.Strategy.SECTION_STATES);
+            PalettedContainer<BlockState> palettedContainer = BlockBuffer.createPalettedContainerForEmptyBlockState(emptyBlockState);
             palettedContainer.read(friendlyByteBuf);
 
             blocks.put(pos, palettedContainer);
