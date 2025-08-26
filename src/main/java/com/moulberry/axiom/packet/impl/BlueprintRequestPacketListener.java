@@ -6,6 +6,7 @@ import com.moulberry.axiom.blueprint.RawBlueprint;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.blueprint.ServerBlueprintRegistry;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
@@ -28,7 +29,7 @@ public class BlueprintRequestPacketListener implements PacketHandler {
 
     @Override
     public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.canUseAxiom(player, "axiom.blueprint.request")) {
+        if (!this.plugin.canUseAxiom(player, AxiomPermission.BLUEPRINT_REQUEST)) {
             return;
         }
 

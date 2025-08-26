@@ -4,6 +4,7 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.CompoundTag;
@@ -23,10 +24,8 @@ public class RequestEntityDataPacketListener implements PacketHandler {
     public static final ResourceLocation RESPONSE_ID = VersionHelper.createResourceLocation("axiom:response_entity_data");
 
     private final AxiomPaper plugin;
-    private final boolean forceFail;
-    public RequestEntityDataPacketListener(AxiomPaper plugin, boolean forceFail) {
+    public RequestEntityDataPacketListener(AxiomPaper plugin) {
         this.plugin = plugin;
-        this.forceFail = forceFail;
     }
 
     @Override
@@ -34,7 +33,7 @@ public class RequestEntityDataPacketListener implements PacketHandler {
         ServerPlayer player = ((CraftPlayer)bukkitPlayer).getHandle();
         long id = friendlyByteBuf.readLong();
 
-        if (this.forceFail || !this.plugin.canUseAxiom(bukkitPlayer, "axiom.entity.request_data") || this.plugin.isMismatchedDataVersion(bukkitPlayer.getUniqueId())) {
+        if (!this.plugin.canUseAxiom(bukkitPlayer, AxiomPermission.ENTITY_REQUESTDATA) || this.plugin.isMismatchedDataVersion(bukkitPlayer.getUniqueId())) {
             // We always send an 'empty' response in order to make the client happy
             sendResponse(player, id, true, Map.of());
             return;

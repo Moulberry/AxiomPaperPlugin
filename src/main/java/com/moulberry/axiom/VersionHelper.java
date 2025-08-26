@@ -10,6 +10,8 @@ import net.minecraft.server.level.ServerPlayer;
 import org.bukkit.craftbukkit.v1_20_R2.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 
+import java.util.List;
+
 public class VersionHelper {
 
     public static void sendCustomPayload(Player player, String id, byte[] data) {
@@ -24,10 +26,20 @@ public class VersionHelper {
         serverPlayer.connection.send(new ClientboundCustomPayloadPacket(new CustomByteArrayPayload(id, data)));
     }
 
-    public static void sendCustomPayload(ServerPlayer serverPlayer, ResourceLocation id, FriendlyByteBuf friendlyByteBuf) {
-        byte[] data = new byte[friendlyByteBuf.writerIndex()];
-        friendlyByteBuf.getBytes(friendlyByteBuf.readerIndex(), data);
-        sendCustomPayload(serverPlayer, id, data);
+    public static void sendCustomPayloadToAll(List<ServerPlayer> players, String id, byte[] data) {
+        sendCustomPayloadToAll(players, createResourceLocation(id), data);
+    }
+
+    public static void sendCustomPayloadToAll(List<ServerPlayer> players, ResourceLocation id, byte[] data) {
+        if (players.isEmpty()) {
+            return;
+        }
+
+        var payload = new CustomByteArrayPayload(id, data);
+        var packet = new ClientboundCustomPayloadPacket(payload);
+        for (ServerPlayer player : players) {
+            player.connection.send(packet);
+        }
     }
 
     public static ResourceLocation createResourceLocation(String composed) {

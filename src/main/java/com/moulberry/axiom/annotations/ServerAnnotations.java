@@ -3,6 +3,7 @@ package com.moulberry.axiom.annotations;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.annotations.data.AnnotationData;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.CompoundTag;
@@ -123,7 +124,7 @@ public class ServerAnnotations {
         List<ServerPlayer> playersWithAxiom = new ArrayList<>();
 
         for (ServerPlayer player : ((CraftWorld)world).getHandle().players()) {
-            if (AxiomPaper.PLUGIN.canUseAxiom(player.getBukkitEntity(), "axiom.annotations.view")) {
+            if (AxiomPaper.PLUGIN.canUseAxiom(player.getBukkitEntity())) {
                 playersWithAxiom.add(player);
             }
         }

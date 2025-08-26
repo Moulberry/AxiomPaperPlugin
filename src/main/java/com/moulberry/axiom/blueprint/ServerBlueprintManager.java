@@ -2,6 +2,7 @@ package com.moulberry.axiom.blueprint;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.VersionHelper;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
@@ -35,8 +36,7 @@ public class ServerBlueprintManager {
 
             for (ServerPlayer serverPlayer : serverPlayers) {
                 CraftPlayer craftPlayer = serverPlayer.getBukkitEntity();
-                if (AxiomPaper.PLUGIN.canUseAxiom(craftPlayer) &&
-                        craftPlayer.getListeningPluginChannels().contains("axiom:blueprint_manifest")) {
+                if (AxiomPaper.PLUGIN.canUseAxiom(craftPlayer, AxiomPermission.BLUEPRINT_MANIFEST)) {
                     sendTo.add(serverPlayer);
                 }
             }
