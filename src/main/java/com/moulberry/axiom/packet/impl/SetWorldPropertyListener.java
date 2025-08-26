@@ -4,6 +4,7 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertyHolder;
 import io.netty.buffer.ByteBufUtil;
@@ -24,7 +25,7 @@ public class SetWorldPropertyListener implements PacketHandler {
 
     @Override
     public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.canUseAxiom(player, "axiom.world.property")) {
+        if (!this.plugin.canUseAxiom(player, AxiomPermission.WORLD_PROPERTY)) {
             return;
         }
 

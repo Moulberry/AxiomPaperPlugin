@@ -6,6 +6,7 @@ import com.moulberry.axiom.blueprint.RawBlueprint;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.blueprint.ServerBlueprintRegistry;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import net.minecraft.SharedConstants;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
@@ -32,7 +33,7 @@ public class UploadBlueprintPacketListener implements PacketHandler {
     }
 
     public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.canUseAxiom(player, "axiom.blueprint.upload")) {
+        if (!this.plugin.canUseAxiom(player, AxiomPermission.BLUEPRINT_UPLOAD)) {
             friendlyByteBuf.writerIndex(friendlyByteBuf.readerIndex());
             return;
         }
@@ -40,12 +41,16 @@ public class UploadBlueprintPacketListener implements PacketHandler {
         ServerPlayer serverPlayer = ((CraftPlayer)player).getHandle();
 
         if (this.plugin.isMismatchedDataVersion(serverPlayer.getUUID())) {
-            serverPlayer.sendSystemMessage(Component.literal("Axiom+ViaVersion: This feature isn't supported. Switch your client version to " + SharedConstants.VERSION_STRING + " to use this"));
+            serverPlayer.getServer().execute(() -> {
+                serverPlayer.sendSystemMessage(Component.literal("Axiom+ViaVersion: This feature isn't supported. Switch your client version to " + SharedConstants.VERSION_STRING + " to use this"));
+            });
+            friendlyByteBuf.writerIndex(friendlyByteBuf.readerIndex());
             return;
         }
 
         ServerBlueprintRegistry registry = ServerBlueprintManager.getRegistry();
         if (registry == null || this.plugin.blueprintFolder == null) {
+            friendlyByteBuf.writerIndex(friendlyByteBuf.readerIndex());
             return;
         }
 

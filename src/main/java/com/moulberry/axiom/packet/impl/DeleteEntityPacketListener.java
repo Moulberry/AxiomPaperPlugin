@@ -1,14 +1,18 @@
 package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.event.AxiomRemoveEntityEvent;
+import com.moulberry.axiom.event.AxiomSpawnEntityEvent;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
@@ -27,7 +31,7 @@ public class DeleteEntityPacketListener implements PacketHandler {
 
     @Override
     public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.canUseAxiom(player, "axiom.entity.delete", true)) {
+        if (!this.plugin.canUseAxiom(player, AxiomPermission.ENTITY_DELETE)) {
             return;
         }
 
@@ -52,7 +56,13 @@ public class DeleteEntityPacketListener implements PacketHandler {
                 continue;
             }
 
-            entity.remove(Entity.RemovalReason.DISCARDED);
+
+            AxiomRemoveEntityEvent removeEntityEvent = new AxiomRemoveEntityEvent(player, entity.getBukkitEntity());
+            Bukkit.getPluginManager().callEvent(removeEntityEvent);
+
+            if (!removeEntityEvent.isCancelled()) {
+                entity.remove(Entity.RemovalReason.DISCARDED);
+            }
         }
     }
 

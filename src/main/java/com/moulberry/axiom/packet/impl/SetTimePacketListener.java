@@ -4,6 +4,7 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomTimeChangeEvent;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.core.registries.Registries;
@@ -27,7 +28,7 @@ public class SetTimePacketListener implements PacketHandler {
 
     @Override
     public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.canUseAxiom(player, "axiom.world.time")) {
+        if (!this.plugin.canUseAxiom(player, AxiomPermission.WORLD_TIME)) {
             return;
         }
 
@@ -40,13 +41,13 @@ public class SetTimePacketListener implements PacketHandler {
         ServerLevel level = ((CraftWorld)player.getWorld()).getHandle();
         if (!level.dimension().equals(key)) return;
 
-        // Call modify world
-        if (!this.plugin.canModifyWorld(player, player.getWorld())) {
+        // Don't allow on plot worlds
+        if (PlotSquaredIntegration.isPlotWorld(player.getWorld())) {
             return;
         }
 
-        // Don't allow on plot worlds
-        if (PlotSquaredIntegration.isPlotWorld(player.getWorld())) {
+        // Call modify world
+        if (!this.plugin.canModifyWorld(player, player.getWorld())) {
             return;
         }
 

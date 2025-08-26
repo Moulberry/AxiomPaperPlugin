@@ -8,11 +8,11 @@ import org.bukkit.craftbukkit.v1_20_R3.CraftWorld;
 
 public class CoreProtectIntegration {
     public static boolean isEnabled() {
-        return CoreProtectIntegrationImpl.isEnabled();
+        return CoreProtectIntegrationImpl.isEnabled() && AxiomPaper.PLUGIN.logCoreProtectChanges;
     }
 
     public static void logPlacement(String name, BlockState blockState, CraftWorld world, BlockPos pos) {
-        if (!CoreProtectIntegrationImpl.isEnabled() || !AxiomPaper.PLUGIN.logCoreProtectChanges) {
+        if (!isEnabled()) {
             return;
         }
 
@@ -20,7 +20,7 @@ public class CoreProtectIntegration {
     }
 
     public static void logRemoval(String name, BlockState blockState, CraftWorld world, BlockPos pos) {
-        if (!CoreProtectIntegrationImpl.isEnabled() || !AxiomPaper.PLUGIN.logCoreProtectChanges) {
+        if (!isEnabled()) {
             return;
         }
 

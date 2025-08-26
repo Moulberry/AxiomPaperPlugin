@@ -57,19 +57,12 @@ public class Position2ByteMap {
         friendlyByteBuf.writeLong(AxiomConstants.MIN_POSITION_LONG);
     }
 
-    public static Position2ByteMap load(FriendlyByteBuf friendlyByteBuf, @Nullable RateLimiter rateLimiter, AtomicBoolean reachedRateLimit) {
+    public static Position2ByteMap load(FriendlyByteBuf friendlyByteBuf) {
         Position2ByteMap map = new Position2ByteMap(friendlyByteBuf.readByte());
 
         while (true) {
             long pos = friendlyByteBuf.readLong();
             if (pos == AxiomConstants.MIN_POSITION_LONG) break;
-
-            if (rateLimiter != null) {
-                if (!rateLimiter.tryAcquire()) {
-                    reachedRateLimit.set(true);
-                    return map;
-                }
-            }
 
             byte[] bytes = new byte[16*16*16];
             friendlyByteBuf.readBytes(bytes);

@@ -5,15 +5,26 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public record BlueprintHeader(String name, String author, List<String> tags, float thumbnailYaw, float thumbnailPitch, boolean lockedThumbnail, int blockCount, boolean containsAir) {
+public record BlueprintHeader(int version, String name, String author, List<String> tags, float thumbnailYaw, float thumbnailPitch, boolean lockedThumbnail, int blockCount, boolean containsAir) {
 
-    private static final int CURRENT_VERSION = 1;
+    public static final int CURRENT_VERSION = 2;
+
+    public BlockState emptyBlockState() {
+        if (this.version <= 1) {
+            return Blocks.STRUCTURE_VOID.defaultBlockState();
+        } else {
+            return Blocks.VOID_AIR.defaultBlockState();
+        }
+    }
 
     public void write(FriendlyByteBuf friendlyByteBuf) {
+        friendlyByteBuf.writeVarInt(CURRENT_VERSION);
         friendlyByteBuf.writeUtf(this.name);
         friendlyByteBuf.writeUtf(this.author);
         friendlyByteBuf.writeCollection(this.tags, FriendlyByteBuf::writeUtf);
@@ -22,16 +33,17 @@ public record BlueprintHeader(String name, String author, List<String> tags, flo
     }
 
     public static BlueprintHeader read(FriendlyByteBuf friendlyByteBuf) {
+        int version = friendlyByteBuf.readVarInt();
         String name = friendlyByteBuf.readUtf();
         String author = friendlyByteBuf.readUtf();
         List<String> tags = friendlyByteBuf.readList(FriendlyByteBuf::readUtf);
         int blockCount = friendlyByteBuf.readInt();
         boolean containsAir = friendlyByteBuf.readBoolean();
-        return new BlueprintHeader(name, author, tags, 0, 0, true, blockCount, containsAir);
+        return new BlueprintHeader(version, name, author, tags, 0, 0, true, blockCount, containsAir);
     }
 
     public static BlueprintHeader load(CompoundTag tag) {
-        long version = tag.getLong("Version");
+        int version = tag.getInt("Version");
         String name = tag.getString("Name");
         String author = tag.getString("Author");
         float thumbnailYaw = tag.contains("ThumbnailYaw", Tag.TAG_FLOAT) ? tag.getFloat("ThumbnailYaw") : 135;
@@ -45,7 +57,7 @@ public record BlueprintHeader(String name, String author, List<String> tags, flo
             tags.add(string.getAsString());
         }
 
-        return new BlueprintHeader(name, author, tags, thumbnailYaw, thumbnailPitch, lockedThumbnail, blockCount, containsAir);
+        return new BlueprintHeader(version, name, author, tags, thumbnailYaw, thumbnailPitch, lockedThumbnail, blockCount, containsAir);
     }
 
     public CompoundTag save(CompoundTag tag) {
@@ -54,7 +66,7 @@ public record BlueprintHeader(String name, String author, List<String> tags, flo
             listTag.add(StringTag.valueOf(string));
         }
 
-        tag.putLong("Version", CURRENT_VERSION);
+        tag.putInt("Version", CURRENT_VERSION);
         tag.putString("Name", this.name);
         tag.putString("Author", this.author);
         tag.put("Tags", listTag);
