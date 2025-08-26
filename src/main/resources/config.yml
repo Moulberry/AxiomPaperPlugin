@@ -4,9 +4,9 @@ max-chunk-sends-per-tick: 0
 # Max chunk relights per tick (per-world), 0 = no limit
 max-chunk-relights-per-tick: 0
 
-# Maximum distance from which players can load chunks
+# Maximum distance (in chunks) from which players can load chunks
 # Set to 0 to only allow editing within render distance
-max-chunk-load-distance: 128
+max-chunk-load-distance: 256
 
 # Whether players are allowed to teleport between worlds using views
 allow-teleport-between-worlds: true
@@ -31,31 +31,25 @@ max-block-buffer-packet-size: 0x100000
 
 # Regex for whitelisting worlds
 # The world can only be modified if the regex matches the world's name
-whitelist-world-regex: null
+whitelist-world-regex: ""
 
 # Regex for blacklisting worlds
 # If the regex matches the world's name, the world can't be modified
-blacklist-world-regex: null
+blacklist-world-regex: ""
 
-# Block buffer rate-limit (in chunk sections per second), 0 = no limit
+# Block buffer rate-limit (in chunk sections per second), 0 = default limit
 block-buffer-rate-limit: 0
 
 # Log large block buffer changes
 log-large-block-buffer-changes: false
 
 # Whitelist entities that can be spawned/manipulated/deleted by the client
-whitelist-entities:
-#  - "minecraft:item_display"
-#  - "minecraft:block_display"
-#  - "minecraft:text_display"
-#  - "minecraft:painting"
-#  - "minecraft:armor_stand"
-#  - "minecraft:item_frame"
-#  - "minecraft:glow_item_frame"
+# e.g. ["item_display", "block_display", "text_display"]
+whitelist-entities: []
 
 # Blacklist entities that can be spawned/manipulated/deleted by the client
-blacklist-entities:
-#  - "minecraft:ender_dragon"
+# e.g. ["ender_dragon"]
+blacklist-entities: []
 
 # Disables entity data sanitization. NOT RECOMMENDED FOR PUBLIC SERVERS
 disable-entity-sanitization: false
@@ -67,45 +61,10 @@ send-markers: false
 allow-annotations: false
 
 # Disallowed blocks
-disallowed-blocks:
-#  - "minecraft:wheat"
-#  - "minecraft:oak_stairs[waterlogged=true]"
-
-allow-capabilities:
-  - "all"
-  # - "bulldozer"
-  # - "replace_mode"
-  # - "force_place"
-  # - "no_updates"
-  # - "tinker"
-  # - "infinite_reach"
-  # - "fast_place"
-  # - "angel_placement"
-  # - "no_clip"
+# e.g. ["minecraft:wheat", "minecraft:oak_stairs[waterlogged=true]"]
+disallowed-blocks: []
 
 infinite-reach-limit: 256
 
 # Whether to log Axiom changes with CoreProtect (if CoreProtect is installed)
 log-core-protect-changes: true
-
-# Toggles for individual packet handlers. May break certain features
-packet-handlers:
-  hello: true
-  set-gamemode: true
-  set-fly-speed: true
-  set-world-time: true
-  set-world-property: true
-  set-single-block: true
-  set-hotbar-slot: true
-  switch-active-hotbar: true
-  teleport: true
-  set-editor-views: true
-  request-chunk-data: true
-  request-entity-data: true
-  set-buffer: true
-  spawn-entity: true
-  manipulate-entity: true
-  delete-entity: true
-  marker-nbt-request: true
-  upload-blueprint: true
-  annotation-update: true

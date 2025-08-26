@@ -4,6 +4,7 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.marker.MarkerData;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
@@ -29,7 +30,7 @@ public class MarkerNbtRequestPacketListener implements PacketHandler {
 
     @Override
     public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.canUseAxiom(player, "axiom.entity.manipulate", true)) {
+        if (!this.plugin.canUseAxiom(player, AxiomPermission.ENTITY_REQUESTDATA)) {
             return;
         }
 
@@ -38,6 +39,7 @@ public class MarkerNbtRequestPacketListener implements PacketHandler {
         }
 
         UUID uuid = friendlyByteBuf.readUUID();
+        int reason = friendlyByteBuf.readVarInt();
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();
 

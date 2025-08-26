@@ -12,6 +12,7 @@ import org.bukkit.entity.Player;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 
 public class VersionHelper {
 
@@ -65,6 +66,22 @@ public class VersionHelper {
     public static void sendCustomPayload(ServerPlayer serverPlayer, ResourceLocation id, byte[] data) {
         var payload = createCustomPayload(id, data);
         serverPlayer.connection.send(new ClientboundCustomPayloadPacket(payload));
+    }
+
+    public static void sendCustomPayloadToAll(List<ServerPlayer> players, String id, byte[] data) {
+        sendCustomPayloadToAll(players, createResourceLocation(id), data);
+    }
+
+    public static void sendCustomPayloadToAll(List<ServerPlayer> players, ResourceLocation id, byte[] data) {
+        if (players.isEmpty()) {
+            return;
+        }
+
+        var payload = createCustomPayload(id, data);
+        var packet = new ClientboundCustomPayloadPacket(payload);
+        for (ServerPlayer player : players) {
+            player.connection.send(packet);
+        }
     }
 
     public static ResourceLocation createResourceLocation(String composed) {
