@@ -4,6 +4,7 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomUnknownTeleportEvent;
 import com.moulberry.axiom.event.AxiomTeleportEvent;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.core.registries.Registries;
@@ -27,7 +28,7 @@ public class TeleportPacketListener implements PacketHandler {
 
     @Override
     public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.canUseAxiom(player, "axiom.world.teleport")) {
+        if (!this.plugin.canUseAxiom(player, AxiomPermission.PLAYER_TELEPORT)) {
             return;
         }
 

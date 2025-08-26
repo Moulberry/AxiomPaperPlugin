@@ -2,15 +2,14 @@ package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
+import com.moulberry.axiom.event.AxiomSpawnEntityEvent;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import com.moulberry.axiom.viaversion.UnknownVersionHelper;
-import io.netty.buffer.Unpooled;
-import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
@@ -21,11 +20,10 @@ import net.minecraft.world.entity.decoration.ItemFrame;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.phys.Vec3;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.messaging.PluginMessageListener;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -48,7 +46,7 @@ public class SpawnEntityPacketListener implements PacketHandler {
 
     @Override
     public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.canUseAxiom(player, "axiom.entity.spawn", true)) {
+        if (!this.plugin.canUseAxiom(player, AxiomPermission.ENTITY_SPAWN)) {
             return;
         }
 
@@ -125,7 +123,16 @@ public class SpawnEntityPacketListener implements PacketHandler {
             });
 
             if (spawned != null) {
-                serverLevel.tryAddFreshEntityWithPassengers(spawned);
+                if (serverLevel.tryAddFreshEntityWithPassengers(spawned)) {
+                    AxiomSpawnEntityEvent spawnEntityEvent = new AxiomSpawnEntityEvent(player, spawned.getBukkitEntity());
+                    Bukkit.getPluginManager().callEvent(spawnEntityEvent);
+                    if (spawnEntityEvent.isCancelled() || spawned.isRemoved()) {
+                        for (Entity passenger : spawned.getIndirectPassengers()) {
+                            passenger.discard();
+                        }
+                        spawned.discard();
+                    }
+                }
             }
         }
     }

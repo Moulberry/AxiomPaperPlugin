@@ -1,22 +1,27 @@
 package com.moulberry.axiom.packet.impl;
 
-import com.google.common.util.concurrent.RateLimiter;
 import com.moulberry.axiom.*;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.event.AxiomHandshakeEvent;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.paperapi.display.ImplServerCustomDisplays;
+import com.moulberry.axiom.paperapi.entity.ImplAxiomHiddenEntities;
+import com.moulberry.axiom.paperapi.block.ImplServerCustomBlocks;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import com.moulberry.axiom.viaversion.ViaVersionHelper;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import com.viaversion.viaversion.api.protocol.version.ProtocolVersion;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.IdMapper;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -35,7 +40,7 @@ public class HelloPacketListener implements PacketHandler {
 
     @Override
     public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.hasAxiomPermission(player)) {
+        if (!this.plugin.hasPermission(player, AxiomPermission.USE)) {
             this.plugin.failedPermissionAxiomPlayers.add(player.getUniqueId());
             return;
         }
@@ -109,34 +114,25 @@ public class HelloPacketListener implements PacketHandler {
         }
 
         // Call handshake event
-        int maxBufferSize = plugin.configuration.getInt("max-block-buffer-packet-size");
+        int maxBufferSize = this.plugin.configuration.getInt("max-block-buffer-packet-size");
         AxiomHandshakeEvent handshakeEvent = new AxiomHandshakeEvent(player, maxBufferSize);
         Bukkit.getPluginManager().callEvent(handshakeEvent);
         if (handshakeEvent.isCancelled()) {
             return;
         }
 
-        this.plugin.activeAxiomPlayers.add(player.getUniqueId());
-        int rateLimit = this.plugin.configuration.getInt("block-buffer-rate-limit");
-        if (rateLimit > 0) {
-            this.plugin.playerBlockBufferRateLimiters.putIfAbsent(player.getUniqueId(), RateLimiter.create(rateLimit));
-        }
-
         // Enable
         RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
         buf.writeBoolean(true);
         buf.writeInt(handshakeEvent.getMaxBufferSize()); // Max Buffer Size
-        buf.writeBoolean(false); // No source info
-        buf.writeBoolean(false); // No source settings
-        buf.writeVarInt(5); // Maximum Reach
-        buf.writeVarInt(16); // Max editor views
-        buf.writeBoolean(true); // Editable Views
+        buf.writeVarInt(2); // Blueprint version
         buf.writeVarInt(0); // No custom data overrides
         buf.writeVarInt(0); // No rotation overrides
-        buf.writeVarInt(1); // Blueprint version
 
         byte[] enableBytes = ByteBufUtil.getBytes(buf);
         VersionHelper.sendCustomPayload(player, "axiom:enable", enableBytes);
+
+        this.plugin.onAxiomActive(player);
 
         // Register world properties
         World world = player.getWorld();
@@ -150,9 +146,40 @@ public class HelloPacketListener implements PacketHandler {
 
         WorldExtension.onPlayerJoin(world, player);
 
-        ServerBlueprintManager.sendManifest(List.of(((CraftPlayer)player).getHandle()));
+        ServerPlayer serverPlayer = ((CraftPlayer)player).getHandle();
+        ServerBlueprintManager.sendManifest(List.of(serverPlayer));
 
         ServerHeightmaps.sendTo(player);
+        ImplServerCustomBlocks.sendAll(serverPlayer);
+        ImplServerCustomDisplays.sendAll(serverPlayer);
+        ImplAxiomHiddenEntities.sendAll(List.of(serverPlayer));
+
+        if (!player.isOp() && !player.hasPermission("*") && player.hasPermission("axiom.*")) {
+            Component text = Component.text("Axiom: Using deprecated axiom.* permission. Please switch to axiom.default for public servers, or axiom.all for private servers");
+            player.sendMessage(text.color(NamedTextColor.YELLOW));
+        }
+
+        if (player.isOp() && (this.plugin.configAddedEntries != 0 || this.plugin.configRemovedEntries != 0)) {
+            StringBuilder builder = new StringBuilder("Axiom: Plugin config is outdated (");
+            if (this.plugin.configAddedEntries != 0) {
+                builder.append(this.plugin.configAddedEntries).append(" new entries");
+            }
+            if (this.plugin.configRemovedEntries != 0) {
+                if (this.plugin.configAddedEntries != 0) {
+                    builder.append(", ");
+                }
+                builder.append(this.plugin.configRemovedEntries).append(" removed entries");
+            }
+            builder.append(")");
+
+            Component text = Component.text(builder.toString());
+            player.sendMessage(text.color(NamedTextColor.YELLOW));
+
+            Component click = Component.text("CLICK HERE").color(NamedTextColor.GREEN).decorate(TextDecoration.BOLD)
+                                       .hoverEvent(Component.text("/axiompapermigrateconfig"))
+                                       .clickEvent(ClickEvent.runCommand("axiompapermigrateconfig"));
+            player.sendMessage(Component.text().append(click).append(Component.text(" to migrate the config").color(NamedTextColor.YELLOW)));
+        }
     }
 
 }

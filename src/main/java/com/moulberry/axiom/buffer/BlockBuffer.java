@@ -1,26 +1,78 @@
 package com.moulberry.axiom.buffer;
 
 import com.google.common.util.concurrent.RateLimiter;
+import com.mojang.serialization.Codec;
 import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.viaversion.UnknownVersionHelper;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectSet;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectMap;
 import it.unimi.dsi.fastutil.shorts.Short2ObjectOpenHashMap;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.IdMap;
 import net.minecraft.core.IdMapper;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.PalettedContainer;
+import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 
 public class BlockBuffer {
 
-    public static final BlockState EMPTY_STATE = Blocks.STRUCTURE_VOID.defaultBlockState();
+    public static final BlockState EMPTY_STATE = Blocks.VOID_AIR.defaultBlockState();
+
+    private static final Map<BlockState, Codec<PalettedContainer<BlockState>>> BLOCK_STATE_CODECS = new HashMap<>();
+    private static final Map<BlockState, IdMap<BlockState>> ID_MAPPERS = new HashMap<>();
+
+    public static PalettedContainer<BlockState> createPalettedContainerForEmptyBlockState(BlockState emptyBlockState) {
+        return new PalettedContainer<>(BlockBuffer.getIdMapForEmptyBlockState(emptyBlockState), EMPTY_STATE, PalettedContainer.Strategy.SECTION_STATES);
+    }
+
+    public static IdMap<BlockState> getIdMapForEmptyBlockState(BlockState empty) {
+        if (empty == EMPTY_STATE) {
+            return Block.BLOCK_STATE_REGISTRY;
+        }
+        return ID_MAPPERS.computeIfAbsent(empty, emptyState -> {
+            IdMapper<BlockState> mapper = new IdMapper<>(Block.BLOCK_STATE_REGISTRY.size());
+            for (BlockState blockState : Block.BLOCK_STATE_REGISTRY) {
+                mapper.addMapping(blockState, Block.BLOCK_STATE_REGISTRY.getId(blockState));
+            }
+            mapper.addMapping(EMPTY_STATE, Block.BLOCK_STATE_REGISTRY.getId(emptyState));
+            mapper.addMapping(EMPTY_STATE, Block.BLOCK_STATE_REGISTRY.getId(EMPTY_STATE));
+            return mapper;
+        });
+    }
+
+    public static Codec<PalettedContainer<BlockState>> getCodecForEmptyBlockState(BlockState empty) {
+        return BLOCK_STATE_CODECS.computeIfAbsent(empty, emptyState -> {
+            IdMap<BlockState> mapping = getIdMapForEmptyBlockState(emptyState);
+            Codec<BlockState> blockStateCodec;
+
+            if (emptyState == EMPTY_STATE) {
+                blockStateCodec = BlockState.CODEC;
+            } else {
+                Function<BlockState, BlockState> mapFunction = blockState -> {
+                    if (blockState == emptyState) {
+                        return EMPTY_STATE;
+                    } else {
+                        return blockState;
+                    }
+                };
+                blockStateCodec = BlockState.CODEC.xmap(mapFunction, mapFunction);
+            }
+
+            return PalettedContainer.codecRW(mapping, blockStateCodec, PalettedContainer.Strategy.SECTION_STATES, EMPTY_STATE);
+        });
+    }
 
     private final Long2ObjectMap<PalettedContainer<BlockState>> values;
 
@@ -36,28 +88,7 @@ public class BlockBuffer {
         this.registry = registry;
     }
 
-    public void save(FriendlyByteBuf friendlyByteBuf) {
-        for (Long2ObjectMap.Entry<PalettedContainer<BlockState>> entry : this.entrySet()) {
-            friendlyByteBuf.writeLong(entry.getLongKey());
-            entry.getValue().write(friendlyByteBuf);
-
-            Short2ObjectMap<CompressedBlockEntity> blockEntities = this.blockEntities.get(entry.getLongKey());
-            if (blockEntities != null) {
-                friendlyByteBuf.writeVarInt(blockEntities.size());
-                for (Short2ObjectMap.Entry<CompressedBlockEntity> entry2 : blockEntities.short2ObjectEntrySet()) {
-                    friendlyByteBuf.writeShort(entry2.getShortKey());
-                    entry2.getValue().write(friendlyByteBuf);
-                }
-            } else {
-                friendlyByteBuf.writeVarInt(0);
-            }
-        }
-
-        friendlyByteBuf.writeLong(AxiomConstants.MIN_POSITION_LONG);
-    }
-
-    public static BlockBuffer load(FriendlyByteBuf friendlyByteBuf, @Nullable RateLimiter rateLimiter, AtomicBoolean reachedRateLimit,
-                                   IdMapper<BlockState> registry) {
+    public static BlockBuffer load(FriendlyByteBuf friendlyByteBuf, IdMapper<BlockState> registry, Player player) {
         BlockBuffer buffer = new BlockBuffer(registry);
 
         long totalBlockEntities = 0;
@@ -67,17 +98,8 @@ public class BlockBuffer {
             long index = friendlyByteBuf.readLong();
             if (index == AxiomConstants.MIN_POSITION_LONG) break;
 
-            if (rateLimiter != null) {
-                if (!rateLimiter.tryAcquire()) {
-                    reachedRateLimit.set(true);
-                    buffer.totalBlockEntities = totalBlockEntities;
-                    buffer.totalBlockEntityBytes = totalBlockEntityBytes;
-                    return buffer;
-                }
-            }
-
             PalettedContainer<BlockState> palettedContainer = buffer.getOrCreateSection(index);
-            palettedContainer.read(friendlyByteBuf);
+            UnknownVersionHelper.readPalettedContainerUnknown(friendlyByteBuf, palettedContainer, player);
 
             int blockEntitySize = Math.min(4096, friendlyByteBuf.readVarInt());
             if (blockEntitySize > 0) {
@@ -127,6 +149,10 @@ public class BlockBuffer {
         } else {
             return state;
         }
+    }
+
+    public int getSectionCount() {
+        return this.values.size();
     }
 
     public void set(int x, int y, int z, BlockState state) {
