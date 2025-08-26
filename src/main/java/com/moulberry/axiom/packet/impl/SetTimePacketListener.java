@@ -8,6 +8,7 @@ import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.GameRules;
@@ -26,7 +27,7 @@ public class SetTimePacketListener implements PacketHandler {
     }
 
     @Override
-    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, "axiom.world.time")) {
             return;
         }

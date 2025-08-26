@@ -14,6 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
@@ -46,7 +47,7 @@ public class RequestChunkDataPacketListener implements PacketHandler {
     }
 
     @Override
-    public void onReceive(Player bukkitPlayer, FriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player bukkitPlayer, RegistryFriendlyByteBuf friendlyByteBuf) {
         ServerPlayer player = ((CraftPlayer)bukkitPlayer).getHandle();
         long id = friendlyByteBuf.readLong();
 

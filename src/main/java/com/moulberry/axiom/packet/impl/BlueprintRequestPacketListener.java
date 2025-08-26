@@ -11,6 +11,7 @@ import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.SharedConstants;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
@@ -27,7 +28,7 @@ public class BlueprintRequestPacketListener implements PacketHandler {
     private static final ResourceLocation RESPONSE_PACKET_IDENTIFIER = VersionHelper.createResourceLocation("axiom:response_blueprint");
 
     @Override
-    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, "axiom.blueprint.request")) {
             return;
         }

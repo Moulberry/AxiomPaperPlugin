@@ -8,6 +8,7 @@ import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import org.bukkit.*;
@@ -25,7 +26,7 @@ public class TeleportPacketListener implements PacketHandler {
     }
 
     @Override
-    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, "axiom.world.teleport")) {
             return;
         }

@@ -20,6 +20,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundChunksBiomesPacket;
 import net.minecraft.resources.ResourceKey;
@@ -76,7 +77,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
         return true;
     }
 
-    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
         ServerPlayer serverPlayer = ((CraftPlayer)player).getHandle();
         MinecraftServer server = serverPlayer.getServer();
         if (server == null) return;
