@@ -9,11 +9,15 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.craftbukkit.util.CraftNamespacedKey;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 public class ServerWorldPropertyHolder<T> {
@@ -75,11 +79,14 @@ public class ServerWorldPropertyHolder<T> {
         buf.writeByteArray(this.property.widget.dataType().serialize(this.value));
 
         byte[] message = ByteBufUtil.getBytes(buf);
+
+        List<ServerPlayer> players = new ArrayList<>();
         for (Player player : world.getPlayers()) {
             if (AxiomPaper.PLUGIN.activeAxiomPlayers.contains(player.getUniqueId())) {
-                VersionHelper.sendCustomPayload(player, "axiom:set_world_property", message);
+                players.add(((CraftPlayer)player).getHandle());
             }
         }
+        VersionHelper.sendCustomPayloadToAll(players, "axiom:set_world_property", message);
 
         this.unsyncedValue = false;
     }

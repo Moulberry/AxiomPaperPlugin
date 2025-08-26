@@ -3,6 +3,7 @@ package com.moulberry.axiom.packet.impl;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomGameModeChangeEvent;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.restrictions.AxiomPermission;
 import io.netty.buffer.Unpooled;
 import net.kyori.adventure.text.Component;
 import net.minecraft.network.FriendlyByteBuf;
@@ -24,11 +25,19 @@ public class SetGamemodePacketListener implements PacketHandler {
 
     @Override
     public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.canUseAxiom(player, "axiom.player.gamemode")) {
+        GameType gameType = GameType.byId(friendlyByteBuf.readByte());
+
+        AxiomPermission permission = switch (gameType) {
+            case SURVIVAL -> AxiomPermission.PLAYER_GAMEMODE_SURVIVAL;
+            case CREATIVE -> AxiomPermission.PLAYER_GAMEMODE_CREATIVE;
+            case ADVENTURE -> AxiomPermission.PLAYER_GAMEMODE_ADVENTURE;
+            case SPECTATOR -> AxiomPermission.PLAYER_GAMEMODE_SPECTATOR;
+            default -> AxiomPermission.PLAYER_GAMEMODE;
+        };
+
+        if (!this.plugin.canUseAxiom(player, permission)) {
             return;
         }
-
-        GameType gameType = GameType.byId(friendlyByteBuf.readByte());
 
         // Call event
         AxiomGameModeChangeEvent gameModeChangeEvent = new AxiomGameModeChangeEvent(player, GameMode.getByValue(gameType.getId()));

@@ -1,10 +1,10 @@
 package com.moulberry.axiom.commands;
 
 import com.moulberry.axiom.AxiomPaper;
-import com.moulberry.axiom.Restrictions;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.integration.worldguard.WorldGuardIntegration;
+import com.moulberry.axiom.restrictions.Restrictions;
 import net.kyori.adventure.text.Component;
 import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
@@ -29,13 +29,6 @@ public class AxiomDebugCommand {
     private static final UUID MOULBERRY_UUID = UUID.fromString("d0e05de7-6067-454d-beae-c6d19d886191");
 
     public static void register(AxiomPaper axiomPaper, BukkitCommandManager<CommandSender> manager) {
-        manager.command(
-            base(manager, "hasAxiomPermission").handler(context -> {
-                if (!(context.sender() instanceof Player player)) return;
-                boolean hasAxiomPermission = axiomPaper.hasAxiomPermission(player);
-                context.sender().sendMessage(Component.text("hasAxiomPermission: " + hasAxiomPermission));
-            })
-        );
         manager.command(
             base(manager, "canUseAxiom").handler(context -> {
                 if (!(context.sender() instanceof Player player)) return;
@@ -143,7 +136,7 @@ public class AxiomDebugCommand {
               .senderType(CommandSender.class)
               .permission(PredicatePermission.of(sender -> {
                   if (sender instanceof Player player) {
-                      return player.hasPermission("axiom.debug") || player.getUniqueId().equals(MOULBERRY_UUID);
+                      return player.isOp() || player.hasPermission("axiom.all") || player.hasPermission("axiom.debug") || player.getUniqueId().equals(MOULBERRY_UUID);
                   } else {
                       return false;
                   }

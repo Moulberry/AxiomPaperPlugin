@@ -5,10 +5,18 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
+import com.moulberry.axiom.operations.RequestChunksOperation;
 import com.moulberry.axiom.packet.PacketHandler;
+import com.moulberry.axiom.restrictions.AxiomPermission;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntList;
 import it.unimi.dsi.fastutil.longs.*;
+import it.unimi.dsi.fastutil.objects.Object2ObjectMap;
+import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.kyori.adventure.text.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -21,6 +29,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -28,22 +37,29 @@ import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainer;
+import org.bukkit.Chunk;
+import org.bukkit.World;
+import org.bukkit.craftbukkit.CraftChunk;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.ByteArrayOutputStream;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 
 public class RequestChunkDataPacketListener implements PacketHandler {
 
     private static final ResourceLocation RESPONSE_ID = VersionHelper.createResourceLocation("axiom:response_chunk_data");
 
     private final AxiomPaper plugin;
-    private final boolean forceFail;
-    public RequestChunkDataPacketListener(AxiomPaper plugin, boolean forceFail) {
+    public RequestChunkDataPacketListener(AxiomPaper plugin) {
         this.plugin = plugin;
-        this.forceFail = forceFail;
     }
 
     @Override
@@ -51,20 +67,23 @@ public class RequestChunkDataPacketListener implements PacketHandler {
         ServerPlayer player = ((CraftPlayer)bukkitPlayer).getHandle();
         long id = friendlyByteBuf.readLong();
 
-        if (this.forceFail || !this.plugin.canUseAxiom(bukkitPlayer, "axiom.chunk.request") || this.plugin.isMismatchedDataVersion(bukkitPlayer.getUniqueId())) {
+        if (!this.plugin.canUseAxiom(bukkitPlayer, AxiomPermission.CHUNK_REQUEST) || this.plugin.isMismatchedDataVersion(bukkitPlayer.getUniqueId())) {
             // We always send an 'empty' response in order to make the client happy
             sendEmptyResponse(player, id);
+            friendlyByteBuf.readerIndex(friendlyByteBuf.writerIndex());
             return;
         }
 
         if (!this.plugin.canModifyWorld(bukkitPlayer, bukkitPlayer.getWorld())) {
             sendEmptyResponse(player, id);
+            friendlyByteBuf.readerIndex(friendlyByteBuf.writerIndex());
             return;
         }
 
         MinecraftServer server = player.getServer();
         if (server == null) {
             sendEmptyResponse(player, id);
+            friendlyByteBuf.readerIndex(friendlyByteBuf.writerIndex());
             return;
         }
 
@@ -72,54 +91,84 @@ public class RequestChunkDataPacketListener implements PacketHandler {
         ServerLevel level = server.getLevel(worldKey);
         if (level == null || level != player.serverLevel()) {
             sendEmptyResponse(player, id);
+            friendlyByteBuf.readerIndex(friendlyByteBuf.writerIndex());
             return;
         }
 
-        boolean sendBlockEntitiesInChunks = friendlyByteBuf.readBoolean();
+        boolean shouldSendBlockEntities = this.plugin.hasPermission(bukkitPlayer, AxiomPermission.CHUNK_REQUESTBLOCKENTITY);
+        boolean sendBlockEntitiesInChunks = friendlyByteBuf.readBoolean() && shouldSendBlockEntities;
 
-        Long2ObjectMap<CompressedBlockEntity> blockEntityMap = new Long2ObjectOpenHashMap<>();
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        BlockPos.MutableBlockPos mutableBlockPos = new BlockPos.MutableBlockPos();
+        int maxChunkLoadDistance = this.plugin.getMaxChunkLoadDistance(level.getWorld());
 
-        int maxChunkLoadDistance = this.plugin.configuration.getInt("max-chunk-load-distance");
-
-        // Don't allow loading chunks outside render distance for plot worlds
-        if (PlotSquaredIntegration.isPlotWorld(level.getWorld())) {
-            maxChunkLoadDistance = 0;
+        if (!shouldSendBlockEntities && maxChunkLoadDistance <= 0) {
+            sendEmptyResponse(player, id);
+            friendlyByteBuf.readerIndex(friendlyByteBuf.writerIndex());
+            return;
         }
+
+        BlockPos.MutableBlockPos mutableBlockPos = new BlockPos.MutableBlockPos();
 
         int playerSectionX = player.getBlockX() >> 4;
         int playerSectionZ = player.getBlockZ() >> 4;
 
-        // Save and compress block entities
-        int count = friendlyByteBuf.readVarInt();
-        for (int i = 0; i < count; i++) {
-            long pos = friendlyByteBuf.readLong();
-            mutableBlockPos.set(pos);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
-            if (level.isOutsideBuildHeight(mutableBlockPos)) continue;
+        Long2ObjectOpenHashMap<PalettedContainer<BlockState>> sendingSections = new Long2ObjectOpenHashMap<>();
+        Long2ObjectOpenHashMap<CompressedBlockEntity> sendingBlockEntities = new Long2ObjectOpenHashMap<>();
 
-            int chunkX = mutableBlockPos.getX() >> 4;
-            int chunkZ = mutableBlockPos.getZ() >> 4;
+        LongSet chunkFutures = new LongOpenHashSet();
+        Long2ObjectMap<LongList> sendBlockEntityForPendingChunks = new Long2ObjectOpenHashMap<>();
+        Long2ObjectMap<IntList> sendSectionsForPendingChunks = new Long2ObjectOpenHashMap<>();
 
-            int distance = Math.abs(playerSectionX - chunkX) + Math.abs(playerSectionZ - chunkZ);
-            boolean canLoad = distance <= maxChunkLoadDistance;
+        int blockEntityCount = friendlyByteBuf.readVarInt();
+        if (!shouldSendBlockEntities) {
+            friendlyByteBuf.skipBytes(Long.BYTES * blockEntityCount);
+        } else {
+            for (int i = 0; i < blockEntityCount; i++) {
 
-            LevelChunk chunk = (LevelChunk) level.getChunk(chunkX, chunkZ, ChunkStatus.FULL, canLoad);
-            if (chunk == null) continue;
+                long pos = friendlyByteBuf.readLong();
+                mutableBlockPos.set(pos);
 
-            BlockEntity blockEntity = chunk.getBlockEntity(mutableBlockPos, LevelChunk.EntityCreationType.IMMEDIATE);
-            if (blockEntity != null) {
-                CompoundTag tag = blockEntity.saveWithoutMetadata(player.registryAccess());
-                blockEntityMap.put(pos, CompressedBlockEntity.compress(tag, baos));
+                if (level.isOutsideBuildHeight(mutableBlockPos)) {
+                    continue;
+                }
+
+                int chunkX = mutableBlockPos.getX() >> 4;
+                int chunkZ = mutableBlockPos.getZ() >> 4;
+
+                int distance = Math.abs(playerSectionX - chunkX) + Math.abs(playerSectionZ - chunkZ);
+                boolean canLoad = distance < maxChunkLoadDistance;
+
+                if (!canLoad) {
+                    LevelChunk chunk = level.getChunkIfLoaded(chunkX, chunkZ);
+                    if (chunk == null) continue;
+
+                    BlockEntity blockEntity = chunk.getBlockEntity(mutableBlockPos, LevelChunk.EntityCreationType.CHECK);
+                    if (blockEntity != null) {
+                        CompoundTag tag = blockEntity.saveWithoutMetadata(player.registryAccess());
+                        sendingBlockEntities.put(pos, CompressedBlockEntity.compress(tag, baos));
+                    }
+                } else {
+                    long chunkPosLong = ChunkPos.asLong(chunkX, chunkZ);
+                    LongList blockEntitiesInChunk = sendBlockEntityForPendingChunks.get(chunkPosLong);
+                    if (blockEntitiesInChunk != null) {
+                        blockEntitiesInChunk.add(pos);
+                    } else {
+                        chunkFutures.add(ChunkPos.asLong(chunkX, chunkZ));
+
+                        blockEntitiesInChunk = new LongArrayList();
+                        blockEntitiesInChunk.add(pos);
+                        sendBlockEntityForPendingChunks.put(chunkPosLong, blockEntitiesInChunk);
+                    }
+                }
             }
         }
 
-        Long2ObjectMap<PalettedContainer<BlockState>> sections = new Long2ObjectOpenHashMap<>();
-
-        if (maxChunkLoadDistance > 0) {
-            count = friendlyByteBuf.readVarInt();
-            for (int i = 0; i < count; i++) {
+        int chunkCount = friendlyByteBuf.readVarInt();
+        if (maxChunkLoadDistance <= 0) {
+            friendlyByteBuf.skipBytes(Long.BYTES * chunkCount);
+        } else {
+            for (int i = 0; i < chunkCount; i++) {
                 long pos = friendlyByteBuf.readLong();
 
                 int sx = BlockPos.getX(pos);
@@ -127,49 +176,80 @@ public class RequestChunkDataPacketListener implements PacketHandler {
                 int sz = BlockPos.getZ(pos);
 
                 int distance = Math.abs(playerSectionX - sx) + Math.abs(playerSectionZ - sz);
-                if (distance > maxChunkLoadDistance) continue;
+                boolean canLoad = distance < maxChunkLoadDistance;
 
-                LevelChunk chunk = level.getChunk(sx, sz);
-                int sectionIndex = chunk.getSectionIndexFromSectionY(sy);
-                if (sectionIndex < 0 || sectionIndex >= chunk.getSectionsCount()) continue;
-                LevelChunkSection section = chunk.getSection(sectionIndex);
+                if (!canLoad) {
+                    LevelChunk chunk = level.getChunkIfLoaded(sx, sz);
+                    if (chunk == null) continue;
 
-                if (section.hasOnlyAir()) {
-                    sections.put(pos, null);
-                } else {
-                    PalettedContainer<BlockState> container = section.getStates();
-                    sections.put(pos, container);
+                    int sectionIndex = chunk.getSectionIndexFromSectionY(sy);
+                    if (sectionIndex < 0 || sectionIndex >= chunk.getSectionsCount()) continue;
+                    LevelChunkSection section = chunk.getSection(sectionIndex);
 
-                    if (sendBlockEntitiesInChunks && section.maybeHas(BlockState::hasBlockEntity)) {
-                        for (int x = 0; x < 16; x++) {
-                            for (int y = 0; y < 16; y++) {
-                                for (int z = 0; z < 16; z++) {
-                                    BlockState blockState = container.get(x, y, z);
-                                    if (blockState.hasBlockEntity()) {
-                                        mutableBlockPos.set(sx*16 + x, sy*16 + y, sz*16 + z);
-                                        BlockEntity blockEntity = chunk.getBlockEntity(mutableBlockPos, LevelChunk.EntityCreationType.CHECK);
-                                        if (blockEntity != null) {
-                                            CompoundTag tag = blockEntity.saveWithoutMetadata(player.registryAccess());
-                                            blockEntityMap.put(mutableBlockPos.asLong(), CompressedBlockEntity.compress(tag, baos));
-                                        }
-                                    }
+                    if (section.hasOnlyAir()) {
+                        sendingSections.put(pos, null);
+                    } else {
+                        PalettedContainer<BlockState> container = section.getStates();
+                        sendingSections.put(pos, container);
+
+                        if (sendBlockEntitiesInChunks) {
+                            Set<Map.Entry<BlockPos, BlockEntity>> entrySet = chunk.blockEntities.entrySet();
+                            Iterator<Map.Entry<BlockPos, BlockEntity>> iterator;
+                            if (entrySet instanceof Object2ObjectMap.FastEntrySet fastEntrySet) {
+                                iterator = fastEntrySet.fastIterator();
+                            } else {
+                                iterator = entrySet.iterator();
+                            }
+
+                            while (iterator.hasNext()) {
+                                Map.Entry<BlockPos, BlockEntity> entry = iterator.next();
+
+                                BlockPos blockPos = entry.getKey();
+                                int sectionY = blockPos.getY() >> 4;
+                                if (sectionY != sy) {
+                                    continue;
                                 }
+
+                                CompoundTag tag = entry.getValue().saveWithoutMetadata(player.registryAccess());
+                                sendingBlockEntities.put(blockPos.asLong(), CompressedBlockEntity.compress(tag, baos));
                             }
                         }
+                    }
+                } else {
+                    long chunkPosLong = ChunkPos.asLong(sx, sz);
+                    IntList sendSections = sendSectionsForPendingChunks.get(chunkPosLong);
+                    if (sendSections != null) {
+                        sendSections.add(sy);
+                    } else {
+                        chunkFutures.add(ChunkPos.asLong(sx, sz));
+
+                        sendSections = new IntArrayList();
+                        sendSections.add(sy);
+                        sendSectionsForPendingChunks.put(chunkPosLong, sendSections);
                     }
                 }
             }
         }
 
-        // Send response packet
+        if (chunkFutures.isEmpty()) {
+            sendResponse(player, id, sendingBlockEntities, sendingSections);
+        } else {
+            this.plugin.addPendingOperation(level, new RequestChunksOperation(player, id, chunkFutures, sendBlockEntityForPendingChunks, sendSectionsForPendingChunks,
+                sendBlockEntitiesInChunks, sendingSections, sendingBlockEntities, baos));
+        }
+    }
 
+    public static void sendResponse(ServerPlayer player, long id, Long2ObjectOpenHashMap<CompressedBlockEntity> sendingBlockEntities,
+        Long2ObjectOpenHashMap<PalettedContainer<BlockState>> sendingSections) {
         boolean firstPart = true;
         int maxSize = 0x100000 - 64; // Leeway of 64 bytes
 
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
         buf.writeLong(id);
 
-        for (Long2ObjectMap.Entry<CompressedBlockEntity> entry : blockEntityMap.long2ObjectEntrySet()) {
+        var blockEntityIterator = sendingBlockEntities.long2ObjectEntrySet().fastIterator();
+        while (blockEntityIterator.hasNext()) {
+            Long2ObjectMap.Entry<CompressedBlockEntity> entry = blockEntityIterator.next();
             int beforeWriterIndex = buf.writerIndex();
 
             buf.writeLong(entry.getLongKey());
@@ -218,7 +298,9 @@ public class RequestChunkDataPacketListener implements PacketHandler {
 
         buf.writeLong(AxiomConstants.MIN_POSITION_LONG);
 
-        for (Long2ObjectMap.Entry<PalettedContainer<BlockState>> entry : sections.long2ObjectEntrySet()) {
+        var sectionIterator = sendingSections.long2ObjectEntrySet().fastIterator();
+        while (sectionIterator.hasNext()) {
+            Long2ObjectMap.Entry<PalettedContainer<BlockState>> entry = sectionIterator.next();
             int beforeWriterIndex = buf.writerIndex();
 
             buf.writeLong(entry.getLongKey());
