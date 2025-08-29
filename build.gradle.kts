@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.moulberry.axiom"
-version = "5.0.1+1.20.6"
+version = "5.0.2+1.20.6"
 description = "Serverside component for Axiom on Paper"
 
 java {
