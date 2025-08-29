@@ -12,7 +12,7 @@ zstd-jni = "1.5.5-4"
 
 # Plugins
 paperweight-userdev = "2.0.0-beta.17"
-run-paper = "2.3.0"
+run-paper = "2.3.1"
 shadow = "8.1.7"
 
 [libraries]
