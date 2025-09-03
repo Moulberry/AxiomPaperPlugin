@@ -34,11 +34,13 @@ public class AxiomBigPayloadHandler extends MessageToMessageDecoder<ByteBuf> {
     private final int payloadId;
     private final Connection connection;
     private final Map<String, PacketHandler> packetHandlers;
+    private boolean handleUserEvents;
 
-    public AxiomBigPayloadHandler(int payloadId, Connection connection, Map<String, PacketHandler> packetHandlers) {
+    public AxiomBigPayloadHandler(int payloadId, Connection connection, Map<String, PacketHandler> packetHandlers, boolean handleUserEvents) {
         this.payloadId = payloadId;
         this.connection = connection;
         this.packetHandlers = packetHandlers;
+        this.handleUserEvents = handleUserEvents;
     }
 
     @Override
@@ -122,9 +124,16 @@ public class AxiomBigPayloadHandler extends MessageToMessageDecoder<ByteBuf> {
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        if (evt == ConnectionEvent.COMPRESSION_THRESHOLD_SET || evt == ConnectionEvent.COMPRESSION_DISABLED) {
-            apply(ctx.pipeline(), new AxiomBigPayloadHandler(this.payloadId, this.connection, this.packetHandlers));
+        if (this.handleUserEvents) {
+            if (evt == ConnectionEvent.COMPRESSION_THRESHOLD_SET || evt == ConnectionEvent.COMPRESSION_DISABLED) {
+                AxiomBigPayloadHandler handler = new AxiomBigPayloadHandler(this.payloadId, this.connection, this.packetHandlers, false);
+                apply(ctx.pipeline(), handler);
+                super.userEventTriggered(ctx, evt);
+                handler.handleUserEvents = true;
+                return;
+            }
         }
+
         super.userEventTriggered(ctx, evt);
     }
 
