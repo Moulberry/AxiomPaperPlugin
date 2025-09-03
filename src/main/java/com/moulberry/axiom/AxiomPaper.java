@@ -221,7 +221,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
                 @Override
                 public void afterInitChannel(@NonNull Channel channel) {
                     Connection connection = (Connection) channel.pipeline().get("packet_handler");
-                    AxiomBigPayloadHandler.apply(channel.pipeline(), new AxiomBigPayloadHandler(payloadId, connection, largePayloadHandlers));
+                    AxiomBigPayloadHandler.apply(channel.pipeline(), new AxiomBigPayloadHandler(payloadId, connection, largePayloadHandlers, true));
                 }
             });
         }
