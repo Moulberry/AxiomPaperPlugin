@@ -6,6 +6,7 @@ authors:
   - Moulberry
 api-version: "$apiVersion"
 softdepend: ["CoreProtect", "ViaVersion", "WorldGuard", "PlotSquared"]
+folia-supported: true
 permissions:
   axiom.all:
     description: Allows use of ALL Axiom features. Same as /op. This permission bypasses all other permissions.
