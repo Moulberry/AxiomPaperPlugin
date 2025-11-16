@@ -56,6 +56,9 @@ import java.util.function.IntFunction;
 
 public class SetBlockPacketListener implements PacketHandler {
 
+    public static final int REASON_REPLACEMODE = 1;
+    public static final int REASON_ANGEL = 128;
+
     private final AxiomPaper plugin;
 
     public SetBlockPacketListener(AxiomPaper plugin) {
@@ -109,47 +112,9 @@ public class SetBlockPacketListener implements PacketHandler {
 
         BlockPlaceContext blockPlaceContext = new BlockPlaceContext(player, hand, player.getItemInHand(hand), blockHit);
 
-        org.bukkit.inventory.ItemStack heldItem;
-        if (hand == InteractionHand.MAIN_HAND) {
-            heldItem = bukkitPlayer.getInventory().getItemInMainHand();
-        } else {
-            heldItem = bukkitPlayer.getInventory().getItemInOffHand();
-        }
-
-        org.bukkit.block.Block blockClicked = bukkitPlayer.getWorld().getBlockAt(blockHit.getBlockPos().getX(),
-            blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
-
-        BlockFace blockFace = CraftBlock.notchToBlockFace(blockHit.getDirection());
-
-        // Call interact event
-        PlayerInteractEvent playerInteractEvent = new PlayerInteractEvent(bukkitPlayer,
-            breaking ? Action.LEFT_CLICK_BLOCK : Action.RIGHT_CLICK_BLOCK, heldItem, blockClicked, blockFace);
-        if (!playerInteractEvent.callEvent()) {
-            return;
-        }
-
-        // Call BlockMultiPlace / BlockPlace event
-        if (!breaking) {
-            List<org.bukkit.block.BlockState> blockStates = new ArrayList<>();
-            for (Map.Entry<BlockPos, BlockState> entry : blocks.entrySet()) {
-                BlockState existing = player.level().getBlockState(entry.getKey());
-                if (existing.canBeReplaced()) {
-                    blockStates.add(new AxiomPlacingCraftBlockState(world, entry.getKey(), entry.getValue()));
-                }
-            }
-
-            if (!blockStates.isEmpty()) {
-                Cancellable event;
-                if (blockStates.size() > 1) {
-                    event = CraftEventFactory.callBlockMultiPlaceEvent(player.level(),
-                        player, hand, blockStates, blockHit.getBlockPos());
-                } else {
-                    event = CraftEventFactory.callBlockPlaceEvent(player.level(),
-                        player, hand, blockStates.get(0), blockHit.getBlockPos());
-                }
-                if (event.isCancelled()) {
-                    return;
-                }
+        if ((reason & REASON_REPLACEMODE) == 0 && (reason & REASON_ANGEL) == 0) {
+            if (!fireBukkitEvents(bukkitPlayer, blockHit, breaking, blocks, player, world, hand)) {
+                return;
             }
         }
 
@@ -276,6 +241,53 @@ public class SetBlockPacketListener implements PacketHandler {
                 }
             }
         }
+    }
+
+    private static boolean fireBukkitEvents(Player bukkitPlayer, BlockHitResult blockHit, boolean breaking, Map<BlockPos, BlockState> blocks, ServerPlayer player, CraftWorld world, InteractionHand hand) {
+        org.bukkit.inventory.ItemStack heldItem;
+        if (hand == InteractionHand.MAIN_HAND) {
+            heldItem = bukkitPlayer.getInventory().getItemInMainHand();
+        } else {
+            heldItem = bukkitPlayer.getInventory().getItemInOffHand();
+        }
+
+        org.bukkit.block.Block blockClicked = bukkitPlayer.getWorld().getBlockAt(blockHit.getBlockPos().getX(),
+            blockHit.getBlockPos().getY(), blockHit.getBlockPos().getZ());
+
+        BlockFace blockFace = CraftBlock.notchToBlockFace(blockHit.getDirection());
+
+        // Call interact event
+        PlayerInteractEvent playerInteractEvent = new PlayerInteractEvent(bukkitPlayer,
+            breaking ? Action.LEFT_CLICK_BLOCK : Action.RIGHT_CLICK_BLOCK, heldItem, blockClicked, blockFace);
+        if (!playerInteractEvent.callEvent()) {
+            return false;
+        }
+
+        // Call BlockMultiPlace / BlockPlace event
+        if (!breaking) {
+            List<org.bukkit.block.BlockState> blockStates = new ArrayList<>();
+            for (Map.Entry<BlockPos, BlockState> entry : blocks.entrySet()) {
+                BlockState existing = player.level().getBlockState(entry.getKey());
+                if (existing.canBeReplaced()) {
+                    blockStates.add(new AxiomPlacingCraftBlockState(world, entry.getKey(), entry.getValue()));
+                }
+            }
+
+            if (!blockStates.isEmpty()) {
+                Cancellable event;
+                if (blockStates.size() > 1) {
+                    event = CraftEventFactory.callBlockMultiPlaceEvent(player.level(),
+                        player, hand, blockStates, blockHit.getBlockPos());
+                } else {
+                    event = CraftEventFactory.callBlockPlaceEvent(player.level(),
+                        player, hand, blockStates.get(0), blockHit.getBlockPos());
+                }
+                if (event.isCancelled()) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     private void setWithoutUpdates(Player bukkitPlayer, BlockState blockState, CraftWorld world, BlockPos blockPos, ServerPlayer player) {
