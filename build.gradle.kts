@@ -46,6 +46,9 @@ dependencies {
     // Zstd Compression Library
     implementation(libs.zstd.jni)
 
+    // LuckPerms event integration
+    compileOnly(libs.luckperms)
+
     // ViaVersion support
     compileOnly(libs.viaversion.api)
 
