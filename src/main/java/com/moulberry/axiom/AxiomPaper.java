@@ -48,6 +48,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.*;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.Configuration;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -94,7 +95,8 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     private final Set<EntityType<?>> whitelistedEntities = new HashSet<>();
     private final Set<EntityType<?>> blacklistedEntities = new HashSet<>();
 
-    private int allowedDispatchSendsPerSecond = 1024;
+    private int defaultAllowedDispatchSendsPerSecond = 1024;
+    private LinkedHashMap<String, Integer> allowedDispatchSendOverrides = new LinkedHashMap<>();
 
     private boolean registeredNoPhysicalTriggerListener = false;
     public boolean logCoreProtectChanges = true;
@@ -253,9 +255,23 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
         this.logCoreProtectChanges = this.configuration.getBoolean("log-core-protect-changes");
 
-        this.allowedDispatchSendsPerSecond = this.configuration.getInt("block-buffer-rate-limit");
-        if (this.allowedDispatchSendsPerSecond <= 0) {
-            this.allowedDispatchSendsPerSecond = 1024;
+        this.defaultAllowedDispatchSendsPerSecond = this.configuration.getInt("block-buffer-rate-limit");
+        if (this.defaultAllowedDispatchSendsPerSecond <= 0) {
+            this.defaultAllowedDispatchSendsPerSecond = 1024;
+        }
+        ConfigurationSection limits = this.configuration.getConfigurationSection("limits");
+        if (limits != null) {
+            for (String key : limits.getKeys(false)) {
+                ConfigurationSection values = limits.getConfigurationSection(key);
+                if (values == null) {
+                    continue;
+                }
+
+                int allowedDispatchSends = values.getInt("block-buffer-rate-limit");
+                if (allowedDispatchSends > 0) {
+                    this.allowedDispatchSendOverrides.put(key, allowedDispatchSends);
+                }
+            }
         }
 
         try {
@@ -449,13 +465,24 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         this.operationQueue.add(level, operation);
     }
 
+    private int getAllowedDispatchSendsPerSecond(Player player) {
+        for (Map.Entry<String, Integer> entry : this.allowedDispatchSendOverrides.entrySet()) {
+            if (player.hasPermission("axiomlimits." + entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+        return this.defaultAllowedDispatchSendsPerSecond;
+    }
+
     public boolean consumeDispatchSends(Player player, int sends, int clientAvailableDispatchSends) {
-        int currentSends = this.availableDispatchSends.getOrDefault(player.getUniqueId(), this.allowedDispatchSendsPerSecond*20);
+        int allowedDispatchSendsPerSecond = this.getAllowedDispatchSendsPerSecond(player);
+
+        int currentSends = this.availableDispatchSends.getOrDefault(player.getUniqueId(), allowedDispatchSendsPerSecond*20);
         currentSends -= sends*20;
         currentSends = Math.min(currentSends, clientAvailableDispatchSends*20);
         this.availableDispatchSends.put(player.getUniqueId(), currentSends);
 
-        if (currentSends < -this.allowedDispatchSendsPerSecond*20) {
+        if (currentSends < -allowedDispatchSendsPerSecond*20) {
             player.kick(net.kyori.adventure.text.Component.text("You are sending updates too fast!"));
             return false;
         } else {
@@ -474,18 +501,20 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     }
 
     private void tickPlayer(Player player, boolean updateRestrictions) {
+        int allowedDispatchSendsPerSecond = this.getAllowedDispatchSendsPerSecond(player);
+
         if (!this.availableDispatchSends.containsKey(player.getUniqueId())) {
-            this.availableDispatchSends.put(player.getUniqueId(), this.allowedDispatchSendsPerSecond*20);
-            sendUpdateAvailableDispatchSends(player, this.allowedDispatchSendsPerSecond, this.allowedDispatchSendsPerSecond);
+            this.availableDispatchSends.put(player.getUniqueId(), allowedDispatchSendsPerSecond*20);
+            sendUpdateAvailableDispatchSends(player, allowedDispatchSendsPerSecond, allowedDispatchSendsPerSecond);
         } else {
             int previousAllowed20 = this.availableDispatchSends.getInt(player.getUniqueId());
-            int newAllowed20 = Math.min(this.allowedDispatchSendsPerSecond*20, previousAllowed20 + this.allowedDispatchSendsPerSecond);
+            int newAllowed20 = Math.min(allowedDispatchSendsPerSecond*20, previousAllowed20 + allowedDispatchSendsPerSecond);
             this.availableDispatchSends.put(player.getUniqueId(), newAllowed20);
 
             int previousAllowed = previousAllowed20 / 20;
             int newAllowed = newAllowed20 / 20;
             if (previousAllowed != newAllowed) {
-                sendUpdateAvailableDispatchSends(player, newAllowed - previousAllowed, this.allowedDispatchSendsPerSecond);
+                sendUpdateAvailableDispatchSends(player, newAllowed - previousAllowed, allowedDispatchSendsPerSecond);
             }
         }
 

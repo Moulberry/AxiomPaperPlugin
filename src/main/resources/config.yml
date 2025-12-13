@@ -68,3 +68,10 @@ infinite-reach-limit: 256
 
 # Whether to log Axiom changes with CoreProtect (if CoreProtect is installed)
 log-core-protect-changes: true
+
+# Overrides based on a permission/rank
+# To apply, give the player the axiomlimits.example permission
+limits:
+  example:
+    # Block buffer rate-limit (in chunk sections per second), 0 = default limit
+    block-buffer-rate-limit: 20
