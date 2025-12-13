@@ -75,14 +75,26 @@ public class Integration {
     }
 
     public static boolean canBreakBlock(Player player, Block block) {
+        if (player.hasPermission("axiomadmin.bypass_region_checks")) {
+            return true;
+        }
+
         return PlotSquaredIntegration.canBreakBlock(player, block) && WorldGuardIntegration.canBreakBlock(player, block.getLocation()) && customIntegration.canBreakBlock(player, block);
     }
 
     public static boolean canPlaceBlock(Player player, org.bukkit.Location loc) {
+        if (player.hasPermission("axiomadmin.bypass_region_checks")) {
+            return true;
+        }
+
         return PlotSquaredIntegration.canPlaceBlock(player, loc) && WorldGuardIntegration.canPlaceBlock(player, loc) && customIntegration.canPlaceBlock(player, loc);
     }
 
     public static SectionPermissionChecker checkSection(Player player, World world, int cx, int cy, int cz) {
+        if (player.hasPermission("axiomadmin.bypass_region_checks")) {
+            return SectionPermissionChecker.ALL_ALLOWED;
+        }
+
         SectionPermissionChecker plotSquared = PlotSquaredIntegration.checkSection(player, world, cx, cy, cz);
         if (plotSquared.noneAllowed()) {
             return SectionPermissionChecker.NONE_ALLOWED;
