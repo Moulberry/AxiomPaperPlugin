@@ -639,7 +639,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     private AxiomPermissionSet calculatePermissions(Player player) {
         if (player.isOp()) {
-            return AxiomPermissionSet.ALL;
+            return AxiomPermissionSet.NONE;
         }
 
         EnumSet<AxiomPermission> allowed = EnumSet.noneOf(AxiomPermission.class);
