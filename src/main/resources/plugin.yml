@@ -7,6 +7,11 @@ authors:
 api-version: "$apiVersion"
 softdepend: ["CoreProtect", "ViaVersion", "WorldGuard", "PlotSquared"]
 permissions:
+  # Optional admin permissions
+  axiomadmin.bypass_region_checks:
+    description: Bypass region checks (worldguard, plotsquared, etc.)
+    default: false
+
   axiom.all:
     description: Allows use of ALL Axiom features. Same as /op. This permission bypasses all other permissions.
     default: op
