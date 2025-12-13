@@ -252,8 +252,8 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         }
 
         this.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
-            event.registrar().register(AxiomCommands.buildDebugCommand(this), "");
-            event.registrar().register(AxiomCommands.buildMigrateCommand(), "");
+            event.registrar().register(AxiomCommands.buildDebugCommand(this), "Axiom debug commands for players");
+            event.registrar().register(AxiomCommands.buildMigrateCommand(), "Axiom migration command");
         });
 
         if (CoreProtectIntegration.isEnabled()) {
