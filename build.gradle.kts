@@ -39,12 +39,15 @@ repositories {
 }
 
 dependencies {
-    paperweight.paperDevBundle(libs.versions.paper)
+    paperweight.paperDevBundle("1.20.2-R0.1-SNAPSHOT")
     implementation(libs.reflection.remapper)
     implementation(libs.cloud.paper)
 
     // Zstd Compression Library
     implementation(libs.zstd.jni)
+
+    // LuckPerms event integration
+    compileOnly(libs.luckperms)
 
     // ViaVersion support
     compileOnly(libs.viaversion.api)
