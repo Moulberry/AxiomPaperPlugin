@@ -105,27 +105,31 @@ public interface SectionPermissionChecker {
             }
         }
 
-        int minBoundsX = 15;
-        int minBoundsY = 15;
-        int minBoundsZ = 15;
-        int maxBoundsX = 0;
-        int maxBoundsY = 0;
-        int maxBoundsZ = 0;
+        if (defaultValue) {
+            return new BooleanBoxes(FULL_BOUNDS, boxes, true);
+        } else {
+            int minBoundsX = 15;
+            int minBoundsY = 15;
+            int minBoundsZ = 15;
+            int maxBoundsX = 0;
+            int maxBoundsY = 0;
+            int maxBoundsZ = 0;
 
-        for (BoxWithBoolean boxWithBoolean : boxes) {
-            if (boxWithBoolean.value()) {
-                Box box = boxWithBoolean.box();
-                minBoundsX = Math.min(box.minX(), minBoundsX);
-                minBoundsY = Math.min(box.minY(), minBoundsY);
-                minBoundsZ = Math.min(box.minZ(), minBoundsZ);
-                maxBoundsX = Math.max(box.maxX(), maxBoundsX);
-                maxBoundsY = Math.max(box.maxY(), maxBoundsY);
-                maxBoundsZ = Math.max(box.maxZ(), maxBoundsZ);
+            for (BoxWithBoolean boxWithBoolean : boxes) {
+                if (boxWithBoolean.value()) {
+                    Box box = boxWithBoolean.box();
+                    minBoundsX = Math.min(box.minX(), minBoundsX);
+                    minBoundsY = Math.min(box.minY(), minBoundsY);
+                    minBoundsZ = Math.min(box.minZ(), minBoundsZ);
+                    maxBoundsX = Math.max(box.maxX(), maxBoundsX);
+                    maxBoundsY = Math.max(box.maxY(), maxBoundsY);
+                    maxBoundsZ = Math.max(box.maxZ(), maxBoundsZ);
+                }
             }
-        }
 
-        Box bounds = new Box(minBoundsX, minBoundsY, minBoundsZ, maxBoundsX, maxBoundsY, maxBoundsZ);
-        return new BooleanBoxes(bounds, boxes, defaultValue);
+            Box bounds = new Box(minBoundsX, minBoundsY, minBoundsZ, maxBoundsX, maxBoundsY, maxBoundsZ);
+            return new BooleanBoxes(bounds, boxes, false);
+        }
     }
 
     record AllAllowedInBox(Box box) implements SectionPermissionChecker {
