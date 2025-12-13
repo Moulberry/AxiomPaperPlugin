@@ -2,8 +2,7 @@ package com.moulberry.axiom;
 
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
-import com.moulberry.axiom.commands.AxiomDebugCommand;
-import com.moulberry.axiom.commands.AxiomMigrateCommand;
+import com.moulberry.axiom.commands.AxiomCommands;
 import com.moulberry.axiom.event.AxiomCreateWorldPropertiesEvent;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
@@ -27,6 +26,7 @@ import io.papermc.paper.event.player.PlayerFailMoveEvent;
 import io.papermc.paper.event.world.WorldGameRuleChangeEvent;
 import io.papermc.paper.network.ChannelInitializeListener;
 import io.papermc.paper.network.ChannelInitializeListenerHolder;
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
@@ -56,9 +56,6 @@ import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.Messenger;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.incendo.cloud.bukkit.CloudBukkitCapabilities;
-import org.incendo.cloud.execution.ExecutionCoordinator;
-import org.incendo.cloud.paper.LegacyPaperCommandManager;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
@@ -254,21 +251,10 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             this.allowedDispatchSendsPerSecond = 1024;
         }
 
-        try {
-            LegacyPaperCommandManager<CommandSender> manager = LegacyPaperCommandManager.createNative(
-                this,
-                ExecutionCoordinator.simpleCoordinator()
-            );
-
-            if (manager.hasCapability(CloudBukkitCapabilities.NATIVE_BRIGADIER)) {
-                manager.registerBrigadier();
-            }
-
-            AxiomDebugCommand.register(this, manager);
-            AxiomMigrateCommand.register(manager);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        this.getLifecycleManager().registerEventHandler(LifecycleEvents.COMMANDS, event -> {
+            event.registrar().register(AxiomCommands.buildDebugCommand(this), "");
+            event.registrar().register(AxiomCommands.buildMigrateCommand(), "");
+        });
 
         if (CoreProtectIntegration.isEnabled()) {
             this.getLogger().info("CoreProtect integration enabled");

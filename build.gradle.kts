@@ -41,7 +41,6 @@ repositories {
 dependencies {
     paperweight.paperDevBundle("1.21.10-R0.1-SNAPSHOT")
     implementation(libs.reflection.remapper)
-    implementation(libs.cloud.paper)
 
     // Zstd Compression Library
     implementation(libs.zstd.jni)
