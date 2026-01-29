@@ -97,24 +97,41 @@ public class SetBlockPacketListener implements PacketHandler {
             this.plugin.getLogger().info("Player " + bukkitPlayer.getUniqueId() + " modified " + blocks.size() + " individual blocks with axiom");
         }
 
-        int reason = friendlyByteBuf.readVarInt();
-        boolean breaking = friendlyByteBuf.readBoolean();
-        BlockHitResult blockHit = friendlyByteBuf.readBlockHitResult();
-        InteractionHand hand = friendlyByteBuf.readEnum(InteractionHand.class);
-        int sequenceId = friendlyByteBuf.readVarInt();
-
         ServerPlayer player = ((CraftPlayer)bukkitPlayer).getHandle();
         CraftWorld world = player.level().getWorld();
+
+        // Try to read extended packet fields, fall back to simple block placement if format differs
+        int reason = 0;
+        boolean breaking = false;
+        BlockHitResult blockHit = null;
+        InteractionHand hand = InteractionHand.MAIN_HAND;
+        int sequenceId = -1;
+        boolean hasExtendedData = false;
+
+        if (friendlyByteBuf.readableBytes() > 0) {
+            try {
+                reason = friendlyByteBuf.readVarInt();
+                breaking = friendlyByteBuf.readBoolean();
+                blockHit = friendlyByteBuf.readBlockHitResult();
+                hand = friendlyByteBuf.readEnum(InteractionHand.class);
+                sequenceId = friendlyByteBuf.readVarInt();
+                hasExtendedData = true;
+            } catch (IndexOutOfBoundsException e) {
+                // Client sent a different packet format, use defaults
+                this.plugin.getLogger().fine("SetBlock packet from " + bukkitPlayer.getName() + " has unexpected format, using defaults");
+            }
+        }
 
         if (sequenceId >= 0) {
             player.connection.ackBlockChangesUpTo(sequenceId);
         }
 
-        BlockPlaceContext blockPlaceContext = new BlockPlaceContext(player, hand, player.getItemInHand(hand), blockHit);
-
-        if ((reason & REASON_REPLACEMODE) == 0 && (reason & REASON_ANGEL) == 0) {
-            if (!fireBukkitEvents(bukkitPlayer, blockHit, breaking, blocks, player, world, hand)) {
-                return;
+        // Only fire bukkit events if we have the full packet data
+        if (hasExtendedData && blockHit != null) {
+            if ((reason & REASON_REPLACEMODE) == 0 && (reason & REASON_ANGEL) == 0) {
+                if (!fireBukkitEvents(bukkitPlayer, blockHit, breaking, blocks, player, world, hand)) {
+                    return;
+                }
             }
         }
 
@@ -205,7 +222,9 @@ public class SetBlockPacketListener implements PacketHandler {
             }
         }
 
-        if (!breaking) {
+        // Only process block entity tags and setPlacedBy if we have extended packet data
+        if (hasExtendedData && blockHit != null && !breaking) {
+            BlockPlaceContext blockPlaceContext = new BlockPlaceContext(player, hand, player.getItemInHand(hand), blockHit);
             BlockPos clickedPos = blockPlaceContext.getClickedPos();
 
             if (blocks.containsKey(clickedPos)) {
