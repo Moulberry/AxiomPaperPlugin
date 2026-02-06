@@ -663,7 +663,9 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         if (player.isOp()) {
             return true;
         }
-        return this.getPermissions(player).contains(axiomPermission);
+        // Does not use caching, used to support dynamically changing player permissions
+        return player.hasPermission(axiomPermission.getPermissionNode());
+//        return this.getPermissions(player).contains(axiomPermission);
     }
 
     private AxiomPermissionSet calculatePermissions(Player player) {
