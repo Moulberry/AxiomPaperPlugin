@@ -13,6 +13,6 @@ https://modrinth.com/plugin/axiom-paper-plugin/
 
 First, the player must be an op on the server. If the player does not have op permissions, run `/op <playername>`. This player must then disconnect from the server and reconnect.
 
-If you're using an alternative solution for permission management, you must give players the `axiom.*` permission.
+If you're using an alternative solution for permission management, you must give players the `axiom.default` permission.
 
 If players continue to have issues, they can run the `/whynoaxiom` command for more information.
