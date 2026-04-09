@@ -70,7 +70,8 @@ infinite-reach-limit: 256
 log-core-protect-changes: true
 
 # Overrides based on a permission/rank
-# To apply, give the player the axiomlimits.example permission
+# To apply, give the player the permission
+# Note: 'example' does not work, you must rename it to something else
 limits:
   example:
     # Block buffer rate-limit (in chunk sections per second), 0 = default limit
