@@ -1,34 +1,35 @@
 package com.moulberry.axiom.commands;
 
+import com.mojang.brigadier.context.CommandContext;
 import com.moulberry.axiom.AxiomPaper;
-import org.bukkit.command.CommandSender;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
+import io.papermc.paper.command.brigadier.Commands;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.incendo.cloud.bukkit.BukkitCommandManager;
-import org.incendo.cloud.context.CommandContext;
-import org.incendo.cloud.permission.PredicatePermission;
+
+import java.util.function.Predicate;
 
 public class AxiomMigrateCommand {
 
-    public static void register(BukkitCommandManager<CommandSender> manager) {
-        var operatorPredicate = PredicatePermission.of(sender -> {
+    public static void register(Commands manager) {
+        Predicate<CommandSourceStack> operatorPredicate = sender -> {
             if (sender instanceof Player player) {
                 return player.isOp();
             } else {
                 return sender instanceof ConsoleCommandSender;
             }
-        });
+        };
 
-        var command = manager.commandBuilder("axiompapermigrateconfig")
-                    .senderType(CommandSender.class)
-                    .permission(operatorPredicate)
-                    .handler(AxiomMigrateCommand::migrate);
-
-        manager.command(command);
+        manager.register(Commands.literal("axiompapermigrateconfig")
+            .requires(operatorPredicate)
+            .executes(AxiomMigrateCommand::migrate)
+            .build()
+        );
     }
 
-    private static void migrate(@NonNull CommandContext<CommandSender> context) {
-        AxiomPaper.PLUGIN.migrateConfig(context.sender());
+    private static int migrate(@NonNull CommandContext<CommandSourceStack> context) {
+        AxiomPaper.PLUGIN.migrateConfig(context.getSource().getSender());
+        return 1;
     }
 }

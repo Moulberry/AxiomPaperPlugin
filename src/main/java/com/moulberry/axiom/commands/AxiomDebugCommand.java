@@ -1,21 +1,19 @@
 package com.moulberry.axiom.commands;
 
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.integration.worldguard.WorldGuardIntegration;
 import com.moulberry.axiom.restrictions.Restrictions;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
+import io.papermc.paper.command.brigadier.Commands;
 import net.kyori.adventure.text.Component;
 import org.bukkit.block.Block;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.incendo.cloud.Command;
-import org.incendo.cloud.bukkit.BukkitCommandManager;
-import org.incendo.cloud.parser.standard.EnumParser;
-import org.incendo.cloud.parser.standard.StringParser;
-import org.incendo.cloud.permission.PredicatePermission;
 
 import java.util.UUID;
+import java.util.function.Predicate;
 
 public class AxiomDebugCommand {
 
@@ -28,121 +26,127 @@ public class AxiomDebugCommand {
 
     private static final UUID MOULBERRY_UUID = UUID.fromString("d0e05de7-6067-454d-beae-c6d19d886191");
 
-    public static void register(AxiomPaper axiomPaper, BukkitCommandManager<CommandSender> manager) {
-        manager.command(
-            base(manager, "canUseAxiom").handler(context -> {
-                if (!(context.sender() instanceof Player player)) return;
-                boolean canUseAxiom = axiomPaper.canUseAxiom(player);
-                context.sender().sendMessage(Component.text("canUseAxiom: " + canUseAxiom));
-            })
-        );
-        manager.command(
-            base(manager, "isMismatchedDataVersion").handler(context -> {
-                if (!(context.sender() instanceof Player player)) return;
-                boolean isMismatchedDataVersion = axiomPaper.isMismatchedDataVersion(player.getUniqueId());
-                context.sender().sendMessage(Component.text("isMismatchedDataVersion: " + isMismatchedDataVersion));
-            })
-        );
-        manager.command(
-            base(manager, "canModifyWorld").handler(context -> {
-                if (!(context.sender() instanceof Player player)) return;
-                boolean canModifyWorld = axiomPaper.canModifyWorld(player, player.getWorld());
-                context.sender().sendMessage(Component.text("canModifyWorld: " + canModifyWorld));
-            })
-        );
-        manager.command(
-            base(manager, "isClientListening").required("channel", StringParser.greedyStringParser()).handler(context -> {
-                if (!(context.sender() instanceof Player player)) return;
-                String channel = context.get("channel");
-                boolean isClientListening = player.getListeningPluginChannels().contains(channel);
-                context.sender().sendMessage(Component.text("listening to " + channel +": " + isClientListening));
-            })
-        );
-        manager.command(
-            base(manager, "hasPermission").required("permission", StringParser.greedyStringParser()).handler(context -> {
-                String permission = context.get("permission");
-                boolean hasPermission = context.sender().hasPermission(permission);
-                context.sender().sendMessage(Component.text("has permission " + permission +": " + hasPermission));
-            })
-        );
-        manager.command(
-            base(manager, "getRestrictions").handler(context -> {
-                if (!(context.sender() instanceof Player player)) return;
-                Restrictions restrictions = axiomPaper.playerRestrictions.get(player.getUniqueId());
-                if (restrictions == null) {
-                    context.sender().sendMessage(Component.text("no restrictions"));
-                } else {
-                    context.sender().sendMessage(Component.text("restrictions: " + restrictions));
-                }
-            })
-        );
-        enum IntegrationType {
-            PLOT_SQUARED,
-            WORLD_GUARD
-        }
-        manager.command(
-            base(manager, "canBreakBlockAtCurrentPosition").optional("type", EnumParser.enumParser(IntegrationType.class)).handler(context -> {
-                if (!(context.sender() instanceof Player player)) return;
-                IntegrationType integrationType = (IntegrationType) context.optional("type").orElse(null);
+    public static void register(AxiomPaper axiomPaper, Commands manager) {
+        Predicate<CommandSourceStack> predicate = commandSourceStack -> {
+            if (!(commandSourceStack.getSender() instanceof Player player)) {
+                return false;
+            }
+            return player.isOp() || player.hasPermission("axiom.all") || player.hasPermission("axiom.debug") || player.getUniqueId().equals(MOULBERRY_UUID);
+        };
+        var canUseAxiomCommand = Commands.literal("canUseAxiom").requires(predicate).executes(context -> {
+            if (!(context.getSource().getSender() instanceof Player player)) return 0;
+            boolean canUseAxiom = axiomPaper.canUseAxiom(player);
+            player.sendMessage(Component.text("canUseAxiom: " + canUseAxiom));
+            return 1;
+        });
+        var isMismatchedDataVersionCommand = Commands.literal("isMismatchedDataVersion").requires(predicate).executes(context -> {
+            if (!(context.getSource().getSender() instanceof Player player)) return 0;
+            boolean isMismatchedDataVersion = axiomPaper.isMismatchedDataVersion(player.getUniqueId());
+            player.sendMessage(Component.text("isMismatchedDataVersion: " + isMismatchedDataVersion));
+            return 1;
+        });
+        var canModifyWorldCommand = Commands.literal("canModifyWorld").requires(predicate).executes(context -> {
+            if (!(context.getSource().getSender() instanceof Player player)) return 0;
+            boolean canModifyWorld = axiomPaper.canModifyWorld(player, player.getWorld());
+            player.sendMessage(Component.text("canModifyWorld: " + canModifyWorld));
+            return 1;
+        });
+        var isClientListeningCommand = Commands.literal("isClientListening")
+                                               .then(Commands.argument("channel", StringArgumentType.greedyString()))
+                                               .requires(predicate)
+                                               .executes(context -> {
+                                                   if (!(context.getSource().getSender() instanceof Player player)) return 0;
+                                                   String channel = context.getArgument("channel", String.class);
+                                                   boolean isClientListening = player.getListeningPluginChannels().contains(channel);
+                                                   player.sendMessage(Component.text("listening to " + channel +": " + isClientListening));
+                                                   return 1;
+                                               });
+        var hasPermissionCommand = Commands.literal("hasPermission")
+                                               .then(Commands.argument("permission", StringArgumentType.greedyString()))
+                                               .requires(predicate)
+                                               .executes(context -> {
+                                                   if (!(context.getSource().getSender() instanceof Player player)) return 0;
+                                                   String permission = context.getArgument("permission", String.class);
+                                                   boolean hasPermission = player.hasPermission(permission);
+                                                   player.sendMessage(Component.text("has permission " + permission +": " + hasPermission));
+                                                   return 1;
+                                               });
+        var getRestrictionsCommand = Commands.literal("getRestrictions").requires(predicate).executes(context -> {
+            if (!(context.getSource().getSender() instanceof Player player)) return 0;
+            Restrictions restrictions = axiomPaper.playerRestrictions.get(player.getUniqueId());
+            if (restrictions == null) {
+                player.sendMessage(Component.text("no restrictions"));
+            } else {
+                player.sendMessage(Component.text("restrictions: " + restrictions));
+            }
+            return 1;
+        });
+        var canBreakBlockAtCurrentPositionCommand = Commands.literal("canBreakBlockAtCurrentPosition").requires(predicate)
+                                                            .executes(context -> {
+                                                                if (!(context.getSource().getSender() instanceof Player player)) return 0;
+                                                                Block block = player.getWorld().getBlockAt(player.getLocation());
+                                                                boolean canBreakBlock = Integration.canBreakBlock(player, block);
+                                                                player.sendMessage(Component.text("canBreakBlock: " + canBreakBlock));
+                                                                return 1;
+                                                            })
+                                                            .then(Commands.literal("plotsquared").executes(context -> {
+                                                                if (!(context.getSource().getSender() instanceof Player player)) return 0;
+                                                                Block block = player.getWorld().getBlockAt(player.getLocation());
+                                                                boolean canBreakBlock = PlotSquaredIntegration.canBreakBlock(player, block);
+                                                                player.sendMessage(Component.text("canBreakBlock: " + canBreakBlock));
+                                                                return 1;
+                                                            }))
+                                                            .then(Commands.literal("worldguard").executes(context -> {
+                                                                if (!(context.getSource().getSender() instanceof Player player)) return 0;
+                                                                boolean canBreakBlock = WorldGuardIntegration.canBreakBlock(player, player.getLocation());
+                                                                player.sendMessage(Component.text("canBreakBlock: " + canBreakBlock));
+                                                                return 1;
+                                                            }));
+        var canPlaceBlockAtCurrentPositionCommand = Commands.literal("canPlaceBlockAtCurrentPosition").requires(predicate)
+                                                            .executes(context -> {
+                                                                if (!(context.getSource().getSender() instanceof Player player)) return 0;
+                                                                boolean canPlaceBlock = Integration.canPlaceBlock(player, player.getLocation());
+                                                                player.sendMessage(Component.text("canPlaceBlock: " + canPlaceBlock));
+                                                                return 1;
+                                                            })
+                                                            .then(Commands.literal("plotsquared").executes(context -> {
+                                                                if (!(context.getSource().getSender() instanceof Player player)) return 0;
+                                                                boolean canPlaceBlock = PlotSquaredIntegration.canPlaceBlock(player, player.getLocation());
+                                                                player.sendMessage(Component.text("canPlaceBlock: " + canPlaceBlock));
+                                                                return 1;
+                                                            }))
+                                                            .then(Commands.literal("worldguard").executes(context -> {
+                                                                if (!(context.getSource().getSender() instanceof Player player)) return 0;
+                                                                boolean canPlaceBlock = WorldGuardIntegration.canPlaceBlock(player, player.getLocation());
+                                                                player.sendMessage(Component.text("canPlaceBlock: " + canPlaceBlock));
+                                                                return 1;
+                                                            }));
+        var isPlotWorldCommand = Commands.literal("isPlotWorld").requires(predicate).executes(context -> {
+            if (!(context.getSource().getSender() instanceof Player player)) return 0;
+            boolean isPlotWorld = PlotSquaredIntegration.isPlotWorld(player.getWorld());
+            player.sendMessage(Component.text("isPlotWorld: " + isPlotWorld));
+            return 1;
+        });
+        var getCurrentEditablePlotCommand = Commands.literal("getCurrentEditablePlot").requires(predicate).executes(context -> {
+            if (!(context.getSource().getSender() instanceof Player player)) return 0;
+            PlotSquaredIntegration.PlotBounds plotBounds = PlotSquaredIntegration.getCurrentEditablePlot(player);
+            player.sendMessage(Component.text("plotBounds: " + plotBounds));
+            return 1;
+        });
 
-                Block block = player.getWorld().getBlockAt(player.getLocation());
-
-                boolean canBreakBlock;
-                if (integrationType == IntegrationType.PLOT_SQUARED) {
-                    canBreakBlock = PlotSquaredIntegration.canBreakBlock(player, block);
-                } else if (integrationType == IntegrationType.WORLD_GUARD) {
-                    canBreakBlock = WorldGuardIntegration.canBreakBlock(player, block.getLocation());
-                } else {
-                    canBreakBlock = Integration.canBreakBlock(player, block);
-                }
-                context.sender().sendMessage(Component.text("canBreakBlock: " + canBreakBlock));
-            })
-        );
-        manager.command(
-            base(manager, "canPlaceBlockAtCurrentPosition").optional("type", EnumParser.enumParser(IntegrationType.class)).handler(context -> {
-                if (!(context.sender() instanceof Player player)) return;
-                IntegrationType integrationType = (IntegrationType) context.optional("type").orElse(null);
-
-                boolean canPlaceBlock;
-                if (integrationType == IntegrationType.PLOT_SQUARED) {
-                    canPlaceBlock = PlotSquaredIntegration.canPlaceBlock(player, player.getLocation());
-                } else if (integrationType == IntegrationType.WORLD_GUARD) {
-                    canPlaceBlock = WorldGuardIntegration.canPlaceBlock(player, player.getLocation());
-                } else {
-                    canPlaceBlock = Integration.canPlaceBlock(player, player.getLocation());
-                }
-                context.sender().sendMessage(Component.text("canPlaceBlock: " + canPlaceBlock));
-            })
-        );
-        manager.command(
-            base(manager, "isPlotWorld").handler(context -> {
-                if (!(context.sender() instanceof Player player)) return;
-                boolean isPlotWorld = PlotSquaredIntegration.isPlotWorld(player.getWorld());
-                context.sender().sendMessage(Component.text("isPlotWorld: " + isPlotWorld));
-            })
-        );
-        manager.command(
-            base(manager, "getCurrentEditablePlot").handler(context -> {
-                if (!(context.sender() instanceof Player player)) return;
-                PlotSquaredIntegration.PlotBounds plotBounds = PlotSquaredIntegration.getCurrentEditablePlot(player);
-                context.sender().sendMessage(Component.text("plotBounds: " + plotBounds));
-            })
-        );
+        var command = Commands.literal("axiompaperdebug").requires(predicate)
+                              .then(canUseAxiomCommand)
+                              .then(isMismatchedDataVersionCommand)
+                              .then(canModifyWorldCommand)
+                              .then(isClientListeningCommand)
+                              .then(hasPermissionCommand)
+                              .then(getRestrictionsCommand)
+                              .then(canBreakBlockAtCurrentPositionCommand)
+                              .then(canPlaceBlockAtCurrentPositionCommand)
+                              .then(isPlotWorldCommand)
+                              .then(getCurrentEditablePlotCommand)
+                              .build();
+        manager.register(command);
     }
-
-    private static Command.Builder<CommandSender> base(BukkitCommandManager<CommandSender> manager, String subcommand) {
-        return manager.commandBuilder("axiompaperdebug")
-              .literal(subcommand)
-              .senderType(CommandSender.class)
-              .permission(PredicatePermission.of(sender -> {
-                  if (sender instanceof Player player) {
-                      return player.isOp() || player.hasPermission("axiom.all") || player.hasPermission("axiom.debug") || player.getUniqueId().equals(MOULBERRY_UUID);
-                  } else {
-                      return false;
-                  }
-              }));
-    }
-
-
 
 }

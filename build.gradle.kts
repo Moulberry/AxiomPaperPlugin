@@ -8,12 +8,11 @@ plugins {
 }
 
 group = "com.moulberry.axiom"
-version = "5.0.3+1.21.11"
+version = "5.0.3+26.1"
 description = "Serverside component for Axiom on Paper"
 
 java {
-    // Configure the java toolchain. This allows gradle to auto-provision JDK 21 on systems that only have JDK 11 installed for example.
-    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
+    toolchain.languageVersion.set(JavaLanguageVersion.of(25))
 }
 
 repositories {
@@ -39,9 +38,7 @@ repositories {
 }
 
 dependencies {
-    paperweight.paperDevBundle("1.21.11-R0.1-SNAPSHOT")
-    implementation(libs.reflection.remapper)
-    implementation(libs.cloud.paper)
+    paperweight.paperDevBundle("26.1.1.build.29-alpha")
 
     // Zstd Compression Library
     implementation(libs.zstd.jni)
@@ -70,10 +67,7 @@ tasks {
     }
     compileJava {
         options.encoding = Charsets.UTF_8.name() // We want UTF-8 for everything
-
-        // Set the release flag. This configures what version bytecode the compiler will emit, as well as what JDK APIs are usable.
-        // See https://openjdk.java.net/jeps/247 for more information.
-        options.release.set(21)
+        options.release.set(25)
     }
     javadoc {
         options.encoding = Charsets.UTF_8.name() // We want UTF-8 for everything
@@ -84,17 +78,11 @@ tasks {
                 "name" to project.name,
                 "version" to project.version,
                 "description" to project.description,
-                "apiVersion" to "1.21"
+                "apiVersion" to "26.1"
         )
         inputs.properties(props)
         filesMatching("plugin.yml") {
             expand(props)
         }
-    }
-
-    shadowJar {
-        // helper function to relocate a package into our package
-        fun reloc(pkg: String) = relocate(pkg, "com.moulberry.axiom.dependency.$pkg")
-        reloc("xyz.jpenilla:reflection-remapper")
     }
 }

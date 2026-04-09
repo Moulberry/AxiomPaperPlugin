@@ -97,11 +97,11 @@ public class ServerWorldPropertiesRegistry {
     ), world -> 0, (player, world, index) -> {
         ServerLevel serverLevel = ((CraftWorld)world).getHandle();
         if (index == 0) {
-            serverLevel.setWeatherParameters(ServerLevel.RAIN_DELAY.sample(serverLevel.random), 0, false, false);
+            serverLevel.getServer().setWeatherParameters(serverLevel, ServerLevel.RAIN_DELAY.sample(serverLevel.getRandom()), 0, false, false);
         } else if (index == 1) {
-            serverLevel.setWeatherParameters(0, ServerLevel.RAIN_DURATION.sample(serverLevel.random), true, false);
+            serverLevel.getServer().setWeatherParameters(serverLevel, 0, ServerLevel.RAIN_DURATION.sample(serverLevel.getRandom()), true, false);
         } else if (index == 2) {
-            serverLevel.setWeatherParameters(0, ServerLevel.THUNDER_DURATION.sample(serverLevel.random), true, true);
+            serverLevel.getServer().setWeatherParameters(serverLevel, 0, ServerLevel.THUNDER_DURATION.sample(serverLevel.getRandom()), true, true);
         }
         return PropertyUpdateResult.UPDATE_WITHOUT_SYNC;
     });

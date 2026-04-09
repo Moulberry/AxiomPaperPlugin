@@ -61,11 +61,11 @@ public class WorldExtension {
     private final Map<UUID, MarkerData> previousMarkerData = new HashMap<>();
 
     public void sendChunk(int cx, int cz) {
-        this.pendingChunksToSend.add(ChunkPos.asLong(cx, cz));
+        this.pendingChunksToSend.add(ChunkPos.pack(cx, cz));
     }
 
     public void lightChunk(int cx, int cz) {
-        this.pendingChunksToLight.add(ChunkPos.asLong(cx, cz));
+        this.pendingChunksToLight.add(ChunkPos.pack(cx, cz));
     }
 
     public void onPlayerJoin(Player player) {
@@ -149,9 +149,9 @@ public class WorldExtension {
         // Send chunks
         LongIterator longIterator = this.pendingChunksToSend.longIterator();
         while (longIterator.hasNext()) {
-            ChunkPos chunkPos = new ChunkPos(longIterator.nextLong());
+            ChunkPos chunkPos = ChunkPos.unpack(longIterator.nextLong());
 
-            LevelChunk chunk = this.level.getChunkIfLoaded(chunkPos.x, chunkPos.z);
+            LevelChunk chunk = this.level.getChunkIfLoaded(chunkPos.x(), chunkPos.z());
             if (chunk == null) {
                 continue;
             }
@@ -184,12 +184,12 @@ public class WorldExtension {
         longIterator = this.pendingChunksToLight.longIterator();
         if (maxChunkRelightsPerTick <= 0) {
             while (longIterator.hasNext()) {
-                chunkSet.add(new ChunkPos(longIterator.nextLong()));
+                chunkSet.add(ChunkPos.unpack(longIterator.nextLong()));
             }
             this.pendingChunksToLight.clear();
         } else {
             while (longIterator.hasNext()) {
-                chunkSet.add(new ChunkPos(longIterator.nextLong()));
+                chunkSet.add(ChunkPos.unpack(longIterator.nextLong()));
                 longIterator.remove();
 
                 maxChunkRelightsPerTick -= 1;

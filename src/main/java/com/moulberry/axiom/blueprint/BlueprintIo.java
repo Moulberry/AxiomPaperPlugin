@@ -218,7 +218,7 @@ public class BlueprintIo {
             BlockEntityType<?> type = BlockEntityMap.get(blockState.getBlock());
             if (type == null) return;
 
-            Identifier resourceLocation = BlockEntityType.getKey(type);
+            Identifier resourceLocation = BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(type);
 
             if (resourceLocation != null) {
                 CompoundTag tag = compressedBlockEntity.decompress();

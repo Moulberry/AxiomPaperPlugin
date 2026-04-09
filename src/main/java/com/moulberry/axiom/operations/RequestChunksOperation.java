@@ -121,7 +121,7 @@ public class RequestChunksOperation implements PendingOperation {
             chunkFutureIterator.remove();
 
             LevelChunk chunk = (LevelChunk) ((CraftChunk)future.join()).getHandle(ChunkStatus.FULL);
-            long chunkPosLong = ChunkPos.asLong(chunk.locX, chunk.locZ);
+            long chunkPosLong = ChunkPos.pack(chunk.locX, chunk.locZ);
             LongList blockEntitiesInChunk = this.sendBlockEntityForPendingChunks.get(chunkPosLong);
             if (blockEntitiesInChunk != null) {
                 LongIterator iterator = blockEntitiesInChunk.longIterator();

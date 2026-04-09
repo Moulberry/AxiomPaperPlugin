@@ -149,12 +149,12 @@ public class RequestChunkDataPacketListener implements PacketHandler {
                         sendingBlockEntities.put(pos, CompressedBlockEntity.compress(tag, baos));
                     }
                 } else {
-                    long chunkPosLong = ChunkPos.asLong(chunkX, chunkZ);
+                    long chunkPosLong = ChunkPos.pack(chunkX, chunkZ);
                     LongList blockEntitiesInChunk = sendBlockEntityForPendingChunks.get(chunkPosLong);
                     if (blockEntitiesInChunk != null) {
                         blockEntitiesInChunk.add(pos);
                     } else {
-                        chunkFutures.add(ChunkPos.asLong(chunkX, chunkZ));
+                        chunkFutures.add(ChunkPos.pack(chunkX, chunkZ));
 
                         blockEntitiesInChunk = new LongArrayList();
                         blockEntitiesInChunk.add(pos);
@@ -216,12 +216,12 @@ public class RequestChunkDataPacketListener implements PacketHandler {
                         }
                     }
                 } else {
-                    long chunkPosLong = ChunkPos.asLong(sx, sz);
+                    long chunkPosLong = ChunkPos.pack(sx, sz);
                     IntList sendSections = sendSectionsForPendingChunks.get(chunkPosLong);
                     if (sendSections != null) {
                         sendSections.add(sy);
                     } else {
-                        chunkFutures.add(ChunkPos.asLong(sx, sz));
+                        chunkFutures.add(ChunkPos.pack(sx, sz));
 
                         sendSections = new IntArrayList();
                         sendSections.add(sy);
