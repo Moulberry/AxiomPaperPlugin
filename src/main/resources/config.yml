@@ -70,7 +70,7 @@ infinite-reach-limit: 256
 log-core-protect-changes: true
 
 # Overrides based on a permission/rank
-# To apply, give the player the permission
+# To apply, give the player the permission axiomlimits.{key}
 # Note: 'example' does not work, you must rename it to something else
 limits:
   example:
