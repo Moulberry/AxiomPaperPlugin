@@ -260,6 +260,10 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         ConfigurationSection limits = this.configuration.getConfigurationSection("limits");
         if (limits != null) {
             for (String key : limits.getKeys(false)) {
+                if (key.equalsIgnoreCase("example")) {
+                    continue;
+                }
+
                 ConfigurationSection values = limits.getConfigurationSection(key);
                 if (values == null) {
                     continue;
