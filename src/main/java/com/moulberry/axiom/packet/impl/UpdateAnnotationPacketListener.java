@@ -3,13 +3,14 @@ package com.moulberry.axiom.packet.impl;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.annotations.AnnotationUpdateAction;
 import com.moulberry.axiom.annotations.ServerAnnotations;
+import com.moulberry.axiom.integration.prism.PrismAxiomIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
-import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
+import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
+import org.bukkit.World;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,7 +32,8 @@ public class UpdateAnnotationPacketListener implements PacketHandler {
             return;
         }
 
-        ServerPlayer serverPlayer = ((CraftPlayer)player).getHandle();
+        CraftPlayer craftPlayer = (CraftPlayer) player;
+        World world = player.getWorld();
 
         // Read actions
         int length = friendlyByteBuf.readVarInt();
@@ -44,11 +46,13 @@ public class UpdateAnnotationPacketListener implements PacketHandler {
         }
 
         // Execute
-        serverPlayer.level().getServer().execute(() -> {
+        Bukkit.getScheduler().runTask(this.plugin, () -> {
             try {
-                ServerAnnotations.handleUpdates(serverPlayer.level().getWorld(), actions);
+                byte[] oldSnapshot = ServerAnnotations.createSnapshot(world);
+                ServerAnnotations.handleUpdates(world, actions);
+                PrismAxiomIntegration.logAnnotationSnapshot(craftPlayer, world, oldSnapshot, ServerAnnotations.createSnapshot(world));
             } catch (Throwable t) {
-                serverPlayer.getBukkitEntity().kick(net.kyori.adventure.text.Component.text(
+                craftPlayer.kick(net.kyori.adventure.text.Component.text(
                         "An error occured while updating annotations: " + t.getMessage()));
             }
         });

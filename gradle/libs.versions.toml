@@ -3,6 +3,7 @@
 bom-newest = "1.37"
 coreprotect = "22.4"
 plotsquared = "7.3.8"
+prism = "4.3-SNAPSHOT"
 viaversion-api = "5.4.2-SNAPSHOT"
 worldguard-bukkit = "7.0.9-SNAPSHOT"
 zstd-jni = "1.5.5-4"
@@ -18,6 +19,7 @@ bom-newest = { group = "com.intellectualsites.bom", name = "bom-newest", version
 coreprotect = { group = "net.coreprotect", name = "coreprotect", version.ref = "coreprotect" }
 plotsquared-bukkit = { group = "com.intellectualsites.plotsquared", name = "plotsquared-bukkit", version.ref = "plotsquared" }
 plotsquared-core = { group = "com.intellectualsites.plotsquared", name = "plotsquared-core", version.ref = "plotsquared" }
+prism = { group = "org.prism_mc.prism", name = "prism-paper-api", version.ref = "prism" }
 viaversion-api = { group = "com.viaversion", name = "viaversion-api", version.ref = "viaversion-api" }
 worldguard-bukkit = { group = "com.sk89q.worldguard", name = "worldguard-bukkit", version.ref = "worldguard-bukkit" }
 zstd-jni = { group = "com.github.luben", name = "zstd-jni", version.ref = "zstd-jni" }

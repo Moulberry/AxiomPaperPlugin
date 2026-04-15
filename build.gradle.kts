@@ -34,6 +34,16 @@ repositories {
             includeGroup("net.coreprotect")
         }
     }
+    maven("https://nexus.prism-mc.org/repository/maven-releases/") {
+        content {
+            includeGroup("org.prism_mc.prism")
+        }
+    }
+    maven("https://nexus.prism-mc.org/repository/maven-snapshots/") {
+        content {
+            includeGroup("org.prism_mc.prism")
+        }
+    }
     mavenCentral()
 }
 
@@ -59,6 +69,9 @@ dependencies {
 
     // CoreProtect support
     compileOnly(libs.coreprotect)
+
+    // Prism support
+    compileOnly(libs.prism)
 }
 
 tasks {

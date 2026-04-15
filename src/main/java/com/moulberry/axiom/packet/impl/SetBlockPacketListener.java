@@ -5,15 +5,17 @@ import com.google.common.collect.Sets;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.AxiomReflection;
 import com.moulberry.axiom.integration.Integration;
-import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
+import com.moulberry.axiom.integration.changelog.ChangeLogIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.IdMapper;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.SectionPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -44,7 +46,6 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -104,7 +105,9 @@ public class SetBlockPacketListener implements PacketHandler {
         int sequenceId = friendlyByteBuf.readVarInt();
 
         ServerPlayer player = ((CraftPlayer)bukkitPlayer).getHandle();
-        CraftWorld world = player.level().getWorld();
+        CraftWorld world = (CraftWorld) bukkitPlayer.getWorld();
+        ServerLevel level = world.getHandle();
+        RegistryAccess registryAccess = player.registryAccess();
 
         if (sequenceId >= 0) {
             player.connection.ackBlockChangesUpTo(sequenceId);
@@ -113,10 +116,12 @@ public class SetBlockPacketListener implements PacketHandler {
         BlockPlaceContext blockPlaceContext = new BlockPlaceContext(player, hand, player.getItemInHand(hand), blockHit);
 
         if ((reason & REASON_REPLACEMODE) == 0 && (reason & REASON_ANGEL) == 0) {
-            if (!fireBukkitEvents(bukkitPlayer, blockHit, breaking, blocks, player, world, hand)) {
+            if (!fireBukkitEvents(bukkitPlayer, blockHit, breaking, blocks, player, level, world, hand)) {
                 return;
             }
         }
+
+        Map<BlockPos, ChangeLogRecord> changedBlocks = ChangeLogIntegration.isEnabled() ? new LinkedHashMap<>() : null;
 
         // Update blocks
         if (updateNeighbors) {
@@ -125,26 +130,16 @@ public class SetBlockPacketListener implements PacketHandler {
                     BlockPos blockPos = entry.getKey();
                     BlockState blockState = entry.getValue();
 
-                    if (!canBreakOrPlace(bukkitPlayer, blockState, world, blockPos)) {
+                    if (shouldSkipBlockModification(bukkitPlayer, blockState, world, blockPos)) {
                         continue;
                     }
 
-                    boolean logPlacement = false;
-
-                    if (CoreProtectIntegration.isEnabled()) {
-                        BlockState old = player.level().getBlockState(blockPos);
-                        if (old != blockState) {
-                            CoreProtectIntegration.logRemoval(bukkitPlayer.getName(), old, world, blockPos);
-                            logPlacement = true;
-                        }
+                    if (changedBlocks != null) {
+                        changedBlocks.put(blockPos, captureChangeLogRecord(level, blockPos, registryAccess));
                     }
 
                     // Place block
-                    player.level().setBlock(blockPos, blockState, 3);
-
-                    if (logPlacement) {
-                        CoreProtectIntegration.logPlacement(bukkitPlayer.getName(), blockState, world, blockPos);
-                    }
+                    level.setBlock(blockPos, blockState, 3);
                 }
             } else {
                 Direction[] directions = Direction.values();
@@ -154,7 +149,7 @@ public class SetBlockPacketListener implements PacketHandler {
                     BlockPos blockPos = entry.getKey();
                     BlockState blockState = entry.getValue();
 
-                    if (!canBreakOrPlace(bukkitPlayer, blockState, world, blockPos)) {
+                    if (shouldSkipBlockModification(bukkitPlayer, blockState, world, blockPos)) {
                         continue;
                     }
 
@@ -176,24 +171,14 @@ public class SetBlockPacketListener implements PacketHandler {
                         }
                     }
 
-                    boolean logPlacement = false;
-
-                    if (CoreProtectIntegration.isEnabled()) {
-                        BlockState old = player.level().getBlockState(blockPos);
-                        if (old != blockState) {
-                            CoreProtectIntegration.logRemoval(bukkitPlayer.getName(), old, world, blockPos);
-                            logPlacement = true;
-                        }
+                    if (changedBlocks != null) {
+                        changedBlocks.put(blockPos, captureChangeLogRecord(level, blockPos, registryAccess));
                     }
 
-                    player.level().setBlock(blockPos, blockState, updateNeighborsForThisBlock ? 3 : 18);
-
-                    if (logPlacement) {
-                        CoreProtectIntegration.logPlacement(bukkitPlayer.getName(), blockState, world, blockPos);
-                    }
+                    level.setBlock(blockPos, blockState, updateNeighborsForThisBlock ? 3 : 18);
                 }
                 for (Map.Entry<BlockPos, BlockState> entry : delayedSetWithoutUpdates.entrySet()) {
-                    setWithoutUpdates(bukkitPlayer, entry.getValue(), world, entry.getKey(), player);
+                    setWithoutUpdates(bukkitPlayer, entry.getValue(), world, entry.getKey());
                 }
             }
         } else {
@@ -201,7 +186,11 @@ public class SetBlockPacketListener implements PacketHandler {
                 BlockPos blockPos = entry.getKey();
                 BlockState blockState = entry.getValue();
 
-                setWithoutUpdates(bukkitPlayer, blockState, world, blockPos, player);
+                if (changedBlocks != null) {
+                    changedBlocks.put(blockPos, captureChangeLogRecord(level, blockPos, registryAccess));
+                }
+
+                setWithoutUpdates(bukkitPlayer, blockState, world, blockPos);
             }
         }
 
@@ -210,12 +199,12 @@ public class SetBlockPacketListener implements PacketHandler {
 
             if (blocks.containsKey(clickedPos)) {
                 // Disallow in unloaded chunks
-                if (!player.level().isLoaded(clickedPos)) {
+                if (!level.isLoaded(clickedPos)) {
                     return;
                 }
 
                 BlockState desiredBlockState = blocks.get(clickedPos);
-                BlockState actualBlockState = player.level().getBlockState(clickedPos);
+                BlockState actualBlockState = level.getBlockState(clickedPos);
                 Block actualBlock = actualBlockState.getBlock();
 
                 // Ensure block is correct
@@ -229,21 +218,52 @@ public class SetBlockPacketListener implements PacketHandler {
 
                 ItemStack inHand = player.getItemInHand(hand);
 
-                BlockItem.updateCustomBlockEntityTag(player.level(), player, clickedPos, inHand);
+                BlockItem.updateCustomBlockEntityTag(level, player, clickedPos, inHand);
 
-                BlockEntity blockEntity = player.level().getBlockEntity(clickedPos);
+                BlockEntity blockEntity = level.getBlockEntity(clickedPos);
                 if (blockEntity != null) {
                     blockEntity.applyComponentsFromItemStack(inHand);
                 }
 
                 if (!(actualBlock instanceof BedBlock) && !(actualBlock instanceof DoublePlantBlock) && !(actualBlock instanceof DoorBlock)) {
-                    actualBlock.setPlacedBy(player.level(), clickedPos, actualBlockState, player, inHand);
+                    actualBlock.setPlacedBy(level, clickedPos, actualBlockState, player, inHand);
                 }
+            }
+        }
+
+        if (changedBlocks != null) {
+            for (Map.Entry<BlockPos, ChangeLogRecord> entry : changedBlocks.entrySet()) {
+                BlockPos changedPos = entry.getKey();
+                ChangeLogRecord record = entry.getValue();
+                BlockState current = level.getBlockState(changedPos);
+                String currentBlockEntityNbt = serializeBlockEntityNbt(level, changedPos, registryAccess);
+                ChangeLogIntegration.logChange(bukkitPlayer, record.oldState(), record.oldBlockEntityNbt(),
+                    current, currentBlockEntityNbt, world, changedPos);
             }
         }
     }
 
-    private static boolean fireBukkitEvents(Player bukkitPlayer, BlockHitResult blockHit, boolean breaking, Map<BlockPos, BlockState> blocks, ServerPlayer player, CraftWorld world, InteractionHand hand) {
+    private record ChangeLogRecord(BlockState oldState, @Nullable String oldBlockEntityNbt) {}
+
+    private static ChangeLogRecord captureChangeLogRecord(ServerLevel level, BlockPos pos, RegistryAccess registryAccess) {
+        BlockState oldState = level.getBlockState(pos);
+        return new ChangeLogRecord(oldState, serializeBlockEntityNbt(level, pos, registryAccess));
+    }
+
+    @Nullable
+    private static String serializeBlockEntityNbt(ServerLevel level, BlockPos pos, RegistryAccess registryAccess) {
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity == null) {
+            return null;
+        }
+
+        CompoundTag tag = blockEntity.saveWithoutMetadata(registryAccess);
+        return tag.isEmpty() ? null : tag.toString();
+    }
+
+    private static boolean fireBukkitEvents(Player bukkitPlayer, BlockHitResult blockHit, boolean breaking,
+                                            Map<BlockPos, BlockState> blocks, ServerPlayer player, ServerLevel level,
+                                            CraftWorld world, InteractionHand hand) {
         org.bukkit.inventory.ItemStack heldItem;
         if (hand == InteractionHand.MAIN_HAND) {
             heldItem = bukkitPlayer.getInventory().getItemInMainHand();
@@ -257,6 +277,7 @@ public class SetBlockPacketListener implements PacketHandler {
         BlockFace blockFace = CraftBlock.notchToBlockFace(blockHit.getDirection());
 
         // Call interact event
+        //noinspection UnstableApiUsage
         PlayerInteractEvent playerInteractEvent = new PlayerInteractEvent(bukkitPlayer,
             breaking ? Action.LEFT_CLICK_BLOCK : Action.RIGHT_CLICK_BLOCK, heldItem, blockClicked, blockFace);
         if (!playerInteractEvent.callEvent()) {
@@ -267,7 +288,7 @@ public class SetBlockPacketListener implements PacketHandler {
         if (!breaking) {
             List<org.bukkit.block.BlockState> blockStates = new ArrayList<>();
             for (Map.Entry<BlockPos, BlockState> entry : blocks.entrySet()) {
-                BlockState existing = player.level().getBlockState(entry.getKey());
+                BlockState existing = level.getBlockState(entry.getKey());
                 if (existing.canBeReplaced()) {
                     blockStates.add(new AxiomPlacingCraftBlockState(world, entry.getKey(), entry.getValue()));
                 }
@@ -276,22 +297,20 @@ public class SetBlockPacketListener implements PacketHandler {
             if (!blockStates.isEmpty()) {
                 Cancellable event;
                 if (blockStates.size() > 1) {
-                    event = CraftEventFactory.callBlockMultiPlaceEvent(player.level(),
+                    event = CraftEventFactory.callBlockMultiPlaceEvent(level,
                         player, hand, blockStates, blockHit.getBlockPos());
                 } else {
-                    event = CraftEventFactory.callBlockPlaceEvent(player.level(),
-                        player, hand, blockStates.get(0), blockHit.getBlockPos());
+                    event = CraftEventFactory.callBlockPlaceEvent(level,
+                        player, hand, blockStates.getFirst(), blockHit.getBlockPos());
                 }
-                if (event.isCancelled()) {
-                    return false;
-                }
+                return !event.isCancelled();
             }
         }
         return true;
     }
 
-    private void setWithoutUpdates(Player bukkitPlayer, BlockState blockState, CraftWorld world, BlockPos blockPos, ServerPlayer player) {
-        if (!canBreakOrPlace(bukkitPlayer, blockState, world, blockPos)) {
+    private void setWithoutUpdates(Player bukkitPlayer, BlockState blockState, CraftWorld world, BlockPos blockPos) {
+        if (shouldSkipBlockModification(bukkitPlayer, blockState, world, blockPos)) {
             return;
         }
 
@@ -305,7 +324,7 @@ public class SetBlockPacketListener implements PacketHandler {
         int cy = by >> 4;
         int cz = bz >> 4;
 
-        ServerLevel level = player.level();
+        ServerLevel level = world.getHandle();
         LevelChunk chunk = level.getChunkIfLoaded(cx, cz);
         if (chunk == null) return;
         chunk.markUnsaved();
@@ -330,13 +349,11 @@ public class SetBlockPacketListener implements PacketHandler {
             }
         }
 
-        BlockState old = section.setBlockState(x, y, z, blockState, true);
+        BlockState old = section.getBlockState(x, y, z);
         if (blockState != old) {
+            section.setBlockState(x, y, z, blockState, true);
             Block block = blockState.getBlock();
-            motionBlocking.update(x, by, z, blockState);
-            motionBlockingNoLeaves.update(x, by, z, blockState);
-            oceanFloor.update(x, by, z, blockState);
-            worldSurface.update(x, by, z, blockState);
+            updateHeightmaps(x, by, z, blockState, worldSurface, oceanFloor, motionBlocking, motionBlockingNoLeaves);
 
             if (blockState.hasBlockEntity()) {
                 BlockEntity blockEntity = chunk.getBlockEntity(blockPos, LevelChunk.EntityCreationType.CHECK);
@@ -350,7 +367,7 @@ public class SetBlockPacketListener implements PacketHandler {
                 } else if (blockEntity.getType().isValid(blockState)) {
                     // Block entity is here and the type is correct
                     // Just update the state and ticker and move on
-                    blockEntity.setBlockState(blockState);
+                    setExistingBlockEntityState(blockEntity, blockState);
                     AxiomReflection.updateBlockEntityTicker(chunk, blockEntity);
                 } else {
                     // Block entity type isn't correct, we need to recreate it
@@ -381,16 +398,9 @@ public class SetBlockPacketListener implements PacketHandler {
             Optional<Holder<PoiType>> oldPoi = PoiTypes.forState(old);
             if (!Objects.equals(oldPoi, newPoi)) {
                 if (oldPoi.isPresent()) level.getPoiManager().remove(blockPos);
-                if (newPoi.isPresent()) level.getPoiManager().add(blockPos, newPoi.get());
+                newPoi.ifPresent(holder -> level.getPoiManager().add(blockPos, holder));
             }
 
-            if (CoreProtectIntegration.isEnabled()) {
-                String changedBy = player.getBukkitEntity().getName();
-                BlockPos changedPos = new BlockPos(bx, by, bz);
-
-                CoreProtectIntegration.logRemoval(changedBy, old, world, changedPos);
-                CoreProtectIntegration.logPlacement(changedBy, blockState, world, changedPos);
-            }
         }
 
         boolean nowHasOnlyAir = section.hasOnlyAir();
@@ -400,18 +410,31 @@ public class SetBlockPacketListener implements PacketHandler {
         }
     }
 
-    private static boolean canBreakOrPlace(Player bukkitPlayer, BlockState blockState, CraftWorld world, BlockPos blockPos) {
+    private static boolean shouldSkipBlockModification(Player bukkitPlayer, BlockState blockState, CraftWorld world, BlockPos blockPos) {
         if (blockState == null) {
-            return false;
+            return true;
         }
         if (!world.isChunkLoaded(blockPos.getX() >> 4, blockPos.getZ() >> 4)) {
-            return false;
+            return true;
         }
         if (blockState.isAir()) {
-            return Integration.canBreakBlock(bukkitPlayer, world.getBlockAt(blockPos.getX(), blockPos.getY(), blockPos.getZ()));
-        } else {
-            return Integration.canPlaceBlock(bukkitPlayer, new Location(world, blockPos.getX(), blockPos.getY(), blockPos.getZ()));
+            return !Integration.canBreakBlock(bukkitPlayer, world.getBlockAt(blockPos.getX(), blockPos.getY(), blockPos.getZ()));
         }
+        return !Integration.canPlaceBlock(bukkitPlayer, new Location(world, blockPos.getX(), blockPos.getY(), blockPos.getZ()));
+    }
+
+    private static void updateHeightmaps(int x, int y, int z, BlockState blockState, @Nullable Heightmap worldSurface,
+                                         @Nullable Heightmap oceanFloor, @Nullable Heightmap motionBlocking,
+                                         @Nullable Heightmap motionBlockingNoLeaves) {
+        Objects.requireNonNull(motionBlocking, "Missing MOTION_BLOCKING heightmap").update(x, y, z, blockState);
+        Objects.requireNonNull(motionBlockingNoLeaves, "Missing MOTION_BLOCKING_NO_LEAVES heightmap").update(x, y, z, blockState);
+        Objects.requireNonNull(oceanFloor, "Missing OCEAN_FLOOR heightmap").update(x, y, z, blockState);
+        Objects.requireNonNull(worldSurface, "Missing WORLD_SURFACE heightmap").update(x, y, z, blockState);
+    }
+
+    @SuppressWarnings("deprecation")
+    private static void setExistingBlockEntityState(BlockEntity blockEntity, BlockState blockState) {
+        blockEntity.setBlockState(blockState);
     }
 
 }

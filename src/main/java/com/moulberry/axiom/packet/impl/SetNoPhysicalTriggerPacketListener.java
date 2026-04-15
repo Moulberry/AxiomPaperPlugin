@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.integration.prism.PrismAxiomIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -19,7 +20,10 @@ public class SetNoPhysicalTriggerPacketListener implements PacketHandler {
             return;
         }
 
-        this.plugin.setNoPhysicalTrigger(player.getUniqueId(), friendlyByteBuf.readBoolean());
+        boolean oldValue = this.plugin.isNoPhysicalTrigger(player.getUniqueId());
+        boolean newValue = friendlyByteBuf.readBoolean();
+        this.plugin.setNoPhysicalTrigger(player.getUniqueId(), newValue);
+        PrismAxiomIntegration.logPlayerNoPhysicalTrigger(player, player, oldValue, newValue);
     }
 
 }

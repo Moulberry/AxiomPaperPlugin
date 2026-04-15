@@ -5,6 +5,7 @@ import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.event.AxiomAfterManipulateEntityEvent;
 import com.moulberry.axiom.event.AxiomManipulateEntityEvent;
 import com.moulberry.axiom.integration.Integration;
+import com.moulberry.axiom.integration.prism.PrismAxiomIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import com.moulberry.axiom.viaversion.UnknownVersionHelper;
@@ -100,7 +101,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
             Entity entity = serverLevel.getEntity(entry.uuid);
             if (entity == null || entity instanceof net.minecraft.world.entity.player.Player || entity.hasPassenger(ManipulateEntityPacketListener::isPlayer)) continue;
 
-            if (!this.plugin.canEntityBeManipulated(entity.getType())) {
+            if (this.plugin.isEntityManipulationBlocked(entity.getType())) {
                 continue;
             }
 
@@ -116,6 +117,8 @@ public class ManipulateEntityPacketListener implements PacketHandler {
             if (!manipulateEvent.callEvent()) {
                 continue;
             }
+
+            String oldSnapshot = PrismAxiomIntegration.captureEntitySnapshot(entity);
 
             if (entry.merge != null && !entry.merge.isEmpty()) {
                 NbtSanitization.sanitizeEntity(entry.merge);
@@ -179,7 +182,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
                             if (!canManipulatePassengers(passenger) || passenger.hasPassenger(ManipulateEntityPacketListener::cannotManipulatePassengers)) {
                                 continue;
                             }
-                            if (!this.plugin.canEntityBeManipulated(passenger.getType())) {
+                            if (this.plugin.isEntityManipulationBlocked(passenger.getType())) {
                                 continue;
                             }
 
@@ -208,7 +211,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
                             if (!canManipulatePassengers(passenger) || passenger.hasPassenger(ManipulateEntityPacketListener::cannotManipulatePassengers)) {
                                 continue;
                             }
-                            if (!this.plugin.canEntityBeManipulated(passenger.getType())) {
+                            if (this.plugin.isEntityManipulationBlocked(passenger.getType())) {
                                 continue;
                             }
 
@@ -223,6 +226,11 @@ public class ManipulateEntityPacketListener implements PacketHandler {
 
             AxiomAfterManipulateEntityEvent afterManipulateEvent = new AxiomAfterManipulateEntityEvent(player, entity.getBukkitEntity());
             afterManipulateEvent.callEvent();
+
+            String newSnapshot = PrismAxiomIntegration.captureEntitySnapshot(entity);
+            if (oldSnapshot != null && newSnapshot != null) {
+                PrismAxiomIntegration.logEntityModification(player, entity, oldSnapshot, newSnapshot);
+            }
         }
     }
 
@@ -252,7 +260,11 @@ public class ManipulateEntityPacketListener implements PacketHandler {
                     }
                 }
             } else {
-                left.put(key, tag.copy());
+                if (tag != null) {
+                    left.put(key, tag.copy());
+                } else {
+                    left.remove(key);
+                }
             }
         }
         return left;

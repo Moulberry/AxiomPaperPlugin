@@ -7,7 +7,7 @@ import com.moulberry.axiom.buffer.BlockBuffer;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.SectionPermissionChecker;
-import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
+import com.moulberry.axiom.integration.changelog.ChangeLogIntegration;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
@@ -18,6 +18,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.SectionPos;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -37,7 +38,6 @@ import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.lighting.LightEngine;
 import net.minecraft.world.level.storage.TagValueInput;
-import org.bukkit.Chunk;
 import org.bukkit.craftbukkit.CraftChunk;
 
 import java.util.ArrayList;
@@ -57,7 +57,7 @@ public class SetBlockBufferOperation implements PendingOperation {
 
     private Long2ObjectOpenHashMap<List<Long2ObjectMap.Entry<PalettedContainer<BlockState>>>> sectionsForChunks = null;
     private LongArrayList getChunkFutures = null;
-    private List<CompletableFuture<LevelChunk>> chunkFutures = new ArrayList<>();
+    private final List<CompletableFuture<LevelChunk>> chunkFutures = new ArrayList<>();
     private boolean sendGameMasterBlockWarning = false;
     private boolean finished = false;
 
@@ -93,7 +93,7 @@ public class SetBlockBufferOperation implements PendingOperation {
                 int posZ = BlockPos.getZ(pos);
 
                 long chunkPos = ChunkPos.pack(posX, posZ);
-                this.sectionsForChunks.computeIfAbsent(chunkPos, k -> new ArrayList<>()).add(entry);
+                this.sectionsForChunks.computeIfAbsent(chunkPos, ignored -> new ArrayList<>()).add(entry);
             }
 
             this.getChunkFutures = new LongArrayList(this.sectionsForChunks.keySet());
@@ -216,16 +216,23 @@ public class SetBlockBufferOperation implements PendingOperation {
                             if (checker != null && !checker.allowed(x, y, z)) continue;
 
                             Block block = blockState.getBlock();
+                            BlockState old = section.getBlockState(x, y, z);
+                            String oldBlockEntityNbt = null;
+                            if (ChangeLogIntegration.isEnabled() && old.hasBlockEntity()) {
+                                blockPos.set(bx, by, bz);
+                                BlockEntity oldBlockEntity = chunk.getBlockEntity(blockPos, LevelChunk.EntityCreationType.CHECK);
+                                if (oldBlockEntity != null) {
+                                    CompoundTag tag = oldBlockEntity.saveWithoutMetadata(player.registryAccess());
+                                    oldBlockEntityNbt = tag.isEmpty() ? null : tag.toString();
+                                }
+                            }
 
-                            BlockState old = section.setBlockState(x, y, z, blockState, true);
                             if (blockState != old) {
+                                section.setBlockState(x, y, z, blockState, true);
                                 chunkChanged = true;
                                 blockPos.set(bx, by, bz);
 
-                                motionBlocking.update(x, by, z, blockState);
-                                motionBlockingNoLeaves.update(x, by, z, blockState);
-                                oceanFloor.update(x, by, z, blockState);
-                                worldSurface.update(x, by, z, blockState);
+                                updateHeightmaps(x, by, z, blockState, worldSurface, oceanFloor, motionBlocking, motionBlockingNoLeaves);
 
                                 // Update Light
                                 chunkLightChanged |= LightEngine.hasDifferentLightProperties(old, blockState);
@@ -235,7 +242,7 @@ public class SetBlockBufferOperation implements PendingOperation {
                                 Optional<Holder<PoiType>> oldPoi = sectionMaybeHasPoi ? PoiTypes.forState(old) : Optional.empty();
                                 if (!Objects.equals(oldPoi, newPoi)) {
                                     if (oldPoi.isPresent()) level.getPoiManager().remove(blockPos);
-                                    if (newPoi.isPresent()) level.getPoiManager().add(blockPos, newPoi.get());
+                                    newPoi.ifPresent(holder -> level.getPoiManager().add(blockPos, holder));
                                 }
                             }
 
@@ -252,7 +259,7 @@ public class SetBlockBufferOperation implements PendingOperation {
                                     }
                                 } else if (blockEntity.getType().isValid(blockState)) {
                                     // Block entity is here and the type is correct
-                                    blockEntity.setBlockState(blockState);
+                                    setExistingBlockEntityState(blockEntity, blockState);
                                     AxiomReflection.updateBlockEntityTicker(chunk, blockEntity);
                                 } else {
                                     // Block entity type isn't correct, we need to recreate it
@@ -280,12 +287,20 @@ public class SetBlockBufferOperation implements PendingOperation {
                                 chunk.removeBlockEntity(blockPos);
                             }
 
-                            if (CoreProtectIntegration.isEnabled() && old != blockState) {
-                                String changedBy = player.getBukkitEntity().getName();
+                            if (ChangeLogIntegration.isEnabled()) {
                                 BlockPos changedPos = new BlockPos(bx, by, bz);
+                                var changedBy = player.getBukkitEntity();
+                                String newBlockEntityNbt = null;
+                                if (blockState.hasBlockEntity()) {
+                                    BlockEntity changedBlockEntity = chunk.getBlockEntity(blockPos, LevelChunk.EntityCreationType.CHECK);
+                                    if (changedBlockEntity != null) {
+                                        CompoundTag tag = changedBlockEntity.saveWithoutMetadata(player.registryAccess());
+                                        newBlockEntityNbt = tag.isEmpty() ? null : tag.toString();
+                                    }
+                                }
 
-                                CoreProtectIntegration.logRemoval(changedBy, old, level.getWorld(), changedPos);
-                                CoreProtectIntegration.logPlacement(changedBy, blockState, level.getWorld(), changedPos);
+                                ChangeLogIntegration.logChange(changedBy, old, oldBlockEntityNbt,
+                                    blockState, newBlockEntityNbt, level.getWorld(), changedPos);
                             }
                         }
                     }
@@ -316,5 +331,18 @@ public class SetBlockBufferOperation implements PendingOperation {
         }
 
         this.finished = true;
+    }
+
+    private static void updateHeightmaps(int x, int y, int z, BlockState blockState, Heightmap worldSurface,
+                                         Heightmap oceanFloor, Heightmap motionBlocking, Heightmap motionBlockingNoLeaves) {
+        Objects.requireNonNull(motionBlocking, "Missing MOTION_BLOCKING heightmap").update(x, y, z, blockState);
+        Objects.requireNonNull(motionBlockingNoLeaves, "Missing MOTION_BLOCKING_NO_LEAVES heightmap").update(x, y, z, blockState);
+        Objects.requireNonNull(oceanFloor, "Missing OCEAN_FLOOR heightmap").update(x, y, z, blockState);
+        Objects.requireNonNull(worldSurface, "Missing WORLD_SURFACE heightmap").update(x, y, z, blockState);
+    }
+
+    @SuppressWarnings("deprecation")
+    private static void setExistingBlockEntityState(BlockEntity blockEntity, BlockState blockState) {
+        blockEntity.setBlockState(blockState);
     }
 }

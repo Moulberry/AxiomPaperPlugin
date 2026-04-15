@@ -2,11 +2,10 @@ package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomTimeChangeEvent;
+import com.moulberry.axiom.integration.prism.PrismAxiomIntegration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
-import io.netty.buffer.Unpooled;
-import net.kyori.adventure.text.Component;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -17,8 +16,6 @@ import net.minecraft.world.level.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.messaging.PluginMessageListener;
-import org.jetbrains.annotations.NotNull;
 
 public class SetTimePacketListener implements PacketHandler {
 
@@ -57,9 +54,15 @@ public class SetTimePacketListener implements PacketHandler {
         Bukkit.getPluginManager().callEvent(timeChangeEvent);
         if (timeChangeEvent.isCancelled()) return;
 
+        long oldTime = player.getWorld().getTime();
+        boolean oldAdvanceTime = Boolean.TRUE.equals(player.getWorld().getGameRuleValue(org.bukkit.GameRules.ADVANCE_TIME));
+
         // Change time
         if (time != null) player.getWorld().setTime(time);
         if (freezeTime != null) level.getGameRules().set(GameRules.ADVANCE_TIME, !freezeTime, null);
+
+        PrismAxiomIntegration.logWorldTimeChange(player, player.getWorld(), oldTime, oldAdvanceTime,
+            player.getWorld().getTime(), Boolean.TRUE.equals(player.getWorld().getGameRuleValue(org.bukkit.GameRules.ADVANCE_TIME)));
     }
 
 }

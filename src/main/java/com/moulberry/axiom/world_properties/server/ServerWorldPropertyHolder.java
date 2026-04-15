@@ -2,18 +2,14 @@ package com.moulberry.axiom.world_properties.server;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.VersionHelper;
-import com.moulberry.axiom.world_properties.PropertyUpdateHandler;
 import com.moulberry.axiom.world_properties.WorldPropertyDataType;
-import com.moulberry.axiom.world_properties.WorldPropertyWidgetType;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
-import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
-import org.bukkit.craftbukkit.util.CraftNamespacedKey;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -23,7 +19,7 @@ import java.util.Objects;
 public class ServerWorldPropertyHolder<T> {
 
     private T value;
-    private ServerWorldPropertyBase<T> property;
+    private final ServerWorldPropertyBase<T> property;
     private boolean unsyncedValue = false;
 
     public ServerWorldPropertyHolder(T value, ServerWorldPropertyBase<T> property) {
@@ -69,6 +65,14 @@ public class ServerWorldPropertyHolder<T> {
         if (sync) {
             this.sync(world);
         }
+    }
+
+    public byte[] serializeValue() {
+        return this.property.widget.dataType().serialize(this.value);
+    }
+
+    public void setSerializedValue(World world, byte[] data) {
+        this.setValue(world, this.property.widget.dataType().deserialize(data));
     }
 
     public void sync(World world) {
