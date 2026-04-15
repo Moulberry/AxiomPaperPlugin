@@ -2,6 +2,7 @@ package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.VersionHelper;
+import com.moulberry.axiom.integration.prism.PrismAxiomIntegration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
@@ -9,13 +10,10 @@ import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertyHolder;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-import net.kyori.adventure.text.Component;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.Identifier;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.messaging.PluginMessageListener;
-import org.jetbrains.annotations.NotNull;
 
 public class SetWorldPropertyListener implements PacketHandler {
 
@@ -55,7 +53,9 @@ public class SetWorldPropertyListener implements PacketHandler {
 
         ServerWorldPropertyHolder<?> property = registry.getById(id);
         if (property != null && property.getType().getTypeId() == type) {
+            byte[] oldValue = property.serializeValue();
             property.update(player, player.getWorld(), data);
+            PrismAxiomIntegration.logWorldPropertyChange(player, player.getWorld(), id.toString(), oldValue, property.serializeValue());
         }
 
         sendAck(player, updateId);

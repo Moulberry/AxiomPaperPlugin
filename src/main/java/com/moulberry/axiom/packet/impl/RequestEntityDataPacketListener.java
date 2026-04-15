@@ -67,7 +67,7 @@ public class RequestEntityDataPacketListener implements PacketHandler {
                 continue;
             }
 
-            if (!this.plugin.canEntityBeManipulated(entity.getType())) {
+            if (this.plugin.isEntityManipulationBlocked(entity.getType())) {
                 continue;
             }
 

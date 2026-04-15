@@ -76,7 +76,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                     }
                 }
 
-                if (!this.plugin.consumeDispatchSends(player.getBukkitEntity(), buffer.getSectionCount(), clientAvailableDispatchSends)) {
+                if (this.plugin.shouldRejectDispatchSends(player.getBukkitEntity(), buffer.getSectionCount(), clientAvailableDispatchSends)) {
                     return;
                 }
 
@@ -104,7 +104,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                     this.plugin.getLogger().info("Player " + player.getUUID() + " modified " + biomeBuffer.getSectionCount() + " chunk sections (biomes)");
                 }
 
-                if (!this.plugin.consumeDispatchSends(player.getBukkitEntity(), biomeBuffer.getSectionCount(), clientAvailableDispatchSends)) {
+                if (this.plugin.shouldRejectDispatchSends(player.getBukkitEntity(), biomeBuffer.getSectionCount(), clientAvailableDispatchSends)) {
                     return;
                 }
 

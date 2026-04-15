@@ -69,6 +69,46 @@ infinite-reach-limit: 256
 # Whether to log Axiom changes with CoreProtect (if CoreProtect is installed)
 log-core-protect-changes: true
 
+# Prism logging options
+prism-logging:
+  # Whether to log Axiom changes with Prism (if Prism is installed)
+  enabled: true
+
+  # Fine-grained Prism record toggles
+  records:
+    # Block placement/removal/replacement logging
+    block-changes: true
+
+    # Entity creation logging
+    entity-spawns: true
+
+    # Entity deletion logging
+    entity-deletes: true
+
+    # Entity state/NBT modification logging
+    entity-modifications: true
+
+    # Player teleport logging.
+    player-teleports: false
+
+    # Player gamemode change logging.
+    player-gamemode-changes: false
+
+    # Player fly speed logging.
+    player-fly-speed-changes: false
+
+    # Player no-physical-trigger logging.
+    player-no-physical-trigger-changes: false
+
+    # World time/daylight-cycle logging
+    world-time-changes: false
+
+    # World property logging
+    world-property-changes: false
+
+    # Annotation snapshot logging.
+    annotation-snapshots: false
+
 # Overrides based on a permission/rank
 # To apply, give the player the permission axiomlimits.{key}
 # Note: 'example' does not work, you must rename it to something else

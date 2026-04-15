@@ -2,7 +2,6 @@ package com.moulberry.axiom.integration.coreprotect;
 
 import com.moulberry.axiom.AxiomPaper;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.craftbukkit.CraftWorld;
 
