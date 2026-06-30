@@ -15,6 +15,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntitySpawnRequest;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.decoration.ItemFrame;
@@ -98,7 +99,8 @@ public class SpawnEntityPacketListener implements PacketHandler {
 
             AtomicBoolean useNewUuid = new AtomicBoolean(true);
 
-            Entity spawned = EntityType.loadEntityRecursive(tag, serverLevel, EntitySpawnReason.COMMAND, entity -> {
+            var spawnRequest = new EntitySpawnRequest(EntitySpawnReason.COMMAND, true);
+            Entity spawned = EntityType.loadEntityRecursive(tag, serverLevel, spawnRequest, entity -> {
                 if (!this.plugin.canEntityBeManipulated(entity.getType())) {
                     return null;
                 }

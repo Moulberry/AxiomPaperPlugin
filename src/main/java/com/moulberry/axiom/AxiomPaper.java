@@ -37,14 +37,17 @@ import net.kyori.adventure.util.TriState;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.IdMapper;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.network.*;
 import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
 import net.minecraft.network.protocol.game.GameProtocols;
 import net.minecraft.network.protocol.game.ServerGamePacketListener;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.*;
 import org.bukkit.command.CommandSender;
@@ -142,10 +145,10 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         this.whitelistedEntities.clear();
         this.blacklistedEntities.clear();
         for (String whitelistedEntity : this.configuration.getStringList("whitelist-entities")) {
-            EntityType.byString(whitelistedEntity).ifPresent(this.whitelistedEntities::add);
+            BuiltInRegistries.ENTITY_TYPE.get(Identifier.parse(whitelistedEntity)).ifPresent(reference -> this.whitelistedEntities.add(reference.value()));
         }
         for (String blacklistedEntity : this.configuration.getStringList("blacklist-entities")) {
-            EntityType.byString(blacklistedEntity).ifPresent(this.blacklistedEntities::add);
+            BuiltInRegistries.ENTITY_TYPE.get(Identifier.parse(blacklistedEntity)).ifPresent(reference -> this.blacklistedEntities.add(reference.value()));
         }
 
         List<String> disallowedBlocks = this.configuration.getStringList("disallowed-blocks");
@@ -683,7 +686,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     }
 
     public boolean canEntityBeManipulated(EntityType<?> entityType) {
-        if (entityType == EntityType.PLAYER) {
+        if (entityType == EntityTypes.PLAYER) {
             return false;
         }
         if (!this.whitelistedEntities.isEmpty() && !this.whitelistedEntities.contains(entityType)) {
