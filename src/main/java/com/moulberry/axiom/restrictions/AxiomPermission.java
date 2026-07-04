@@ -20,6 +20,9 @@ public enum AxiomPermission {
     ANNOTATION_CREATE(ANNOTATION, "axiom.annotation.create"),
     ANNOTATION_CLEARALL(ANNOTATION, "axiom.annotation.clear_all"),
 
+    BUILD_DANGEROUS(null, "axiom.build_dangerous.*"),
+    BUILD_DANGEROUS_TICK(null, "axiom.build_dangerous.tick"),
+
     // The following permissions are the default permissions
     DEFAULT(null, "axiom.default"),
 

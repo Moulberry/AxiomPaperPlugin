@@ -12,6 +12,11 @@ public class AxiomConstants {
         }
     }
 
-    public static final int API_VERSION = 9;
+    public static final int API_VERSION = 10;
+
+    public static final byte TUNNEL_PACKET_FLAG_ZSTD_COMPRESSED = 1;
+
+    public static final byte TUNNEL_BUFFER_FLAG_FIRST = 1;
+    public static final byte TUNNEL_BUFFER_FLAG_LAST = 2;
 
 }

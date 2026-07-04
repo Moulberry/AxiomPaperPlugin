@@ -1,10 +1,12 @@
 package com.moulberry.axiom;
 
+import com.github.luben.zstd.Zstd;
 import com.moulberry.axiom.blueprint.ServerBlueprintManager;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.commands.AxiomDebugCommand;
 import com.moulberry.axiom.commands.AxiomMigrateCommand;
 import com.moulberry.axiom.event.AxiomCreateWorldPropertiesEvent;
+import com.moulberry.axiom.event.AxiomHandshakeEvent;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
@@ -23,26 +25,24 @@ import com.moulberry.axiom.restrictions.Restrictions;
 import com.moulberry.axiom.world_properties.server.ServerWorldPropertiesRegistry;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
 import io.papermc.paper.event.player.PlayerFailMoveEvent;
 import io.papermc.paper.event.world.WorldGameRuleChangeEvent;
-import io.papermc.paper.network.ChannelInitializeListener;
-import io.papermc.paper.network.ChannelInitializeListenerHolder;
 import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import net.kyori.adventure.key.Key;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.kyori.adventure.util.TriState;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.IdMapper;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.network.*;
-import net.minecraft.network.protocol.common.ServerboundCustomPayloadPacket;
-import net.minecraft.network.protocol.game.GameProtocols;
-import net.minecraft.network.protocol.game.ServerGamePacketListener;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import org.bukkit.*;
@@ -50,6 +50,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -57,7 +58,6 @@ import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.server.PluginDisableEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.Messenger;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.incendo.cloud.bukkit.CloudBukkitCapabilities;
 import org.incendo.cloud.execution.ExecutionCoordinator;
 import org.incendo.cloud.paper.LegacyPaperCommandManager;
@@ -69,18 +69,23 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.IntFunction;
 
 public class AxiomPaper extends JavaPlugin implements Listener {
 
     public static AxiomPaper PLUGIN; // tsk tsk tsk
 
-    public final Set<UUID> activeAxiomPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
-    public final Set<UUID> failedPermissionAxiomPlayers = Collections.newSetFromMap(new ConcurrentHashMap<>());
-    public final Map<UUID, Restrictions> playerRestrictions = new ConcurrentHashMap<>();
-    public final Map<UUID, IdMapper<BlockState>> playerBlockRegistry = new ConcurrentHashMap<>();
-    public final Map<UUID, Integer> playerProtocolVersion = new ConcurrentHashMap<>();
+    private final Set<UUID> activeAxiomPlayers = new HashSet<>();
+    private final Set<UUID> sentDisableReasonPlayers = new HashSet<>();
+    private final Object2LongOpenHashMap<UUID> pendingHandshakeIds = new Object2LongOpenHashMap<>();
+
+    private final Map<UUID, List<byte[]>> tunnelPendingBuffers = new HashMap<>();
+    private final Set<UUID> skipCurrentTunnelPacket = new HashSet<>();
+
+    public final Map<UUID, Restrictions> playerRestrictions = new HashMap<>();
+    public final Map<UUID, IdMapper<BlockState>> playerBlockRegistry = new HashMap<>();
+    public final Map<UUID, Integer> playerProtocolVersion = new HashMap<>();
     private final Map<UUID, AxiomPermissionSet> playerPermissions = new HashMap<>();
     private final Map<UUID, PlotSquaredIntegration.PlotBounds> lastPlotBoundsForPlayers = new HashMap<>();
     private final Set<UUID> noPhysicalTriggerPlayers = new HashSet<>();
@@ -114,6 +119,8 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     private boolean clearCachedPermissionsOnTick = true;
     private int checkAxiomEnableDisableTimer = 0;
+
+    private final Map<Identifier, PacketHandler> supportedServerboundPackets = new LinkedHashMap<>();
 
     @Override
     public void onEnable() {
@@ -179,57 +186,35 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerOutgoingPluginChannel(this, "axiom:ignore_display_entities");
         msg.registerOutgoingPluginChannel(this, "axiom:register_custom_items");
 
-        Map<String, PacketHandler> largePayloadHandlers = new HashMap<>();
+        msg.registerIncomingPluginChannel(this, "axiom:tunnel", (s, player, bytes) -> AxiomPaper.this.handleTunnelBuffer(player, bytes));
+        this.supportedServerboundPackets.put(Identifier.fromNamespaceAndPath("axiom", "tunnel"), null);
 
-        registerPacketHandler("hello", new HelloPacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
-        registerPacketHandler("set_gamemode", new SetGamemodePacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
-        registerPacketHandler("set_fly_speed", new SetFlySpeedPacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
-        registerPacketHandler("teleport", new TeleportPacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
-        registerPacketHandler("set_world_time", new SetTimePacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
-        registerPacketHandler("set_no_physical_trigger", new SetNoPhysicalTriggerPacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
-        registerPacketHandler("set_world_property", new SetWorldPropertyListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
+        registerPacketHandler("hello", new HelloPacketListener(this), msg);
+        registerPacketHandler("set_gamemode", new SetGamemodePacketListener(this), msg);
+        registerPacketHandler("set_fly_speed", new SetFlySpeedPacketListener(this), msg);
+        registerPacketHandler("teleport", new TeleportPacketListener(this), msg);
+        registerPacketHandler("set_world_time", new SetTimePacketListener(this), msg);
+        registerPacketHandler("set_no_physical_trigger", new SetNoPhysicalTriggerPacketListener(this), msg);
+        registerPacketHandler("set_world_property", new SetWorldPropertyListener(this), msg);
 
-        registerPacketHandler("request_chunk_data", new RequestChunkDataPacketListener(this), msg,
-                this.configuration.getBoolean("allow-large-chunk-data-request") ? LargePayloadBehaviour.FORCE_LARGE : LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
-        registerPacketHandler("request_entity_data", new RequestEntityDataPacketListener(this), msg,
-                this.configuration.getBoolean("allow-large-chunk-data-request") ? LargePayloadBehaviour.FORCE_LARGE : LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
+        registerPacketHandler("request_chunk_data", new RequestChunkDataPacketListener(this), msg);
+        registerPacketHandler("request_entity_data", new RequestEntityDataPacketListener(this), msg);
 
-        registerPacketHandler("spawn_entity", new SpawnEntityPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
-        registerPacketHandler("manipulate_entity", new ManipulateEntityPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
-        registerPacketHandler("delete_entity", new DeleteEntityPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
-        registerPacketHandler("marker_nbt_request", new MarkerNbtRequestPacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
+        registerPacketHandler("spawn_entity", new SpawnEntityPacketListener(this), msg);
+        registerPacketHandler("manipulate_entity", new ManipulateEntityPacketListener(this), msg);
+        registerPacketHandler("delete_entity", new DeleteEntityPacketListener(this), msg);
+        registerPacketHandler("marker_nbt_request", new MarkerNbtRequestPacketListener(this), msg);
 
-        registerPacketHandler("set_block", new SetBlockPacketListener(this), msg, LargePayloadBehaviour.DEFAULT, largePayloadHandlers);
-        registerPacketHandler("set_buffer", new SetBlockBufferPacketListener(this), msg, LargePayloadBehaviour.FORCE_LARGE, largePayloadHandlers);
+        registerPacketHandler("set_block", new SetBlockPacketListener(this), msg);
+        registerPacketHandler("set_buffer", new SetBlockBufferPacketListener(this), msg);
+        registerPacketHandler("tick_blocks", new TickBlocksPacketListener(this), msg);
 
         if (allowServerBlueprints) {
-            registerPacketHandler("upload_blueprint", new UploadBlueprintPacketListener(this), msg, LargePayloadBehaviour.FORCE_LARGE, largePayloadHandlers);
-            registerPacketHandler("request_blueprint", new BlueprintRequestPacketListener(this), msg, LargePayloadBehaviour.FORCE_SMALL, largePayloadHandlers);
+            registerPacketHandler("upload_blueprint", new UploadBlueprintPacketListener(this), msg);
+            registerPacketHandler("request_blueprint", new BlueprintRequestPacketListener(this), msg);
         }
         if (this.allowAnnotations) {
-            registerPacketHandler("annotation_update", new UpdateAnnotationPacketListener(this), msg, LargePayloadBehaviour.FORCE_LARGE, largePayloadHandlers);
-        }
-
-        if (!largePayloadHandlers.isEmpty()) {
-            // Hack to figure out the id of the CustomPayload packet
-            ProtocolInfo<ServerGamePacketListener> protocol = GameProtocols.SERVERBOUND_TEMPLATE.bind(k -> new RegistryFriendlyByteBuf(k,
-                MinecraftServer.getServer().registryAccess()), new GameProtocols.Context() {
-                @Override
-                public boolean hasInfiniteMaterials() {
-                    return false;
-                }
-            });
-            RegistryFriendlyByteBuf friendlyByteBuf = new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
-            protocol.codec().encode(friendlyByteBuf, new ServerboundCustomPayloadPacket(VersionHelper.createCustomPayload(VersionHelper.createResourceLocation("dummy"), new byte[0])));
-            int payloadId = friendlyByteBuf.readVarInt();
-
-            ChannelInitializeListenerHolder.addListener(Key.key("axiom:handle_big_payload"), new ChannelInitializeListener() {
-                @Override
-                public void afterInitChannel(@NonNull Channel channel) {
-                    Connection connection = (Connection) channel.pipeline().get("packet_handler");
-                    AxiomBigPayloadHandler.apply(channel.pipeline(), new AxiomBigPayloadHandler(payloadId, connection, largePayloadHandlers, true));
-                }
-            });
+            registerPacketHandler("annotation_update", new UpdateAnnotationPacketListener(this), msg);
         }
 
         if (allowServerBlueprints) {
@@ -391,12 +376,6 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         return maxChunkLoadDistance;
     }
 
-    private enum LargePayloadBehaviour {
-        DEFAULT,
-        FORCE_LARGE,
-        FORCE_SMALL
-    }
-
     public void clearCachedPermissionsFor(UUID uuid) {
         this.playerPermissions.remove(uuid);
     }
@@ -411,32 +390,50 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             this.checkAxiomEnableDisableTimer = 0;
 
             Set<UUID> stillActiveAxiomPlayers = new HashSet<>();
-            Set<UUID> stillFailedAxiomPlayers = new HashSet<>();
+            Set<UUID> allPlayers = new HashSet<>();
 
             for (Player player : Bukkit.getServer().getOnlinePlayers()) {
                 UUID uuid = player.getUniqueId();
+                allPlayers.add(player.getUniqueId());
+
                 if (this.activeAxiomPlayers.contains(uuid)) {
                     if (!this.hasPermission(player, AxiomPermission.USE)) {
                         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
                         buf.writeBoolean(false);
-                        byte[] bytes = ByteBufUtil.getBytes(buf);
-                        VersionHelper.sendCustomPayload(player, "axiom:enable", bytes);
-
-                        this.failedPermissionAxiomPlayers.add(uuid);
-                        stillFailedAxiomPlayers.add(uuid);
+                        VersionHelper.sendCustomPayload(player, "axiom:enable", ByteBufUtil.getBytes(buf));
                     } else {
                         stillActiveAxiomPlayers.add(uuid);
                         tickPlayer(player, true);
                     }
-                } else if (this.failedPermissionAxiomPlayers.contains(uuid)) {
-                    if (this.hasPermission(player, AxiomPermission.USE)) {
-                        VersionHelper.sendCustomPayload(player, "axiom:redo_handshake", new byte[]{});
-                        this.failedPermissionAxiomPlayers.remove(uuid);
-                    } else {
-                        stillFailedAxiomPlayers.add(uuid);
+                } else if (this.hasPermission(player, AxiomPermission.USE)) {
+                    if (!this.pendingHandshakeIds.containsKey(uuid)) {
+                        long id = ThreadLocalRandom.current().nextLong();
+                        if (id == 0) {
+                            id += 1;
+                        }
+
+                        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+                        buf.writeLong(id);
+                        VersionHelper.sendCustomPayload(player, "axiom:hello", ByteBufUtil.getBytes(buf));
+
+                        this.pendingHandshakeIds.put(uuid, id);
+                        this.sentDisableReasonPlayers.remove(uuid);
                     }
+                } else if (!sentDisableReasonPlayers.contains(uuid)) {
+                    String message = "You don't have permission to use Axiom. Give yourself /op or axiom.default (if using a permission plugin)";
+
+                    this.sendGoodbyeReason(player, message);
+
+                    pendingHandshakeIds.removeLong(uuid);
+                    sentDisableReasonPlayers.add(uuid);
                 }
             }
+
+            this.pendingHandshakeIds.keySet().retainAll(allPlayers);
+            this.sentDisableReasonPlayers.retainAll(allPlayers);
+
+            this.tunnelPendingBuffers.keySet().retainAll(stillActiveAxiomPlayers);
+            this.skipCurrentTunnelPacket.retainAll(stillActiveAxiomPlayers);
 
             this.activeAxiomPlayers.retainAll(stillActiveAxiomPlayers);
             this.availableDispatchSends.keySet().retainAll(stillActiveAxiomPlayers);
@@ -445,8 +442,6 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             this.playerProtocolVersion.keySet().retainAll(stillActiveAxiomPlayers);
             this.lastPlotBoundsForPlayers.keySet().retainAll(stillActiveAxiomPlayers);
             this.noPhysicalTriggerPlayers.retainAll(stillActiveAxiomPlayers);
-
-            this.failedPermissionAxiomPlayers.retainAll(stillFailedAxiomPlayers);
         } else {
             for (UUID uuid : this.activeAxiomPlayers) {
                 Player player = Bukkit.getPlayer(uuid);
@@ -463,6 +458,116 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         ImplServerCustomBlocks.tick();
         ImplServerCustomDisplays.tick();
         ImplAxiomHiddenEntities.tick();
+    }
+
+    public void sendGoodbyeReason(Player player, String message) {
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+        buf.writeUtf(message);
+        VersionHelper.sendCustomPayload(player, "axiom:goodbye", ByteBufUtil.getBytes(buf));
+    }
+
+    public void handleTunnelBuffer(Player player, byte[] bytes) {
+        if (!this.activeAxiomPlayers.contains(player.getUniqueId())) {
+            return;
+        }
+        if (bytes.length > this.configuration.getInt("tunnel-split-size", 31000)) {
+            player.kick(Component.text("Axiom: Sent split buffer that was too large"));
+            return;
+        }
+
+        System.out.println("Got tunnel buffer: " + bytes.length);
+
+        byte bufferFlags = bytes[0];
+
+        boolean isFirst = (bufferFlags & AxiomConstants.TUNNEL_BUFFER_FLAG_FIRST) != 0;
+        boolean isLast = (bufferFlags & AxiomConstants.TUNNEL_BUFFER_FLAG_LAST) != 0;
+
+        if (isFirst && isLast) {
+            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(bytes));
+            buf.skipBytes(1);
+            this.handleTunnelPacket(player, buf);
+        } else {
+            if (isFirst) {
+                this.skipCurrentTunnelPacket.remove(player.getUniqueId());
+            } else if (this.skipCurrentTunnelPacket.contains(player.getUniqueId())) {
+                return;
+            }
+
+            List<byte[]> buffers = this.tunnelPendingBuffers.computeIfAbsent(player.getUniqueId(), k -> new ArrayList<>());
+
+            if (isFirst) {
+                buffers.clear();
+            } else if (buffers.isEmpty()) {
+                this.skipCurrentTunnelPacket.add(player.getUniqueId());
+                return;
+            }
+
+            buffers.add(bytes);
+
+            if (isLast) {
+                int totalSize = 0;
+                for (byte[] buffer : buffers) {
+                    totalSize += buffer.length - 1;
+                }
+
+                byte[] combined = new byte[totalSize];
+
+                int dstPos = 0;
+                for (byte[] buffer : buffers) {
+                    System.arraycopy(buffer, 1, combined, dstPos, buffer.length-1);
+                    dstPos += buffer.length-1;
+                }
+
+                FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.wrappedBuffer(combined));
+                this.handleTunnelPacket(player, buf);
+            }
+        }
+    }
+
+    private void handleTunnelPacket(Player player, FriendlyByteBuf byteBuf) {
+        Identifier identifier = byteBuf.readIdentifier();
+
+        var handler = this.supportedServerboundPackets.get(identifier);
+        if (handler == null) {
+            player.kick(Component.text("Axiom: Sent packet that was unregistered"));
+            return;
+        }
+
+        int uncompressedSize = byteBuf.readInt();
+        byte packetFlags = byteBuf.readByte();
+
+        if (uncompressedSize > this.configuration.getInt("maximum-tunnel-packet-size", 2097152)) {
+            player.kick(Component.text("Axiom: Sent packet was too large"));
+            return;
+        }
+
+        if ((packetFlags & AxiomConstants.TUNNEL_PACKET_FLAG_ZSTD_COMPRESSED) != 0) {
+            byte[] decompressedDstBuffer = new byte[uncompressedSize];
+            long codeOrLen = Zstd.decompressByteArray(decompressedDstBuffer, 0, uncompressedSize, byteBuf.array(), byteBuf.readerIndex(), byteBuf.readableBytes());
+            if (Zstd.isError(codeOrLen)) {
+                player.kick(Component.text("Axiom: Zstd failed to decompress: " + Zstd.getErrorName(codeOrLen)));
+                return;
+            }
+            if (codeOrLen != uncompressedSize) {
+                player.kick(Component.text("Axiom: Uncompressed size didn't match real size"));
+                return;
+            }
+
+            FriendlyByteBuf decompressedBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(decompressedDstBuffer));
+            handler.onReceive(player, decompressedBuf);
+
+            if (decompressedBuf.readerIndex() < decompressedBuf.writerIndex()) {
+                player.kick(Component.text("Axiom: Failed to fully read " + identifier + " packet"));
+                return;
+            }
+        } else {
+            handler.onReceive(player, byteBuf);
+
+            if (byteBuf.readerIndex() < byteBuf.writerIndex()) {
+                player.kick(Component.text("Axiom: Failed to fully read " + identifier + " packet"));
+                return;
+            }
+        }
     }
 
     public void addPendingOperation(ServerLevel level, PendingOperation operation) {
@@ -494,14 +599,102 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         }
     }
 
+    public boolean acceptHandshake(Player player, long handshakeId) {
+        if (!this.pendingHandshakeIds.containsKey(player.getUniqueId())) {
+            return false;
+        }
+
+        long expected = this.pendingHandshakeIds.getLong(player.getUniqueId());
+
+        if (expected == handshakeId) {
+            this.pendingHandshakeIds.removeLong(player.getUniqueId());
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     public void onAxiomActive(Player player) {
+        // Call handshake event
+        int maxBufferSize = this.configuration.getInt("max-block-buffer-packet-size");
+        AxiomHandshakeEvent handshakeEvent = new AxiomHandshakeEvent(player, maxBufferSize);
+        Bukkit.getPluginManager().callEvent(handshakeEvent);
+        if (handshakeEvent.isCancelled()) {
+            return;
+        }
+
+        // Enable packet
+        RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
+        buf.writeBoolean(true);
+        buf.writeByte(0); // ServerConfig version
+        buf.writeVarInt(2); // Blueprint version
+        buf.writeInt(this.configuration.getInt("tunnel-split-size", 31000)); // Tunnel split size
+        buf.writeInt(this.configuration.getInt("maximum-tunnel-packet-size", 2097152)); // Maximum tunnel packet size
+        buf.writeVarInt(0); // No blockWithCustomData
+        buf.writeVarInt(0); // No ignoreRotationSet
+        buf.writeCollection(this.supportedServerboundPackets.keySet(), FriendlyByteBuf::writeIdentifier);
+
+        byte[] enableBytes = ByteBufUtil.getBytes(buf);
+        VersionHelper.sendCustomPayload(player, "axiom:enable", enableBytes);
+
         this.activeAxiomPlayers.add(player.getUniqueId());
-        this.failedPermissionAxiomPlayers.remove(player.getUniqueId());
+        this.pendingHandshakeIds.removeLong(player.getUniqueId());
 
         this.playerPermissions.remove(player.getUniqueId());
         this.playerRestrictions.remove(player.getUniqueId());
 
         this.tickPlayer(player, true);
+
+        this.sendInitialPackets(player);
+    }
+
+    private void sendInitialPackets(Player player) {
+        World world = player.getWorld();
+        ServerWorldPropertiesRegistry properties = this.getOrCreateWorldProperties(world);
+
+        if (properties == null) {
+            VersionHelper.sendCustomPayload(player, "axiom:register_world_properties", new byte[]{0});
+        } else {
+            properties.registerFor(this, player);
+        }
+
+        WorldExtension.onPlayerJoin(world, player);
+
+        ServerPlayer serverPlayer = ((CraftPlayer)player).getHandle();
+        ServerBlueprintManager.sendManifest(List.of(serverPlayer));
+
+        ServerHeightmaps.sendTo(player);
+        ImplServerCustomBlocks.sendAll(serverPlayer);
+        ImplServerCustomDisplays.sendAll(serverPlayer);
+        ImplAxiomHiddenEntities.sendAll(List.of(serverPlayer));
+
+        if (!player.isOp() && !player.hasPermission("*") && player.hasPermission("axiom.*")) {
+            Component text = Component.text("Axiom: Using deprecated axiom.* permission. Please switch to axiom.default for public servers, or axiom.all for private servers");
+            player.sendMessage(text.color(NamedTextColor.YELLOW));
+        }
+
+        if (player.isOp() && (this.configAddedEntries != 0 || this.configRemovedEntries != 0)) {
+            StringBuilder builder = new StringBuilder("Axiom: Plugin config is outdated (");
+            if (this.configAddedEntries != 0) {
+                builder.append(this.configAddedEntries).append(" new entries");
+            }
+            if (this.configRemovedEntries != 0) {
+                if (this.configAddedEntries != 0) {
+                    builder.append(", ");
+                }
+                builder.append(this.configRemovedEntries).append(" removed entries");
+            }
+            builder.append(")");
+
+            Component text = Component.text(builder.toString());
+            player.sendMessage(text.color(NamedTextColor.YELLOW));
+
+            Component click = Component.text("CLICK HERE").color(NamedTextColor.GREEN).decorate(TextDecoration.BOLD)
+                                       .hoverEvent(Component.text("/axiompapermigrateconfig"))
+                                       .clickEvent(ClickEvent.runCommand("axiompapermigrateconfig"));
+            player.sendMessage(Component.text().append(click).append(Component.text(" to migrate the config").color(NamedTextColor.YELLOW)));
+        }
+
     }
 
     private void tickPlayer(Player player, boolean updateRestrictions) {
@@ -621,20 +814,9 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         return restrictions;
     }
 
-    private void registerPacketHandler(String name, PacketHandler handler, Messenger messenger, LargePayloadBehaviour behaviour,
-                                       Map<String, PacketHandler> largePayloadHandlers) {
-        boolean isLargePayload = switch (behaviour) {
-            case DEFAULT -> this.configuration.getBoolean("allow-large-payload-for-all-packets");
-            case FORCE_LARGE -> true;
-            case FORCE_SMALL -> false;
-        };
-
-        if (isLargePayload) {
-            largePayloadHandlers.put("axiom:"+name, handler);
-            messenger.registerIncomingPluginChannel(this, "axiom:"+name, new DummyPacketListener());
-        } else {
-            messenger.registerIncomingPluginChannel(this, "axiom:"+name, new WrapperPacketListener(handler));
-        }
+    private void registerPacketHandler(String name, PacketHandler handler, Messenger messenger) {
+        this.supportedServerboundPackets.put(Identifier.fromNamespaceAndPath("axiom", name), handler);
+        messenger.registerIncomingPluginChannel(this, "axiom:"+name, new WrapperPacketListener(handler));
     }
 
     public <T> IntFunction<T> limitCollection(IntFunction<T> applier) {
