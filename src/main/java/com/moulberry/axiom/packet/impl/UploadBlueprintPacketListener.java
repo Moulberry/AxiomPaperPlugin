@@ -33,7 +33,7 @@ public class UploadBlueprintPacketListener implements PacketHandler {
         return true;
     }
 
-    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, AxiomPermission.BLUEPRINT_UPLOAD)) {
             friendlyByteBuf.writerIndex(friendlyByteBuf.readerIndex());
             return;
