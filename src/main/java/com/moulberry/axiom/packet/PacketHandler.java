@@ -1,8 +1,6 @@
 package com.moulberry.axiom.packet;
 
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
 import org.bukkit.entity.Player;
 
 public interface PacketHandler {
@@ -11,6 +9,6 @@ public interface PacketHandler {
         return false;
     }
 
-    void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf);
+    void onReceive(Player player, FriendlyByteBuf friendlyByteBuf);
 
 }
