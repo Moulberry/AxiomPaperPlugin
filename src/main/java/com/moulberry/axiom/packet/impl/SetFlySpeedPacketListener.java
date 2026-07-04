@@ -4,15 +4,10 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomFlySpeedChangeEvent;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
-import io.netty.buffer.Unpooled;
-import net.kyori.adventure.text.Component;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.RegistryFriendlyByteBuf;
 import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.messaging.PluginMessageListener;
-import org.jetbrains.annotations.NotNull;
 
 public class SetFlySpeedPacketListener implements PacketHandler {
 
@@ -22,7 +17,7 @@ public class SetFlySpeedPacketListener implements PacketHandler {
     }
 
     @Override
-    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, AxiomPermission.PLAYER_SPEED)) {
             return;
         }
