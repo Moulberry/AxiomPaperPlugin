@@ -7,7 +7,6 @@ import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
-import net.kyori.adventure.text.Component;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
@@ -15,8 +14,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Marker;
 import org.bukkit.craftbukkit.v1_20_R1.CraftWorld;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.messaging.PluginMessageListener;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 

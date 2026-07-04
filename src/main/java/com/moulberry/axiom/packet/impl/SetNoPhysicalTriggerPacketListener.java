@@ -5,13 +5,7 @@ import com.moulberry.axiom.event.AxiomTimeChangeEvent;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.GameRules;
-import net.minecraft.world.level.Level;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 public class SetNoPhysicalTriggerPacketListener implements PacketHandler {

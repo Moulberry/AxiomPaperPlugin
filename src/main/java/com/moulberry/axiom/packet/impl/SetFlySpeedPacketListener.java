@@ -4,14 +4,10 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomFlySpeedChangeEvent;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
-import io.netty.buffer.Unpooled;
-import net.kyori.adventure.text.Component;
 import net.minecraft.network.FriendlyByteBuf;
 import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.messaging.PluginMessageListener;
-import org.jetbrains.annotations.NotNull;
 
 public class SetFlySpeedPacketListener implements PacketHandler {
 

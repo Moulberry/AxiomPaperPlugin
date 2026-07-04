@@ -5,8 +5,6 @@ import com.moulberry.axiom.event.AxiomUnknownTeleportEvent;
 import com.moulberry.axiom.event.AxiomTeleportEvent;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
-import io.netty.buffer.Unpooled;
-import net.kyori.adventure.text.Component;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
@@ -15,8 +13,6 @@ import org.bukkit.*;
 import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
 import org.bukkit.craftbukkit.v1_20_R1.util.CraftNamespacedKey;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.messaging.PluginMessageListener;
-import org.jetbrains.annotations.NotNull;
 
 public class TeleportPacketListener implements PacketHandler {
 
