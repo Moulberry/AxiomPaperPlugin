@@ -10,7 +10,7 @@ import com.moulberry.axiom.viaversion.UnknownVersionHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -44,7 +44,7 @@ public class SpawnEntityPacketListener implements PacketHandler {
     private static final Rotation[] ROTATION_VALUES = Rotation.values();
 
     @Override
-    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, AxiomPermission.ENTITY_SPAWN)) {
             return;
         }
