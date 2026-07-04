@@ -9,7 +9,6 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -32,7 +31,7 @@ public class RequestEntityDataPacketListener implements PacketHandler {
     }
 
     @Override
-    public void onReceive(org.bukkit.entity.Player bukkitPlayer, RegistryFriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(org.bukkit.entity.Player bukkitPlayer, FriendlyByteBuf friendlyByteBuf) {
         ServerPlayer player = ((CraftPlayer)bukkitPlayer).getHandle();
         long id = friendlyByteBuf.readLong();
 
