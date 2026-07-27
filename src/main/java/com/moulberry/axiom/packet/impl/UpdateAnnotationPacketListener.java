@@ -23,7 +23,7 @@ public class UpdateAnnotationPacketListener implements PacketHandler {
     }
 
     public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.allowAnnotations || !this.plugin.canUseAxiom(player, AxiomPermission.ANNOTATION_CREATE)) {
+        if (!this.plugin.allowAnnotations || !this.plugin.canUseAxiom(player)) {
             friendlyByteBuf.writerIndex(friendlyByteBuf.readerIndex());
             return;
         }
@@ -36,21 +36,34 @@ public class UpdateAnnotationPacketListener implements PacketHandler {
         World world = player.getWorld();
 
         // Read actions
-        int length = friendlyByteBuf.readVarInt();
-        List<AnnotationUpdateAction> actions = new ArrayList<>(Math.min(256, length));
-        for (int i = 0; i < length; i++) {
-            AnnotationUpdateAction action = AnnotationUpdateAction.read(friendlyByteBuf);
-            if (action != null) {
-                actions.add(action);
-            }
+        List<AnnotationUpdateAction> actions = friendlyByteBuf.readCollection(
+            this.plugin.limitCollection(ArrayList::new),
+            AnnotationUpdateAction::read
+        );
+        if (actions.stream().anyMatch(java.util.Objects::isNull)) {
+            return;
+        }
+        boolean clearsAll = actions.stream().anyMatch(AnnotationUpdateAction.ClearAllAnnotations.class::isInstance);
+        if (clearsAll && !this.plugin.hasPermission(player, AxiomPermission.ANNOTATION_CLEARALL)) {
+            return;
+        }
+        if (actions.stream().anyMatch(action -> !(action instanceof AnnotationUpdateAction.ClearAllAnnotations))
+            && !this.plugin.hasPermission(player, AxiomPermission.ANNOTATION_CREATE)) {
+            return;
         }
 
         // Execute
         Bukkit.getScheduler().runTask(this.plugin, () -> {
             try {
-                byte[] oldSnapshot = ServerAnnotations.createSnapshot(world);
+                var oldSnapshot = ServerAnnotations.captureSnapshot(world);
                 ServerAnnotations.handleUpdates(world, actions);
-                PrismIntegration.logAnnotationSnapshot(craftPlayer, world, oldSnapshot, ServerAnnotations.createSnapshot(world));
+                var newSnapshot = ServerAnnotations.captureSnapshot(world);
+                PrismIntegration.logAnnotationChange(
+                    craftPlayer,
+                    world,
+                    ServerAnnotations.createDelta(newSnapshot, oldSnapshot),
+                    ServerAnnotations.createDelta(oldSnapshot, newSnapshot)
+                );
             } catch (Throwable t) {
                 craftPlayer.kick(net.kyori.adventure.text.Component.text(
                         "An error occured while updating annotations: " + t.getMessage()));

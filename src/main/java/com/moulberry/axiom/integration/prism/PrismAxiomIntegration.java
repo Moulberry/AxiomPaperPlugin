@@ -21,13 +21,17 @@ public final class PrismAxiomIntegration {
     private static final String ENTITY_SPAWN_ACTION_KEY = "axiom-entity-spawn";
     private static final String ENTITY_DELETE_ACTION_KEY = "axiom-entity-delete";
     private static final String ENTITY_MODIFY_ACTION_KEY = "axiom-entity-modify";
+    private static final String ENTITY_PASSENGERS_ACTION_KEY = "axiom-entity-passengers";
     private static final String PLAYER_TELEPORT_ACTION_KEY = "axiom-player-teleport";
     private static final String PLAYER_GAMEMODE_ACTION_KEY = "axiom-player-gamemode";
     private static final String PLAYER_FLY_SPEED_ACTION_KEY = "axiom-player-fly-speed";
-    private static final String PLAYER_NO_PHYSICAL_TRIGGER_ACTION_KEY = "axiom-player-no-physical-trigger";
+    private static final String PLAYER_NO_PHYSICAL_TRIGGER_ACTION_KEY = "axiom-no-physical-trigger";
+    private static final String LEGACY_PLAYER_NO_PHYSICAL_TRIGGER_ACTION_KEY = "axiom-player-no-physical-trigger";
     private static final String WORLD_TIME_ACTION_KEY = "axiom-world-time";
     private static final String WORLD_PROPERTY_ACTION_KEY = "axiom-world-property";
-    private static final String ANNOTATION_SNAPSHOT_ACTION_KEY = "axiom-annotation-snapshot";
+    private static final String ANNOTATION_CHANGE_ACTION_KEY = "axiom-annotation-change";
+    private static final String LEGACY_ANNOTATION_SNAPSHOT_ACTION_KEY = "axiom-annotation-snapshot";
+    private static final String BIOME_REPLACE_ACTION_KEY = "axiom-biome-replace";
 
     private static final PrismPaperApi PRISM_API = lookupPrismApi();
 
@@ -53,6 +57,13 @@ public final class PrismAxiomIntegration {
             ActionResultType.REPLACES,
             "modified (Axiom)",
             new PrismAxiomHandlers.EntityModifyHandler()
+        )
+    );
+    private static final ActionType ENTITY_PASSENGERS_ACTION = registerActionType(
+        PrismAxiomActionTypes.entityPassengers(
+            ENTITY_PASSENGERS_ACTION_KEY,
+            "changed passengers (Axiom)",
+            new PrismAxiomHandlers.EntityPassengersHandler()
         )
     );
 
@@ -84,6 +95,14 @@ public final class PrismAxiomIntegration {
             new PrismAxiomHandlers.PlayerNoPhysicalTriggerHandler()
         )
     );
+    @SuppressWarnings("unused")
+    private static final ActionType LEGACY_PLAYER_NO_PHYSICAL_TRIGGER_ACTION = registerLegacyActionType(
+        PrismAxiomActionTypes.playerState(
+            LEGACY_PLAYER_NO_PHYSICAL_TRIGGER_ACTION_KEY,
+            "changed physical triggers (Axiom)",
+            new PrismAxiomHandlers.PlayerNoPhysicalTriggerHandler()
+        )
+    );
 
     private static final ActionType WORLD_TIME_ACTION = registerActionType(
         PrismAxiomActionTypes.genericState(
@@ -99,11 +118,26 @@ public final class PrismAxiomIntegration {
             new PrismAxiomHandlers.WorldPropertyHandler()
         )
     );
-    private static final ActionType ANNOTATION_SNAPSHOT_ACTION = registerActionType(
+    private static final ActionType ANNOTATION_CHANGE_ACTION = registerActionType(
         PrismAxiomActionTypes.genericState(
-            ANNOTATION_SNAPSHOT_ACTION_KEY,
+            ANNOTATION_CHANGE_ACTION_KEY,
             "changed annotations (Axiom)",
             new PrismAxiomHandlers.AnnotationSnapshotHandler()
+        )
+    );
+    @SuppressWarnings("unused")
+    private static final ActionType LEGACY_ANNOTATION_SNAPSHOT_ACTION = registerLegacyActionType(
+        PrismAxiomActionTypes.genericState(
+            LEGACY_ANNOTATION_SNAPSHOT_ACTION_KEY,
+            "changed annotations (Axiom)",
+            new PrismAxiomHandlers.AnnotationSnapshotHandler()
+        )
+    );
+    private static final ActionType BIOME_REPLACE_ACTION = registerActionType(
+        PrismAxiomActionTypes.biomeState(
+            BIOME_REPLACE_ACTION_KEY,
+            "replaced biome (Axiom)",
+            new PrismAxiomHandlers.BiomeStateHandler()
         )
     );
 
@@ -135,7 +169,9 @@ public final class PrismAxiomIntegration {
                 new PaperEntityContainer(entity.getBukkitEntity().getType()),
                 entity.getUUID(),
                 null,
-                entitySnapshot
+                entitySnapshot,
+                null,
+                true
             ),
             actor,
             entity.getBukkitEntity().getWorld(),
@@ -159,7 +195,9 @@ public final class PrismAxiomIntegration {
                 new PaperEntityContainer(entity.getBukkitEntity().getType()),
                 entity.getUUID(),
                 entitySnapshot,
-                null
+                null,
+                entity.getVehicle() == null ? null : entity.getVehicle().getUUID(),
+                true
             ),
             actor,
             entity.getBukkitEntity().getWorld(),
@@ -178,7 +216,34 @@ public final class PrismAxiomIntegration {
                 new PaperEntityContainer(entity.getBukkitEntity().getType()),
                 entity.getUUID(),
                 previousSnapshot,
-                nextSnapshot
+                nextSnapshot,
+                null,
+                true
+            ),
+            actor,
+            entity.getBukkitEntity().getWorld(),
+            entity.getBukkitEntity().getLocation()
+        );
+    }
+
+    public static void logEntityPassengers(
+        Player actor,
+        Entity entity,
+        String previousPassengers,
+        String nextPassengers
+    ) {
+        if (shouldSkipLogging(PrismLoggingType.ENTITY_MODIFICATIONS)
+            || previousPassengers.equals(nextPassengers)) {
+            return;
+        }
+
+        record(
+            new PrismAxiomActions.EntityPassengers(
+                ENTITY_PASSENGERS_ACTION,
+                new PaperEntityContainer(entity.getBukkitEntity().getType()),
+                entity.getUUID(),
+                previousPassengers,
+                nextPassengers
             ),
             actor,
             entity.getBukkitEntity().getWorld(),
@@ -196,8 +261,7 @@ public final class PrismAxiomIntegration {
                 PLAYER_TELEPORT_ACTION,
                 new PlayerContainer(targetPlayer.getName(), targetPlayer.getUniqueId()),
                 PrismAxiomSerialization.encodeLocation(previousLocation),
-                PrismAxiomSerialization.encodeLocation(nextLocation),
-                "teleport"
+                PrismAxiomSerialization.encodeLocation(nextLocation)
             ),
             actor,
             targetPlayer.getWorld(),
@@ -215,8 +279,7 @@ public final class PrismAxiomIntegration {
                 PLAYER_GAMEMODE_ACTION,
                 new PlayerContainer(targetPlayer.getName(), targetPlayer.getUniqueId()),
                 previousMode.name(),
-                nextMode.name(),
-                "gamemode"
+                nextMode.name()
             ),
             actor,
             targetPlayer.getWorld(),
@@ -234,8 +297,7 @@ public final class PrismAxiomIntegration {
                 PLAYER_FLY_SPEED_ACTION,
                 new PlayerContainer(targetPlayer.getName(), targetPlayer.getUniqueId()),
                 Float.toString(previousSpeed),
-                Float.toString(nextSpeed),
-                "fly-speed"
+                Float.toString(nextSpeed)
             ),
             actor,
             targetPlayer.getWorld(),
@@ -253,8 +315,7 @@ public final class PrismAxiomIntegration {
                 PLAYER_NO_PHYSICAL_TRIGGER_ACTION,
                 new PlayerContainer(targetPlayer.getName(), targetPlayer.getUniqueId()),
                 Boolean.toString(previousValue),
-                Boolean.toString(nextValue),
-                "no-physical-trigger"
+                Boolean.toString(nextValue)
             ),
             actor,
             targetPlayer.getWorld(),
@@ -306,17 +367,18 @@ public final class PrismAxiomIntegration {
         );
     }
 
-    public static void logAnnotationSnapshot(Player actor, World world, byte[] previousSnapshot, byte[] nextSnapshot) {
-        if (shouldSkipLogging(PrismLoggingType.ANNOTATION_SNAPSHOTS) || java.util.Arrays.equals(previousSnapshot, nextSnapshot)) {
+    public static void logAnnotationChange(Player actor, World world, byte[] rollbackActions, byte[] restoreActions) {
+        if (shouldSkipLogging(PrismLoggingType.ANNOTATION_CHANGES)
+            || java.util.Arrays.equals(rollbackActions, restoreActions)) {
             return;
         }
 
         record(
             new PrismAxiomActions.GenericState(
-                ANNOTATION_SNAPSHOT_ACTION,
+                ANNOTATION_CHANGE_ACTION,
                 "annotations",
-                PrismAxiomSerialization.encodeBytes(previousSnapshot),
-                PrismAxiomSerialization.encodeBytes(nextSnapshot)
+                PrismAxiomSerialization.encodeBytes(rollbackActions),
+                PrismAxiomSerialization.encodeBytes(restoreActions)
             ),
             actor,
             world,
@@ -324,9 +386,35 @@ public final class PrismAxiomIntegration {
         );
     }
 
+    public static void logBiomeChange(
+        Player actor,
+        World world,
+        int quartX,
+        int quartY,
+        int quartZ,
+        String previousBiome,
+        String nextBiome
+    ) {
+        if (shouldSkipLogging(PrismLoggingType.BIOME_CHANGES) || previousBiome.equals(nextBiome)) {
+            return;
+        }
+
+        record(
+            new PrismAxiomActions.BiomeState(BIOME_REPLACE_ACTION, previousBiome, nextBiome),
+            actor,
+            world,
+            new Location(world, (quartX << 2) + 1, (quartY << 2) + 1, (quartZ << 2) + 1)
+        );
+    }
+
     @Nullable
     public static String captureEntitySnapshot(Entity entity) {
         return PrismAxiomSerialization.captureEntitySnapshot(entity);
+    }
+
+    @Nullable
+    public static String captureEntityState(Entity entity) {
+        return PrismAxiomSerialization.captureEntityState(entity);
     }
 
     private static PrismPaperApi lookupPrismApi() {
@@ -336,12 +424,32 @@ public final class PrismAxiomIntegration {
 
     @Nullable
     private static ActionType registerActionType(@Nullable ActionType actionType) {
+        return registerActionType(actionType, true);
+    }
+
+    @Nullable
+    private static ActionType registerLegacyActionType(@Nullable ActionType actionType) {
+        return registerActionType(actionType, false);
+    }
+
+    @Nullable
+    private static ActionType registerActionType(@Nullable ActionType actionType, boolean writable) {
         if (PRISM_API == null || actionType == null) {
             return null;
+        }
+        if (writable) {
+            PrismActionKey.validateWritableKey(actionType.key());
+        } else {
+            PrismActionKey.validateRegistryKey(actionType.key());
         }
 
         var existingActionType = PRISM_API.actionTypeRegistry().actionType(actionType.key());
         if (existingActionType.isPresent()) {
+            if (!actionType.getClass().isInstance(existingActionType.get())) {
+                throw new IllegalStateException(
+                    "Prism action key is already registered by another plugin: " + actionType.key()
+                );
+            }
             existingActionType.get().modificationHandler(actionType.modificationHandler());
             return existingActionType.get();
         }
@@ -357,10 +465,9 @@ public final class PrismAxiomIntegration {
                 return;
             }
 
-            Location activityLocation = location != null ? location : actor.getLocation();
-            if (activityLocation.getWorld() == null) {
-                activityLocation.setWorld(world);
-            }
+            Location sourceLocation = location != null ? location : actor.getLocation();
+            Location activityLocation = sourceLocation.clone();
+            activityLocation.setWorld(world);
 
             var activity = PaperActivity.builder()
                 .action(action)

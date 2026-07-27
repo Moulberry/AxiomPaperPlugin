@@ -5,6 +5,7 @@ import com.moulberry.axiom.world_properties.WorldPropertyWidgetType;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.function.Function;
 
@@ -26,7 +27,7 @@ public class ServerWorldProperty<T> extends ServerWorldPropertyBase<T> {
     }
 
     @Override
-    public PropertyUpdateResult handleUpdateProperty(Player player, World world, T value) {
+    public PropertyUpdateResult handleUpdateProperty(@Nullable Player player, World world, T value) {
         return this.handler.update(player, world, value);
     }
 

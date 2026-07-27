@@ -8,6 +8,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.util.CraftNamespacedKey;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.Nullable;
 
 public abstract class ServerWorldPropertyBase<T> {
 
@@ -25,7 +26,7 @@ public abstract class ServerWorldPropertyBase<T> {
 
     public abstract T getDefaultValue(World world);
 
-    public abstract PropertyUpdateResult handleUpdateProperty(Player player, World world, T value);
+    public abstract PropertyUpdateResult handleUpdateProperty(@Nullable Player player, World world, T value);
 
     public Identifier getId() {
         return this.id;

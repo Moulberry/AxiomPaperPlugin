@@ -11,7 +11,8 @@ public enum PrismLoggingType {
     PLAYER_NO_PHYSICAL_TRIGGER_CHANGES("player-no-physical-trigger-changes", false),
     WORLD_TIME_CHANGES("world-time-changes", false),
     WORLD_PROPERTY_CHANGES("world-property-changes", false),
-    ANNOTATION_SNAPSHOTS("annotation-snapshots", false);
+    ANNOTATION_CHANGES("annotation-changes", false),
+    BIOME_CHANGES("biome-changes", true);
 
     private final String configKey;
     private final boolean enabledByDefault;

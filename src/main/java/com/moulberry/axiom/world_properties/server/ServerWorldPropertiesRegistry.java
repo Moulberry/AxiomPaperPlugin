@@ -60,16 +60,19 @@ public class ServerWorldPropertiesRegistry {
 
     public void registerFor(Plugin plugin, Player bukkitPlayer) {
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            buf.writeVarInt(this.propertyList.size());
 
-        buf.writeVarInt(this.propertyList.size());
+            for (Map.Entry<WorldPropertyCategory, List<ServerWorldPropertyHolder<?>>> entry : this.propertyList.entrySet()) {
+                entry.getKey().write(buf);
+                buf.writeCollection(entry.getValue(), (buffer, p) -> p.write(buffer));
+            }
 
-        for (Map.Entry<WorldPropertyCategory, List<ServerWorldPropertyHolder<?>>> entry : this.propertyList.entrySet()) {
-            entry.getKey().write(buf);
-            buf.writeCollection(entry.getValue(), (buffer, p) -> p.write(buffer));
+            byte[] bytes = ByteBufUtil.getBytes(buf);
+            VersionHelper.sendCustomPayload(bukkitPlayer, "axiom:register_world_properties", bytes);
+        } finally {
+            buf.release();
         }
-
-        byte[] bytes = ByteBufUtil.getBytes(buf);
-        VersionHelper.sendCustomPayload(bukkitPlayer, "axiom:register_world_properties", bytes);
     }
 
     private static final ServerWorldProperty<Integer> TIME = new ServerWorldProperty<>(

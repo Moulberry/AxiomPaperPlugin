@@ -43,6 +43,23 @@ public final class PrismIntegration {
         return isEnabled(PrismLoggingType.BLOCK_CHANGES);
     }
 
+    public static void shutdown() {
+        if (!available) {
+            return;
+        }
+        try {
+            PrismAxiomContext.clearPendingBiomeUpdates();
+        } catch (RuntimeException | LinkageError exception) {
+            AxiomPaper.PLUGIN.getLogger().log(
+                java.util.logging.Level.WARNING,
+                "Failed to shut down Prism integration",
+                exception
+            );
+        } finally {
+            available = false;
+        }
+    }
+
     private static boolean isEnabled(PrismLoggingType loggingType) {
         return available && AxiomPaper.PLUGIN.shouldLogPrism(loggingType);
     }
@@ -85,6 +102,20 @@ public final class PrismIntegration {
             return null;
         }
         return PrismAxiomIntegration.captureEntitySnapshot(entity);
+    }
+
+    @Nullable
+    public static String captureEntityState(Entity entity) {
+        if (!isEnabled(PrismLoggingType.ENTITY_MODIFICATIONS)) {
+            return null;
+        }
+        return PrismAxiomIntegration.captureEntityState(entity);
+    }
+
+    public static void logEntityPassengers(Player actor, Entity entity, String previous, String next) {
+        if (isEnabled(PrismLoggingType.ENTITY_MODIFICATIONS)) {
+            PrismAxiomIntegration.logEntityPassengers(actor, entity, previous, next);
+        }
     }
 
     public static void logPlayerTeleport(Player actor, Player target, Location previous, Location next) {
@@ -143,9 +174,31 @@ public final class PrismIntegration {
         }
     }
 
-    public static void logAnnotationSnapshot(Player actor, World world, byte[] previous, byte[] next) {
-        if (isEnabled(PrismLoggingType.ANNOTATION_SNAPSHOTS)) {
-            PrismAxiomIntegration.logAnnotationSnapshot(actor, world, previous, next);
+    public static void logAnnotationChange(Player actor, World world, byte[] rollbackActions, byte[] restoreActions) {
+        if (isEnabled(PrismLoggingType.ANNOTATION_CHANGES)) {
+            PrismAxiomIntegration.logAnnotationChange(actor, world, rollbackActions, restoreActions);
+        }
+    }
+
+    public static void logBiomeChange(
+        Player actor,
+        World world,
+        int quartX,
+        int quartY,
+        int quartZ,
+        String previousBiome,
+        String nextBiome
+    ) {
+        if (isEnabled(PrismLoggingType.BIOME_CHANGES)) {
+            PrismAxiomIntegration.logBiomeChange(
+                actor,
+                world,
+                quartX,
+                quartY,
+                quartZ,
+                previousBiome,
+                nextBiome
+            );
         }
     }
 }

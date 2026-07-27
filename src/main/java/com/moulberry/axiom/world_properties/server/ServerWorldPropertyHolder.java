@@ -11,6 +11,7 @@ import net.minecraft.server.level.ServerPlayer;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +40,15 @@ public class ServerWorldPropertyHolder<T> {
         return property;
     }
 
-    public void update(Player player, World world, byte[] data) {
+    public void update(@Nullable Player player, World world, byte[] data) {
+        this.updateAndGetResult(player, world, data);
+    }
+
+    public boolean updateAndGetResult(@Nullable Player player, World world, byte[] data) {
+        return this.updateAndGetResult(player, world, data, false);
+    }
+
+    public boolean updateAndGetResult(@Nullable Player player, World world, byte[] data, boolean forceSync) {
         T newValue = this.property.widget.dataType().deserialize(data);
 
         PropertyUpdateResult result = this.property.handleUpdateProperty(player, world, newValue);
@@ -47,12 +56,13 @@ public class ServerWorldPropertyHolder<T> {
         if (result.isUpdate()) {
             this.value = newValue;
 
-            if (result.isSync()) {
+            if (result.isSync() || forceSync) {
                 this.sync(world);
             } else {
                 this.unsyncedValue = true;
             }
         }
+        return result.isUpdate();
     }
 
     public void setValueWithoutSyncing(T value) {
@@ -77,22 +87,24 @@ public class ServerWorldPropertyHolder<T> {
 
     public void sync(World world) {
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+        try {
+            buf.writeIdentifier(this.getId());
+            buf.writeVarInt(this.property.widget.dataType().getTypeId());
+            buf.writeByteArray(this.property.widget.dataType().serialize(this.value));
 
-        buf.writeIdentifier(this.getId());
-        buf.writeVarInt(this.property.widget.dataType().getTypeId());
-        buf.writeByteArray(this.property.widget.dataType().serialize(this.value));
+            byte[] message = ByteBufUtil.getBytes(buf);
 
-        byte[] message = ByteBufUtil.getBytes(buf);
-
-        List<ServerPlayer> players = new ArrayList<>();
-        for (Player player : world.getPlayers()) {
-            if (AxiomPaper.PLUGIN.canUseAxiom(player)) {
-                players.add(((CraftPlayer)player).getHandle());
+            List<ServerPlayer> players = new ArrayList<>();
+            for (Player player : world.getPlayers()) {
+                if (AxiomPaper.PLUGIN.canUseAxiom(player)) {
+                    players.add(((CraftPlayer)player).getHandle());
+                }
             }
+            VersionHelper.sendCustomPayloadToAll(players, "axiom:set_world_property", message);
+            this.unsyncedValue = false;
+        } finally {
+            buf.release();
         }
-        VersionHelper.sendCustomPayloadToAll(players, "axiom:set_world_property", message);
-
-        this.unsyncedValue = false;
     }
 
     public void write(FriendlyByteBuf friendlyByteBuf) {

@@ -8,6 +8,7 @@ viaversion-api = "5.4.2-SNAPSHOT"
 worldguard-bukkit = "7.0.9-SNAPSHOT"
 zstd-jni = "1.5.5-4"
 luckperms = "5.4"
+junit = "6.0.3"
 
 # Plugins
 paperweight-userdev = "2.0.0-SNAPSHOT"
@@ -24,6 +25,8 @@ viaversion-api = { group = "com.viaversion", name = "viaversion-api", version.re
 worldguard-bukkit = { group = "com.sk89q.worldguard", name = "worldguard-bukkit", version.ref = "worldguard-bukkit" }
 zstd-jni = { group = "com.github.luben", name = "zstd-jni", version.ref = "zstd-jni" }
 luckperms = { group = "net.luckperms", name = "api", version.ref = "luckperms" }
+junit = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit" }
+junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher", version.ref = "junit" }
 
 [plugins]
 paperweight-userdev = { id = "io.papermc.paperweight.userdev", version.ref = "paperweight-userdev" }

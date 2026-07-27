@@ -82,6 +82,9 @@ prism-logging:
     # Block placement/removal/replacement logging
     block-changes: true
 
+    # Biome replacement logging
+    biome-changes: true
+
     # Entity creation logging
     entity-spawns: true
 
@@ -109,8 +112,8 @@ prism-logging:
     # World property logging
     world-property-changes: false
 
-    # Annotation snapshot logging.
-    annotation-snapshots: false
+    # Annotation change logging.
+    annotation-changes: false
 
 # Overrides based on a permission/rank
 # To apply, give the player the permission axiomlimits.{key}

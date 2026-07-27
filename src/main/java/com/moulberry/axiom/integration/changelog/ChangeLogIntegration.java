@@ -18,6 +18,10 @@ public final class ChangeLogIntegration {
         return CoreProtectIntegration.isEnabled() || PrismIntegration.isEnabled();
     }
 
+    public static boolean requiresBlockEntitySnapshots() {
+        return PrismIntegration.isEnabled();
+    }
+
     public static void logChange(Player player, BlockState oldBlockState, @Nullable String oldBlockEntityNbt,
                                  BlockState newBlockState, @Nullable String newBlockEntityNbt, CraftWorld world, BlockPos pos) {
         boolean blockStateChanged = oldBlockState != newBlockState;

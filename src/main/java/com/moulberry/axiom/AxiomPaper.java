@@ -248,9 +248,16 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         this.logPrismChanges = prismLoggingSection == null || prismLoggingSection.getBoolean("enabled", true);
         this.prismLoggingSettings.clear();
         for (PrismLoggingType prismLoggingType : PrismLoggingType.values()) {
-            boolean enabled = prismLoggingRecordsSection != null
-                ? prismLoggingRecordsSection.getBoolean(prismLoggingType.configKey(), prismLoggingType.enabledByDefault())
-                : prismLoggingType.enabledByDefault();
+            boolean enabled = prismLoggingType.enabledByDefault();
+            if (prismLoggingRecordsSection != null) {
+                if (prismLoggingType == PrismLoggingType.ANNOTATION_CHANGES
+                    && !prismLoggingRecordsSection.contains(prismLoggingType.configKey())
+                    && prismLoggingRecordsSection.contains("annotation-snapshots")) {
+                    enabled = prismLoggingRecordsSection.getBoolean("annotation-snapshots");
+                } else {
+                    enabled = prismLoggingRecordsSection.getBoolean(prismLoggingType.configKey(), enabled);
+                }
+            }
             this.prismLoggingSettings.put(prismLoggingType, enabled);
         }
 
@@ -298,6 +305,11 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         if (PrismIntegration.initialize()) {
             this.getLogger().info("Prism integration enabled");
         }
+    }
+
+    @Override
+    public void onDisable() {
+        PrismIntegration.shutdown();
     }
 
     private void checkOutdatedConfig() {

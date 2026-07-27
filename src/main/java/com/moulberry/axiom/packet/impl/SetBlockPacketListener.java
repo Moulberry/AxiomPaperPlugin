@@ -206,6 +206,7 @@ public class SetBlockPacketListener implements PacketHandler {
             if (blocks.containsKey(clickedPos)) {
                 // Disallow in unloaded chunks
                 if (!level.isLoaded(clickedPos)) {
+                    flushChangeLog(changedBlocks, bukkitPlayer, level, registryAccess, world);
                     return;
                 }
 
@@ -214,11 +215,18 @@ public class SetBlockPacketListener implements PacketHandler {
                 Block actualBlock = actualBlockState.getBlock();
 
                 // Ensure block is correct
-                if (desiredBlockState == null || desiredBlockState.isAir() || actualBlockState.isAir()) return;
-                if (desiredBlockState.getBlock() != actualBlock) return;
+                if (desiredBlockState == null || desiredBlockState.isAir() || actualBlockState.isAir()) {
+                    flushChangeLog(changedBlocks, bukkitPlayer, level, registryAccess, world);
+                    return;
+                }
+                if (desiredBlockState.getBlock() != actualBlock) {
+                    flushChangeLog(changedBlocks, bukkitPlayer, level, registryAccess, world);
+                    return;
+                }
 
                 // Check plot squared
                 if (!Integration.canPlaceBlock(bukkitPlayer, new Location(world, clickedPos.getX(), clickedPos.getY(), clickedPos.getZ()))) {
+                    flushChangeLog(changedBlocks, bukkitPlayer, level, registryAccess, world);
                     return;
                 }
 
@@ -237,15 +245,29 @@ public class SetBlockPacketListener implements PacketHandler {
             }
         }
 
-        if (changedBlocks != null) {
-            for (Map.Entry<BlockPos, ChangeLogRecord> entry : changedBlocks.entrySet()) {
-                BlockPos changedPos = entry.getKey();
-                ChangeLogRecord record = entry.getValue();
-                BlockState current = level.getBlockState(changedPos);
-                String currentBlockEntityNbt = serializeBlockEntityNbt(level, changedPos, registryAccess);
-                ChangeLogIntegration.logChange(bukkitPlayer, record.oldState(), record.oldBlockEntityNbt(),
-                    current, currentBlockEntityNbt, world, changedPos);
-            }
+        flushChangeLog(changedBlocks, bukkitPlayer, level, registryAccess, world);
+    }
+
+    private static void flushChangeLog(
+        @Nullable Map<BlockPos, ChangeLogRecord> changedBlocks,
+        Player player,
+        ServerLevel level,
+        RegistryAccess registryAccess,
+        CraftWorld world
+    ) {
+        if (changedBlocks == null) {
+            return;
+        }
+        boolean captureBlockEntityNbt = ChangeLogIntegration.requiresBlockEntitySnapshots();
+        for (Map.Entry<BlockPos, ChangeLogRecord> entry : changedBlocks.entrySet()) {
+            BlockPos changedPos = entry.getKey();
+            ChangeLogRecord record = entry.getValue();
+            BlockState current = level.getBlockState(changedPos);
+            String currentBlockEntityNbt = captureBlockEntityNbt
+                ? serializeBlockEntityNbt(level, changedPos, registryAccess)
+                : null;
+            ChangeLogIntegration.logChange(player, record.oldState(), record.oldBlockEntityNbt(),
+                current, currentBlockEntityNbt, world, changedPos);
         }
     }
 
@@ -253,7 +275,10 @@ public class SetBlockPacketListener implements PacketHandler {
 
     private static ChangeLogRecord captureChangeLogRecord(ServerLevel level, BlockPos pos, RegistryAccess registryAccess) {
         BlockState oldState = level.getBlockState(pos);
-        return new ChangeLogRecord(oldState, serializeBlockEntityNbt(level, pos, registryAccess));
+        String oldBlockEntityNbt = ChangeLogIntegration.requiresBlockEntitySnapshots()
+            ? serializeBlockEntityNbt(level, pos, registryAccess)
+            : null;
+        return new ChangeLogRecord(oldState, oldBlockEntityNbt);
     }
 
     @Nullable
@@ -264,7 +289,7 @@ public class SetBlockPacketListener implements PacketHandler {
         }
 
         CompoundTag tag = blockEntity.saveWithoutMetadata(registryAccess);
-        return tag.isEmpty() ? null : tag.toString();
+        return tag.toString();
     }
 
     private static boolean fireBukkitEvents(Player bukkitPlayer, BlockHitResult blockHit, boolean breaking,

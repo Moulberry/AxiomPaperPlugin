@@ -163,7 +163,7 @@ public class SetBlockBufferOperation implements PendingOperation {
                 int cz = BlockPos.getZ(entry.getLongKey());
                 PalettedContainer<BlockState> container = entry.getValue();
 
-                if (cy < level.getMinSectionY() || cy > level.getMaxSectionY()) {
+                if (cy < level.getMinSectionY() || cy >= level.getMaxSectionY()) {
                     continue;
                 }
 
@@ -218,12 +218,12 @@ public class SetBlockBufferOperation implements PendingOperation {
                             Block block = blockState.getBlock();
                             BlockState old = section.getBlockState(x, y, z);
                             String oldBlockEntityNbt = null;
-                            if (ChangeLogIntegration.isEnabled() && old.hasBlockEntity()) {
+                            if (ChangeLogIntegration.requiresBlockEntitySnapshots() && old.hasBlockEntity()) {
                                 blockPos.set(bx, by, bz);
                                 BlockEntity oldBlockEntity = chunk.getBlockEntity(blockPos, LevelChunk.EntityCreationType.CHECK);
                                 if (oldBlockEntity != null) {
                                     CompoundTag tag = oldBlockEntity.saveWithoutMetadata(player.registryAccess());
-                                    oldBlockEntityNbt = tag.isEmpty() ? null : tag.toString();
+                                    oldBlockEntityNbt = tag.toString();
                                 }
                             }
 
@@ -291,11 +291,11 @@ public class SetBlockBufferOperation implements PendingOperation {
                                 BlockPos changedPos = new BlockPos(bx, by, bz);
                                 var changedBy = player.getBukkitEntity();
                                 String newBlockEntityNbt = null;
-                                if (blockState.hasBlockEntity()) {
+                                if (ChangeLogIntegration.requiresBlockEntitySnapshots() && blockState.hasBlockEntity()) {
                                     BlockEntity changedBlockEntity = chunk.getBlockEntity(blockPos, LevelChunk.EntityCreationType.CHECK);
                                     if (changedBlockEntity != null) {
                                         CompoundTag tag = changedBlockEntity.saveWithoutMetadata(player.registryAccess());
-                                        newBlockEntityNbt = tag.isEmpty() ? null : tag.toString();
+                                        newBlockEntityNbt = tag.toString();
                                     }
                                 }
 

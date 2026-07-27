@@ -62,10 +62,14 @@ public class SetWorldPropertyListener implements PacketHandler {
 
     private void sendAck(Player player, int updateId) {
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-        buf.writeVarInt(updateId);
+        try {
+            buf.writeVarInt(updateId);
 
-        byte[] bytes = ByteBufUtil.getBytes(buf);
-        VersionHelper.sendCustomPayload(player, "axiom:ack_world_properties", bytes);
+            byte[] bytes = ByteBufUtil.getBytes(buf);
+            VersionHelper.sendCustomPayload(player, "axiom:ack_world_properties", bytes);
+        } finally {
+            buf.release();
+        }
     }
 
 }

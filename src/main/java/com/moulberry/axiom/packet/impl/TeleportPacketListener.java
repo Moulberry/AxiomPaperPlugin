@@ -65,7 +65,7 @@ public class TeleportPacketListener implements PacketHandler {
         Location oldLocation = player.getLocation();
         Location newLocation = new Location(world, x, y, z, yRot, xRot);
         if (player.teleport(newLocation)) {
-            PrismIntegration.logPlayerTeleport(player, player, oldLocation, newLocation);
+            PrismIntegration.logPlayerTeleport(player, player, oldLocation, player.getLocation());
         }
     }
 

@@ -3,18 +3,23 @@ package com.moulberry.axiom.packet.impl;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.buffer.PositionSet;
 import com.moulberry.axiom.buffer.TriIntConsumer;
+import com.moulberry.axiom.integration.changelog.ChangeLogIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.LiquidBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
+import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.Nullable;
 
 public class TickBlocksPacketListener implements PacketHandler {
 
@@ -96,6 +101,10 @@ public class TickBlocksPacketListener implements PacketHandler {
                 return;
             }
 
+            String oldBlockEntityNbt = ChangeLogIntegration.requiresBlockEntitySnapshots()
+                ? serializeBlockEntityNbt(level, blockPos)
+                : null;
+
             FluidState fluidState = blockState.getFluidState();
             if (!fluidState.isEmpty()) {
                 fluidState.tick(level, blockPos, blockState);
@@ -108,6 +117,22 @@ public class TickBlocksPacketListener implements PacketHandler {
                 if (blockStateNew != blockState) {
                     level.setBlock(blockPos, blockStateNew, Block.UPDATE_CLIENTS | Block.UPDATE_SKIP_ALL_SIDEEFFECTS);
                 }
+            }
+
+            if (ChangeLogIntegration.isEnabled()) {
+                BlockState newBlockState = level.getBlockState(blockPos);
+                String newBlockEntityNbt = ChangeLogIntegration.requiresBlockEntitySnapshots()
+                    ? serializeBlockEntityNbt(level, blockPos)
+                    : null;
+                ChangeLogIntegration.logChange(
+                    bukkitPlayer,
+                    blockState,
+                    oldBlockEntityNbt,
+                    newBlockState,
+                    newBlockEntityNbt,
+                    (CraftWorld) bukkitPlayer.getWorld(),
+                    blockPos.immutable()
+                );
             }
         };
         if (positionSet != null) {
@@ -136,6 +161,17 @@ public class TickBlocksPacketListener implements PacketHandler {
             Component msg = Component.literal("Done updating & ticking blocks (took " + seconds + "s)");
             server.getPlayerList().broadcastSystemMessage(msg, false);
         }
+    }
+
+    @Nullable
+    private static String serializeBlockEntityNbt(net.minecraft.server.level.ServerLevel level, BlockPos blockPos) {
+        BlockEntity blockEntity = level.getBlockEntity(blockPos);
+        if (blockEntity == null) {
+            return null;
+        }
+
+        CompoundTag tag = blockEntity.saveWithoutMetadata(level.registryAccess());
+        return tag.toString();
     }
 
 }

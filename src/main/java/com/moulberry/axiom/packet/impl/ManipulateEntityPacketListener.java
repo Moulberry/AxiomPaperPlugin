@@ -117,7 +117,8 @@ public class ManipulateEntityPacketListener implements PacketHandler {
                 continue;
             }
 
-            String oldSnapshot = PrismIntegration.captureEntitySnapshot(entity);
+            String oldSnapshot = PrismIntegration.captureEntityState(entity);
+            String oldPassengers = serializePassengers(entity);
 
             if (entry.merge != null && !entry.merge.isEmpty()) {
                 NbtSanitization.sanitizeEntity(entry.merge);
@@ -226,10 +227,12 @@ public class ManipulateEntityPacketListener implements PacketHandler {
             AxiomAfterManipulateEntityEvent afterManipulateEvent = new AxiomAfterManipulateEntityEvent(player, entity.getBukkitEntity());
             afterManipulateEvent.callEvent();
 
-            String newSnapshot = PrismIntegration.captureEntitySnapshot(entity);
+            String newSnapshot = PrismIntegration.captureEntityState(entity);
+            String newPassengers = serializePassengers(entity);
             if (oldSnapshot != null && newSnapshot != null) {
                 PrismIntegration.logEntityModification(player, entity, oldSnapshot, newSnapshot);
             }
+            PrismIntegration.logEntityPassengers(player, entity, oldPassengers, newPassengers);
         }
     }
 
@@ -279,6 +282,13 @@ public class ManipulateEntityPacketListener implements PacketHandler {
 
     private static boolean isPlayer(Entity entity) {
         return entity instanceof net.minecraft.world.entity.player.Player;
+    }
+
+    private static String serializePassengers(Entity entity) {
+        return entity.getPassengers().stream()
+            .map(Entity::getUUID)
+            .map(UUID::toString)
+            .collect(java.util.stream.Collectors.joining(","));
     }
 
 }
