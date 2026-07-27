@@ -4,18 +4,19 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.event.AxiomSpawnEntityEvent;
 import com.moulberry.axiom.integration.Integration;
-import com.moulberry.axiom.integration.prism.PrismAxiomIntegration;
+import com.moulberry.axiom.integration.prism.PrismIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import com.moulberry.axiom.viaversion.UnknownVersionHelper;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntitySpawnRequest;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.decoration.HangingEntity;
 import net.minecraft.world.entity.decoration.ItemFrame;
@@ -48,7 +49,7 @@ public class SpawnEntityPacketListener implements PacketHandler {
     private static final Rotation[] ROTATION_VALUES = Rotation.values();
 
     @Override
-    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, AxiomPermission.ENTITY_SPAWN)) {
             return;
         }
@@ -99,8 +100,9 @@ public class SpawnEntityPacketListener implements PacketHandler {
 
             AtomicBoolean useNewUuid = new AtomicBoolean(true);
 
-            Entity spawned = EntityType.loadEntityRecursive(tag, serverLevel, EntitySpawnReason.COMMAND, entity -> {
-                if (this.plugin.isEntityManipulationBlocked(entity.getType())) {
+            var spawnRequest = new EntitySpawnRequest(EntitySpawnReason.COMMAND, true);
+            Entity spawned = EntityType.loadEntityRecursive(tag, serverLevel, spawnRequest, entity -> {
+                if (!this.plugin.canEntityBeManipulated(entity.getType())) {
                     return null;
                 }
 
@@ -136,7 +138,7 @@ public class SpawnEntityPacketListener implements PacketHandler {
                         }
                         spawned.discard();
                     } else {
-                        PrismAxiomIntegration.logEntitySpawn(player, spawned);
+                        PrismIntegration.logEntitySpawn(player, spawned);
                     }
                 }
             }

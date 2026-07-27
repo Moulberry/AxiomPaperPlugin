@@ -1,25 +1,31 @@
 package com.moulberry.axiom.integration.prism;
 
 public enum PrismLoggingType {
-    BLOCK_CHANGES("block-changes"),
-    ENTITY_SPAWNS("entity-spawns"),
-    ENTITY_DELETES("entity-deletes"),
-    ENTITY_MODIFICATIONS("entity-modifications"),
-    PLAYER_TELEPORTS("player-teleports"),
-    PLAYER_GAMEMODE_CHANGES("player-gamemode-changes"),
-    PLAYER_FLY_SPEED_CHANGES("player-fly-speed-changes"),
-    PLAYER_NO_PHYSICAL_TRIGGER_CHANGES("player-no-physical-trigger-changes"),
-    WORLD_TIME_CHANGES("world-time-changes"),
-    WORLD_PROPERTY_CHANGES("world-property-changes"),
-    ANNOTATION_SNAPSHOTS("annotation-snapshots");
+    BLOCK_CHANGES("block-changes", true),
+    ENTITY_SPAWNS("entity-spawns", true),
+    ENTITY_DELETES("entity-deletes", true),
+    ENTITY_MODIFICATIONS("entity-modifications", true),
+    PLAYER_TELEPORTS("player-teleports", false),
+    PLAYER_GAMEMODE_CHANGES("player-gamemode-changes", false),
+    PLAYER_FLY_SPEED_CHANGES("player-fly-speed-changes", false),
+    PLAYER_NO_PHYSICAL_TRIGGER_CHANGES("player-no-physical-trigger-changes", false),
+    WORLD_TIME_CHANGES("world-time-changes", false),
+    WORLD_PROPERTY_CHANGES("world-property-changes", false),
+    ANNOTATION_SNAPSHOTS("annotation-snapshots", false);
 
     private final String configKey;
+    private final boolean enabledByDefault;
 
-    PrismLoggingType(String configKey) {
+    PrismLoggingType(String configKey, boolean enabledByDefault) {
         this.configKey = configKey;
+        this.enabledByDefault = enabledByDefault;
     }
 
     public String configKey() {
         return this.configKey;
+    }
+
+    public boolean enabledByDefault() {
+        return this.enabledByDefault;
     }
 }

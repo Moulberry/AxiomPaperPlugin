@@ -15,28 +15,43 @@ final class PrismAxiomActionTypes {
     private PrismAxiomActionTypes() {
     }
 
-    static ActionType entitySnapshot(String key, ActionResultType resultType, ModificationHandler modificationHandler) {
-        return new EntitySnapshotActionType(key, resultType, modificationHandler);
+    static ActionType entitySnapshot(
+        String key,
+        ActionResultType resultType,
+        String defaultPastTense,
+        ModificationHandler modificationHandler
+    ) {
+        return new EntitySnapshotActionType(key, resultType, defaultPastTense, modificationHandler);
     }
 
-    static ActionType playerState(String key, ModificationHandler modificationHandler) {
-        return new PlayerStateActionType(key, modificationHandler);
+    static ActionType playerState(String key, String defaultPastTense, ModificationHandler modificationHandler) {
+        return new PlayerStateActionType(key, defaultPastTense, modificationHandler);
     }
 
-    static ActionType genericState(String key, ModificationHandler modificationHandler) {
-        return new GenericStateActionType(key, modificationHandler);
+    static ActionType genericState(String key, String defaultPastTense, ModificationHandler modificationHandler) {
+        return new GenericStateActionType(key, defaultPastTense, modificationHandler);
     }
 
     private abstract static class BaseActionType extends ActionType {
-        BaseActionType(String key, ActionResultType resultType, ModificationHandler modificationHandler) {
-            super(key, resultType, true);
+        BaseActionType(
+            String key,
+            ActionResultType resultType,
+            String defaultPastTense,
+            ModificationHandler modificationHandler
+        ) {
+            super(key, resultType, true, true, null, false, defaultPastTense);
             this.modificationHandler = modificationHandler;
         }
     }
 
     private static final class EntitySnapshotActionType extends BaseActionType {
-        private EntitySnapshotActionType(String key, ActionResultType resultType, ModificationHandler modificationHandler) {
-            super(key, resultType, modificationHandler);
+        private EntitySnapshotActionType(
+            String key,
+            ActionResultType resultType,
+            String defaultPastTense,
+            ModificationHandler modificationHandler
+        ) {
+            super(key, resultType, defaultPastTense, modificationHandler);
         }
 
         @Override
@@ -56,26 +71,39 @@ final class PrismAxiomActionTypes {
     }
 
     private static final class PlayerStateActionType extends BaseActionType {
-        private PlayerStateActionType(String key, ModificationHandler modificationHandler) {
-            super(key, ActionResultType.REPLACES, modificationHandler);
+        private PlayerStateActionType(String key, String defaultPastTense, ModificationHandler modificationHandler) {
+            super(key, ActionResultType.REPLACES, defaultPastTense, modificationHandler);
         }
 
         @Override
         public Action createAction(ActionData actionData) {
-            String[] stateParts = PrismAxiomSerialization.decodeParts(actionData.customData(), 2);
+            String[] stateParts = PrismAxiomSerialization.decodeParts(actionData.customData(), 4);
+            PlayerContainer playerContainer;
+            String previousState;
+            String nextState;
+            if (stateParts[3] != null) {
+                playerContainer = new PlayerContainer(stateParts[1], UUID.fromString(stateParts[0]));
+                previousState = stateParts[2];
+                nextState = stateParts[3];
+            } else {
+                // Records written by the original integration stored only the two state values.
+                playerContainer = new PlayerContainer(actionData.affectedPlayerName(), actionData.affectedPlayerUuid());
+                previousState = stateParts[0];
+                nextState = stateParts[1];
+            }
             return new PrismAxiomActions.PlayerState(
                 this,
-                new PlayerContainer(actionData.affectedPlayerName(), actionData.affectedPlayerUuid()),
-                stateParts[0],
-                stateParts[1],
+                playerContainer,
+                previousState,
+                nextState,
                 actionData.descriptor()
             );
         }
     }
 
     private static final class GenericStateActionType extends BaseActionType {
-        private GenericStateActionType(String key, ModificationHandler modificationHandler) {
-            super(key, ActionResultType.REPLACES, modificationHandler);
+        private GenericStateActionType(String key, String defaultPastTense, ModificationHandler modificationHandler) {
+            super(key, ActionResultType.REPLACES, defaultPastTense, modificationHandler);
         }
 
         @Override

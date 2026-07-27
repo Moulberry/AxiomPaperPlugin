@@ -35,6 +35,7 @@ public final class PrismAxiomIntegration {
         PrismAxiomActionTypes.entitySnapshot(
             ENTITY_SPAWN_ACTION_KEY,
             ActionResultType.CREATES,
+            "spawned (Axiom)",
             new PrismAxiomHandlers.EntityCreateHandler()
         )
     );
@@ -42,6 +43,7 @@ public final class PrismAxiomIntegration {
         PrismAxiomActionTypes.entitySnapshot(
             ENTITY_DELETE_ACTION_KEY,
             ActionResultType.REMOVES,
+            "deleted (Axiom)",
             new PrismAxiomHandlers.EntityDeleteHandler()
         )
     );
@@ -49,6 +51,7 @@ public final class PrismAxiomIntegration {
         PrismAxiomActionTypes.entitySnapshot(
             ENTITY_MODIFY_ACTION_KEY,
             ActionResultType.REPLACES,
+            "modified (Axiom)",
             new PrismAxiomHandlers.EntityModifyHandler()
         )
     );
@@ -56,24 +59,28 @@ public final class PrismAxiomIntegration {
     private static final ActionType PLAYER_TELEPORT_ACTION = registerActionType(
         PrismAxiomActionTypes.playerState(
             PLAYER_TELEPORT_ACTION_KEY,
+            "teleported (Axiom)",
             new PrismAxiomHandlers.PlayerTeleportHandler()
         )
     );
     private static final ActionType PLAYER_GAMEMODE_ACTION = registerActionType(
         PrismAxiomActionTypes.playerState(
             PLAYER_GAMEMODE_ACTION_KEY,
+            "changed game mode (Axiom)",
             new PrismAxiomHandlers.PlayerGamemodeHandler()
         )
     );
     private static final ActionType PLAYER_FLY_SPEED_ACTION = registerActionType(
         PrismAxiomActionTypes.playerState(
             PLAYER_FLY_SPEED_ACTION_KEY,
+            "changed fly speed (Axiom)",
             new PrismAxiomHandlers.PlayerFlySpeedHandler()
         )
     );
     private static final ActionType PLAYER_NO_PHYSICAL_TRIGGER_ACTION = registerActionType(
         PrismAxiomActionTypes.playerState(
             PLAYER_NO_PHYSICAL_TRIGGER_ACTION_KEY,
+            "changed physical triggers (Axiom)",
             new PrismAxiomHandlers.PlayerNoPhysicalTriggerHandler()
         )
     );
@@ -81,23 +88,30 @@ public final class PrismAxiomIntegration {
     private static final ActionType WORLD_TIME_ACTION = registerActionType(
         PrismAxiomActionTypes.genericState(
             WORLD_TIME_ACTION_KEY,
+            "changed world time (Axiom)",
             new PrismAxiomHandlers.WorldTimeHandler()
         )
     );
     private static final ActionType WORLD_PROPERTY_ACTION = registerActionType(
         PrismAxiomActionTypes.genericState(
             WORLD_PROPERTY_ACTION_KEY,
+            "changed a world property (Axiom)",
             new PrismAxiomHandlers.WorldPropertyHandler()
         )
     );
     private static final ActionType ANNOTATION_SNAPSHOT_ACTION = registerActionType(
         PrismAxiomActionTypes.genericState(
             ANNOTATION_SNAPSHOT_ACTION_KEY,
+            "changed annotations (Axiom)",
             new PrismAxiomHandlers.AnnotationSnapshotHandler()
         )
     );
 
     private PrismAxiomIntegration() {
+    }
+
+    static void initialize() {
+        // Triggers registration of every Axiom action type during plugin startup.
     }
 
     private static boolean shouldSkipLogging(PrismLoggingType prismLoggingType) {
@@ -328,7 +342,7 @@ public final class PrismAxiomIntegration {
 
         var existingActionType = PRISM_API.actionTypeRegistry().actionType(actionType.key());
         if (existingActionType.isPresent()) {
-            existingActionType.get().setModificationHandler(actionType.modificationHandler());
+            existingActionType.get().modificationHandler(actionType.modificationHandler());
             return existingActionType.get();
         }
 

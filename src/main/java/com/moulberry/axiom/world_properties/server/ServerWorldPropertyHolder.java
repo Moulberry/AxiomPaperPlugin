@@ -86,7 +86,7 @@ public class ServerWorldPropertyHolder<T> {
 
         List<ServerPlayer> players = new ArrayList<>();
         for (Player player : world.getPlayers()) {
-            if (AxiomPaper.PLUGIN.activeAxiomPlayers.contains(player.getUniqueId())) {
+            if (AxiomPaper.PLUGIN.canUseAxiom(player)) {
                 players.add(((CraftPlayer)player).getHandle());
             }
         }

@@ -3,10 +3,10 @@ package com.moulberry.axiom.packet.impl;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomRemoveEntityEvent;
 import com.moulberry.axiom.integration.Integration;
-import com.moulberry.axiom.integration.prism.PrismAxiomIntegration;
+import com.moulberry.axiom.integration.prism.PrismIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
-import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import org.bukkit.Bukkit;
@@ -25,7 +25,7 @@ public class DeleteEntityPacketListener implements PacketHandler {
     }
 
     @Override
-    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, AxiomPermission.ENTITY_DELETE)) {
             return;
         }
@@ -42,7 +42,7 @@ public class DeleteEntityPacketListener implements PacketHandler {
             Entity entity = serverLevel.getEntity(uuid);
             if (entity == null || entity instanceof net.minecraft.world.entity.player.Player || entity.hasPassenger(e -> e instanceof net.minecraft.world.entity.player.Player)) continue;
 
-            if (this.plugin.isEntityManipulationBlocked(entity.getType())) {
+            if (!this.plugin.canEntityBeManipulated(entity.getType())) {
                 continue;
             }
 
@@ -56,7 +56,7 @@ public class DeleteEntityPacketListener implements PacketHandler {
             Bukkit.getPluginManager().callEvent(removeEntityEvent);
 
             if (!removeEntityEvent.isCancelled()) {
-                PrismAxiomIntegration.logEntityDelete(player, entity);
+                PrismIntegration.logEntityDelete(player, entity);
                 entity.remove(Entity.RemovalReason.DISCARDED);
             }
         }

@@ -5,7 +5,7 @@ import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.event.AxiomAfterManipulateEntityEvent;
 import com.moulberry.axiom.event.AxiomManipulateEntityEvent;
 import com.moulberry.axiom.integration.Integration;
-import com.moulberry.axiom.integration.prism.PrismAxiomIntegration;
+import com.moulberry.axiom.integration.prism.PrismIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import com.moulberry.axiom.viaversion.UnknownVersionHelper;
@@ -14,7 +14,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.Entity;
@@ -83,7 +82,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
     private static final Rotation[] ROTATION_VALUES = Rotation.values();
 
     @Override
-    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, AxiomPermission.ENTITY_MANIPULATE)) {
             return;
         }
@@ -101,7 +100,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
             Entity entity = serverLevel.getEntity(entry.uuid);
             if (entity == null || entity instanceof net.minecraft.world.entity.player.Player || entity.hasPassenger(ManipulateEntityPacketListener::isPlayer)) continue;
 
-            if (this.plugin.isEntityManipulationBlocked(entity.getType())) {
+            if (!this.plugin.canEntityBeManipulated(entity.getType())) {
                 continue;
             }
 
@@ -118,7 +117,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
                 continue;
             }
 
-            String oldSnapshot = PrismAxiomIntegration.captureEntitySnapshot(entity);
+            String oldSnapshot = PrismIntegration.captureEntitySnapshot(entity);
 
             if (entry.merge != null && !entry.merge.isEmpty()) {
                 NbtSanitization.sanitizeEntity(entry.merge);
@@ -182,7 +181,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
                             if (!canManipulatePassengers(passenger) || passenger.hasPassenger(ManipulateEntityPacketListener::cannotManipulatePassengers)) {
                                 continue;
                             }
-                            if (this.plugin.isEntityManipulationBlocked(passenger.getType())) {
+                            if (!this.plugin.canEntityBeManipulated(passenger.getType())) {
                                 continue;
                             }
 
@@ -211,7 +210,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
                             if (!canManipulatePassengers(passenger) || passenger.hasPassenger(ManipulateEntityPacketListener::cannotManipulatePassengers)) {
                                 continue;
                             }
-                            if (this.plugin.isEntityManipulationBlocked(passenger.getType())) {
+                            if (!this.plugin.canEntityBeManipulated(passenger.getType())) {
                                 continue;
                             }
 
@@ -227,9 +226,9 @@ public class ManipulateEntityPacketListener implements PacketHandler {
             AxiomAfterManipulateEntityEvent afterManipulateEvent = new AxiomAfterManipulateEntityEvent(player, entity.getBukkitEntity());
             afterManipulateEvent.callEvent();
 
-            String newSnapshot = PrismAxiomIntegration.captureEntitySnapshot(entity);
+            String newSnapshot = PrismIntegration.captureEntitySnapshot(entity);
             if (oldSnapshot != null && newSnapshot != null) {
-                PrismAxiomIntegration.logEntityModification(player, entity, oldSnapshot, newSnapshot);
+                PrismIntegration.logEntityModification(player, entity, oldSnapshot, newSnapshot);
             }
         }
     }

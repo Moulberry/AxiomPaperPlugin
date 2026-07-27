@@ -29,8 +29,14 @@ final class PrismAxiomContext {
     }
 
     @Nullable
-    static Player onlinePlayer(PlayerContainer playerContainer) {
-        return playerContainer.uuid() == null ? null : Bukkit.getPlayer(playerContainer.uuid());
+    static Player onlinePlayer(Activity activity, PlayerContainer playerContainer) {
+        if (playerContainer.uuid() != null) {
+            return Bukkit.getPlayer(playerContainer.uuid());
+        }
+        if (activity.cause() != null && activity.cause().container() instanceof PlayerContainer cause) {
+            return Bukkit.getPlayer(cause.uuid());
+        }
+        return null;
     }
 
     @Nullable

@@ -2,10 +2,10 @@ package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomGameModeChangeEvent;
-import com.moulberry.axiom.integration.prism.PrismAxiomIntegration;
+import com.moulberry.axiom.integration.prism.PrismIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
-import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.GameType;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
@@ -20,7 +20,7 @@ public class SetGamemodePacketListener implements PacketHandler {
     }
 
     @Override
-    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
         GameType gameType = GameType.byId(friendlyByteBuf.readByte());
 
         AxiomPermission permission = switch (gameType) {
@@ -42,7 +42,7 @@ public class SetGamemodePacketListener implements PacketHandler {
         // Change gamemode
         GameMode oldMode = player.getGameMode();
         ((CraftPlayer)player).getHandle().setGameMode(gameType);
-        PrismAxiomIntegration.logPlayerGamemode(player, player, oldMode, player.getGameMode());
+        PrismIntegration.logPlayerGamemode(player, player, oldMode, player.getGameMode());
     }
 
     private static GameMode toBukkitGameMode(GameType gameType) {

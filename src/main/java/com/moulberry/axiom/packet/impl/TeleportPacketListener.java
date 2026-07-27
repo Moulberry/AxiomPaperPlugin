@@ -3,11 +3,11 @@ package com.moulberry.axiom.packet.impl;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomUnknownTeleportEvent;
 import com.moulberry.axiom.event.AxiomTeleportEvent;
-import com.moulberry.axiom.integration.prism.PrismAxiomIntegration;
+import com.moulberry.axiom.integration.prism.PrismIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import org.bukkit.*;
@@ -22,7 +22,7 @@ public class TeleportPacketListener implements PacketHandler {
     }
 
     @Override
-    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, AxiomPermission.PLAYER_TELEPORT)) {
             return;
         }
@@ -65,7 +65,7 @@ public class TeleportPacketListener implements PacketHandler {
         Location oldLocation = player.getLocation();
         Location newLocation = new Location(world, x, y, z, yRot, xRot);
         if (player.teleport(newLocation)) {
-            PrismAxiomIntegration.logPlayerTeleport(player, player, oldLocation, newLocation);
+            PrismIntegration.logPlayerTeleport(player, player, oldLocation, newLocation);
         }
     }
 

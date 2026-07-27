@@ -140,13 +140,11 @@ public class ServerAnnotations {
 
     public static void applySnapshot(World world, byte[] snapshot) {
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(snapshot));
-        List<AnnotationUpdateAction> actions = new ArrayList<>();
-        while (friendlyByteBuf.isReadable()) {
-            AnnotationUpdateAction action = AnnotationUpdateAction.read(friendlyByteBuf);
-            if (action != null) {
-                actions.add(action);
-            }
-        }
+        List<AnnotationUpdateAction> actions = friendlyByteBuf.readCollection(
+            AxiomPaper.PLUGIN.limitCollection(ArrayList::new),
+            AnnotationUpdateAction::read
+        );
+        actions.removeIf(java.util.Objects::isNull);
         handleUpdates(world, actions);
     }
 

@@ -157,7 +157,12 @@ final class PrismAxiomActions {
 
         @Override
         public String serializeCustomData() {
-            return PrismAxiomSerialization.encodeParts(this.previousState, this.nextState);
+            return PrismAxiomSerialization.encodeParts(
+                this.playerContainer.uuid().toString(),
+                this.playerContainer.name(),
+                this.previousState,
+                this.nextState
+            );
         }
 
         String previousState() {

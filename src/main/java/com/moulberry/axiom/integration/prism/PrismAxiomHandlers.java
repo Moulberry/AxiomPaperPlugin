@@ -8,6 +8,7 @@ import net.minecraft.nbt.TagParser;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.EntitySpawnRequest;
 import org.bukkit.GameMode;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
@@ -18,6 +19,8 @@ import org.prism_mc.prism.api.services.modifications.ModificationHandler;
 import org.prism_mc.prism.api.services.modifications.ModificationQueueMode;
 import org.prism_mc.prism.api.services.modifications.ModificationResult;
 import org.prism_mc.prism.api.services.modifications.ModificationRuleset;
+import org.prism_mc.prism.api.services.modifications.ModificationSkipReason;
+import org.prism_mc.prism.paper.api.containers.PaperEntityContainer;
 
 import java.util.UUID;
 
@@ -34,7 +37,7 @@ final class PrismAxiomHandlers {
             ModificationQueueMode mode
         ) {
             PrismAxiomActions.EntitySnapshot action = (PrismAxiomActions.EntitySnapshot) activity.action();
-            return applyEntitySnapshot(activity, mode, action.entityUuid(), null);
+            return applyEntitySnapshot(modificationRuleset, activity, mode, action, null);
         }
 
         @Override
@@ -45,7 +48,7 @@ final class PrismAxiomHandlers {
             ModificationQueueMode mode
         ) {
             PrismAxiomActions.EntitySnapshot action = (PrismAxiomActions.EntitySnapshot) activity.action();
-            return applyEntitySnapshot(activity, mode, action.entityUuid(), action.nextState());
+            return applyEntitySnapshot(modificationRuleset, activity, mode, action, action.nextState());
         }
     }
 
@@ -58,7 +61,7 @@ final class PrismAxiomHandlers {
             ModificationQueueMode mode
         ) {
             PrismAxiomActions.EntitySnapshot action = (PrismAxiomActions.EntitySnapshot) activity.action();
-            return applyEntitySnapshot(activity, mode, action.entityUuid(), action.previousState());
+            return applyEntitySnapshot(modificationRuleset, activity, mode, action, action.previousState());
         }
 
         @Override
@@ -69,7 +72,7 @@ final class PrismAxiomHandlers {
             ModificationQueueMode mode
         ) {
             PrismAxiomActions.EntitySnapshot action = (PrismAxiomActions.EntitySnapshot) activity.action();
-            return applyEntitySnapshot(activity, mode, action.entityUuid(), null);
+            return applyEntitySnapshot(modificationRuleset, activity, mode, action, null);
         }
     }
 
@@ -82,7 +85,7 @@ final class PrismAxiomHandlers {
             ModificationQueueMode mode
         ) {
             PrismAxiomActions.EntitySnapshot action = (PrismAxiomActions.EntitySnapshot) activity.action();
-            return applyEntitySnapshot(activity, mode, action.entityUuid(), action.previousState());
+            return applyEntitySnapshot(modificationRuleset, activity, mode, action, action.previousState());
         }
 
         @Override
@@ -93,7 +96,7 @@ final class PrismAxiomHandlers {
             ModificationQueueMode mode
         ) {
             PrismAxiomActions.EntitySnapshot action = (PrismAxiomActions.EntitySnapshot) activity.action();
-            return applyEntitySnapshot(activity, mode, action.entityUuid(), action.nextState());
+            return applyEntitySnapshot(modificationRuleset, activity, mode, action, action.nextState());
         }
     }
 
@@ -266,39 +269,59 @@ final class PrismAxiomHandlers {
     }
 
     private static ModificationResult applyEntitySnapshot(
+        ModificationRuleset modificationRuleset,
         Activity activity,
         ModificationQueueMode mode,
-        @Nullable UUID entityUuid,
+        PrismAxiomActions.EntitySnapshot action,
         @Nullable String entitySnapshot
     ) {
+        if (action.entityContainer() instanceof PaperEntityContainer entityContainer
+            && modificationRuleset.entityBlacklistContainsAny(entityContainer.entityType().toString())) {
+            return ModificationResult.builder()
+                .activity(activity)
+                .skipped()
+                .skipReason(ModificationSkipReason.BLACKLISTED)
+                .target(action.descriptor())
+                .build();
+        }
+
         if (mode != ModificationQueueMode.COMPLETING) {
             return PrismAxiomContext.defaultResult(activity, mode);
         }
 
         ServerLevel level = PrismAxiomContext.serverLevel(activity);
+        UUID entityUuid = action.entityUuid();
         if (level == null || entityUuid == null) {
             return PrismAxiomContext.skippedResult(activity);
         }
 
-        Entity existingEntity = level.getEntity(entityUuid);
-        if (existingEntity != null) {
-            discardEntity(existingEntity);
-        }
-
         if (entitySnapshot == null || entitySnapshot.isEmpty()) {
+            Entity existingEntity = level.getEntity(entityUuid);
+            if (existingEntity != null) {
+                discardEntity(existingEntity);
+            }
             return PrismAxiomContext.defaultResult(activity, mode);
         }
 
         try {
             CompoundTag entityTag = TagParser.parseCompoundFully(entitySnapshot);
+            var spawnRequest = new EntitySpawnRequest(EntitySpawnReason.COMMAND, true);
             Entity restoredEntity = net.minecraft.world.entity.EntityType.loadEntityRecursive(
                 entityTag,
                 level,
-                EntitySpawnReason.COMMAND,
+                spawnRequest,
                 loadedEntity -> loadedEntity
             );
-            if (restoredEntity != null) {
-                level.tryAddFreshEntityWithPassengers(restoredEntity);
+            if (restoredEntity == null) {
+                return PrismAxiomContext.erroredResult(activity);
+            }
+
+            Entity existingEntity = level.getEntity(entityUuid);
+            if (existingEntity != null) {
+                discardEntity(existingEntity);
+            }
+            if (!level.tryAddFreshEntityWithPassengers(restoredEntity)) {
+                return PrismAxiomContext.erroredResult(activity);
             }
             return PrismAxiomContext.defaultResult(activity, mode);
         } catch (Exception exception) {
@@ -320,13 +343,15 @@ final class PrismAxiomHandlers {
         }
 
         PrismAxiomActions.PlayerState action = (PrismAxiomActions.PlayerState) activity.action();
-        Player player = PrismAxiomContext.onlinePlayer(action.playerContainer());
+        Player player = PrismAxiomContext.onlinePlayer(activity, action.playerContainer());
         if (player == null) {
             return PrismAxiomContext.skippedResult(activity);
         }
 
-        player.teleport(PrismAxiomSerialization.decodeLocation(encodedLocation));
-        return PrismAxiomContext.defaultResult(activity, mode);
+        var location = PrismAxiomSerialization.decodeLocation(encodedLocation);
+        return location.getWorld() != null && player.teleport(location)
+            ? PrismAxiomContext.defaultResult(activity, mode)
+            : PrismAxiomContext.skippedResult(activity);
     }
 
     private static ModificationResult applyPlayerGamemode(Activity activity, ModificationQueueMode mode, String encodedGamemode) {
@@ -335,7 +360,7 @@ final class PrismAxiomHandlers {
         }
 
         PrismAxiomActions.PlayerState action = (PrismAxiomActions.PlayerState) activity.action();
-        Player player = PrismAxiomContext.onlinePlayer(action.playerContainer());
+        Player player = PrismAxiomContext.onlinePlayer(activity, action.playerContainer());
         if (player == null) {
             return PrismAxiomContext.skippedResult(activity);
         }
@@ -350,7 +375,7 @@ final class PrismAxiomHandlers {
         }
 
         PrismAxiomActions.PlayerState action = (PrismAxiomActions.PlayerState) activity.action();
-        Player player = PrismAxiomContext.onlinePlayer(action.playerContainer());
+        Player player = PrismAxiomContext.onlinePlayer(activity, action.playerContainer());
         if (player == null) {
             return PrismAxiomContext.skippedResult(activity);
         }
@@ -365,7 +390,12 @@ final class PrismAxiomHandlers {
         }
 
         PrismAxiomActions.PlayerState action = (PrismAxiomActions.PlayerState) activity.action();
-        AxiomPaper.PLUGIN.setNoPhysicalTrigger(action.playerContainer().uuid(), Boolean.parseBoolean(encodedValue));
+        Player player = PrismAxiomContext.onlinePlayer(activity, action.playerContainer());
+        if (player == null) {
+            return PrismAxiomContext.skippedResult(activity);
+        }
+
+        AxiomPaper.PLUGIN.setNoPhysicalTrigger(player.getUniqueId(), Boolean.parseBoolean(encodedValue));
         return PrismAxiomContext.defaultResult(activity, mode);
     }
 
@@ -400,7 +430,7 @@ final class PrismAxiomHandlers {
             return PrismAxiomContext.skippedResult(activity);
         }
 
-        var worldPropertyRegistry = AxiomPaper.PLUGIN.getWorldPropertiesIfPresent(world);
+        var worldPropertyRegistry = AxiomPaper.PLUGIN.getOrCreateWorldProperties(world);
         if (worldPropertyRegistry == null) {
             return PrismAxiomContext.skippedResult(activity);
         }

@@ -14,8 +14,8 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.IdMapper;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.SectionPos;
-import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -73,7 +73,7 @@ public class SetBlockPacketListener implements PacketHandler {
     }
 
     @Override
-    public void onReceive(Player bukkitPlayer, RegistryFriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player bukkitPlayer, FriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(bukkitPlayer, AxiomPermission.BUILD_PLACE)) {
             return;
         }
@@ -178,6 +178,12 @@ public class SetBlockPacketListener implements PacketHandler {
                     level.setBlock(blockPos, blockState, updateNeighborsForThisBlock ? 3 : 18);
                 }
                 for (Map.Entry<BlockPos, BlockState> entry : delayedSetWithoutUpdates.entrySet()) {
+                    if (changedBlocks != null) {
+                        changedBlocks.computeIfAbsent(
+                            entry.getKey(),
+                            pos -> captureChangeLogRecord(level, pos, registryAccess)
+                        );
+                    }
                     setWithoutUpdates(bukkitPlayer, entry.getValue(), world, entry.getKey());
                 }
             }

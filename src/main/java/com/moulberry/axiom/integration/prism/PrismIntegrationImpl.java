@@ -31,6 +31,7 @@ import org.prism_mc.prism.api.services.modifications.ModificationHandler;
 import org.prism_mc.prism.api.services.modifications.ModificationQueueMode;
 import org.prism_mc.prism.api.services.modifications.ModificationResult;
 import org.prism_mc.prism.api.services.modifications.ModificationRuleset;
+import org.prism_mc.prism.api.services.modifications.ModificationSkipReason;
 import org.prism_mc.prism.paper.api.containers.PaperBlockContainer;
 import org.prism_mc.prism.paper.api.PrismPaperApi;
 import org.prism_mc.prism.paper.api.activities.PaperActivity;
@@ -70,9 +71,9 @@ public class PrismIntegrationImpl {
             }
 
             if (constructor != null) {
-                placeAction = registerActionType(PLACE_ACTION_KEY, ActionResultType.CREATES, new PlaceModificationHandler());
-                removeAction = registerActionType(REMOVE_ACTION_KEY, ActionResultType.REMOVES, new RemoveModificationHandler());
-                replaceAction = registerActionType(REPLACE_ACTION_KEY, ActionResultType.REPLACES, new ReplaceModificationHandler());
+                placeAction = registerActionType(PLACE_ACTION_KEY, ActionResultType.CREATES, "placed", new PlaceModificationHandler());
+                removeAction = registerActionType(REMOVE_ACTION_KEY, ActionResultType.REMOVES, "removed", new RemoveModificationHandler());
+                replaceAction = registerActionType(REPLACE_ACTION_KEY, ActionResultType.REPLACES, "replaced", new ReplaceModificationHandler());
             }
         }
 
@@ -116,14 +117,19 @@ public class PrismIntegrationImpl {
         }
     }
 
-    private static ActionType registerActionType(String key, ActionResultType resultType, ModificationHandler handler) {
+    private static ActionType registerActionType(
+        String key,
+        ActionResultType resultType,
+        String defaultPastTense,
+        ModificationHandler handler
+    ) {
         ActionType actionType = PRISM_API.actionTypeRegistry().actionType(key)
             .orElseGet(() -> {
-                ActionType created = new AxiomBlockActionType(key, resultType, handler);
+                ActionType created = new AxiomBlockActionType(key, resultType, defaultPastTense, handler);
                 PRISM_API.actionTypeRegistry().registerAction(created);
                 return created;
             });
-        actionType.setModificationHandler(handler);
+        actionType.modificationHandler(handler);
         return actionType;
     }
 
@@ -182,10 +188,18 @@ public class PrismIntegrationImpl {
             .build();
     }
 
-    private static ModificationResult applyBlockData(Activity activityContext, ModificationQueueMode mode,
+    private static ModificationResult applyBlockData(ModificationRuleset modificationRuleset,
+                                                     Activity activityContext, ModificationQueueMode mode,
                                                      @Nullable BlockContainer blockContainer, @Nullable String blockEntityNbt) {
+        boolean blacklisted = blockContainer instanceof PaperBlockContainer paperBlockContainer
+            && modificationRuleset.blockBlacklistContainsAny(paperBlockContainer.blockName());
+        String blacklistedTarget = blacklisted
+            ? ((PaperBlockContainer) blockContainer).translationKey()
+            : null;
+
         if (mode != ModificationQueueMode.COMPLETING) {
-            return buildDefaultResult(activityContext, mode);
+            var resultBuilder = ModificationResult.builder().activity(activityContext).statusFromMode(mode);
+            return blacklisted ? resultBuilder.partial().target(blacklistedTarget).build() : resultBuilder.build();
         }
 
         World world = Bukkit.getWorld(activityContext.worldUuid());
@@ -204,10 +218,42 @@ public class PrismIntegrationImpl {
         world.getChunkAt(x >> 4, z >> 4);
 
         Block block = world.getBlockAt(x, y, z);
+        if (blacklisted) {
+            blockContainer = null;
+            blockEntityNbt = null;
+        }
+
+        CompoundTag blockEntityTag = null;
+        if (blockEntityNbt != null && !blockEntityNbt.isEmpty()) {
+            try {
+                blockEntityTag = TagParser.parseCompoundFully(blockEntityNbt);
+            } catch (Exception exception) {
+                AxiomPaper.PLUGIN.getLogger().warning("Failed to parse Prism block entity data at " +
+                    world.getName() + ":" + x + "," + y + "," + z + ": " + exception.getMessage());
+                return ModificationResult.builder()
+                    .activity(activityContext)
+                    .errored()
+                    .target(block.translationKey())
+                    .build();
+            }
+        }
+
+        if (!modificationRuleset.overwrite() && blockEntityTag == null
+            && ((blockContainer == null && block.getType().isAir())
+                || (blockContainer instanceof PaperBlockContainer paperBlockContainer
+                    && block.getBlockData().matches(paperBlockContainer.blockData())))) {
+            return ModificationResult.builder()
+                .activity(activityContext)
+                .skipped()
+                .skipReason(ModificationSkipReason.ALREADY_SET)
+                .target(block.translationKey())
+                .build();
+        }
+
         if (blockContainer == null) {
-            block.setType(Material.AIR, false);
+            block.setType(Material.AIR, modificationRuleset.applyPhysics());
         } else if (blockContainer instanceof PaperBlockContainer paperBlockContainer) {
-            block.setBlockData(paperBlockContainer.blockData(), false);
+            block.setBlockData(paperBlockContainer.blockData(), modificationRuleset.applyPhysics());
         } else {
             return ModificationResult.builder()
                 .activity(activityContext)
@@ -216,32 +262,43 @@ public class PrismIntegrationImpl {
                 .build();
         }
 
-        applyBlockEntityNbt(world, x, y, z, blockEntityNbt);
-        return buildDefaultResult(activityContext, mode);
+        if (!applyBlockEntityNbt(world, x, y, z, blockEntityTag)) {
+            return ModificationResult.builder()
+                .activity(activityContext)
+                .errored()
+                .target(block.translationKey())
+                .build();
+        }
+
+        var resultBuilder = ModificationResult.builder().activity(activityContext).statusFromMode(mode);
+        return blacklisted ? resultBuilder.partial().target(blacklistedTarget).build() : resultBuilder.build();
     }
 
-    private static void applyBlockEntityNbt(World world, int x, int y, int z, @Nullable String blockEntityNbt) {
-        if (blockEntityNbt == null || blockEntityNbt.isEmpty()) {
-            return;
+    private static boolean applyBlockEntityNbt(World world, int x, int y, int z, @Nullable CompoundTag blockEntityTag) {
+        if (blockEntityTag == null) {
+            return true;
         }
 
         if (!(world instanceof CraftWorld craftWorld)) {
-            return;
+            return false;
         }
 
         try {
-            CompoundTag tag = TagParser.parseCompoundFully(blockEntityNbt);
             BlockEntity blockEntity = craftWorld.getHandle().getBlockEntity(new BlockPos(x, y, z));
             if (blockEntity == null) {
-                return;
+                return false;
             }
 
             RegistryAccess registryAccess = MinecraftServer.getServer().registryAccess();
-            blockEntity.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING, registryAccess, tag));
+            blockEntity.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING, registryAccess, blockEntityTag));
             blockEntity.setChanged();
+            var pos = new BlockPos(x, y, z);
+            craftWorld.getHandle().sendBlockUpdated(pos, blockEntity.getBlockState(), blockEntity.getBlockState(), 3);
+            return true;
         } catch (Exception e) {
             AxiomPaper.PLUGIN.getLogger().warning("Failed to restore Prism block entity data at " +
                 world.getName() + ":" + x + "," + y + "," + z + ": " + e.getMessage());
+            return false;
         }
     }
 
@@ -253,13 +310,13 @@ public class PrismIntegrationImpl {
     private static final class PlaceModificationHandler implements ModificationHandler {
         @Override
         public ModificationResult applyRollback(ModificationRuleset modificationRuleset, Object owner, Activity activityContext, ModificationQueueMode mode) {
-            return applyBlockData(activityContext, mode, null, null);
+            return applyBlockData(modificationRuleset, activityContext, mode, null, null);
         }
 
         @Override
         public ModificationResult applyRestore(ModificationRuleset modificationRuleset, Object owner, Activity activityContext, ModificationQueueMode mode) {
             AxiomBlockAction action = (AxiomBlockAction) activityContext.action();
-            return applyBlockData(activityContext, mode, action.blockContainer(), action.newBlockEntityNbt());
+            return applyBlockData(modificationRuleset, activityContext, mode, action.blockContainer(), action.newBlockEntityNbt());
         }
     }
 
@@ -267,12 +324,12 @@ public class PrismIntegrationImpl {
         @Override
         public ModificationResult applyRollback(ModificationRuleset modificationRuleset, Object owner, Activity activityContext, ModificationQueueMode mode) {
             AxiomBlockAction action = (AxiomBlockAction) activityContext.action();
-            return applyBlockData(activityContext, mode, action.blockContainer(), action.oldBlockEntityNbt());
+            return applyBlockData(modificationRuleset, activityContext, mode, action.blockContainer(), action.oldBlockEntityNbt());
         }
 
         @Override
         public ModificationResult applyRestore(ModificationRuleset modificationRuleset, Object owner, Activity activityContext, ModificationQueueMode mode) {
-            return applyBlockData(activityContext, mode, null, null);
+            return applyBlockData(modificationRuleset, activityContext, mode, null, null);
         }
     }
 
@@ -280,19 +337,24 @@ public class PrismIntegrationImpl {
         @Override
         public ModificationResult applyRollback(ModificationRuleset modificationRuleset, Object owner, Activity activityContext, ModificationQueueMode mode) {
             AxiomBlockAction action = (AxiomBlockAction) activityContext.action();
-            return applyBlockData(activityContext, mode, action.replacedBlockContainer(), action.oldBlockEntityNbt());
+            return applyBlockData(modificationRuleset, activityContext, mode, action.replacedBlockContainer(), action.oldBlockEntityNbt());
         }
 
         @Override
         public ModificationResult applyRestore(ModificationRuleset modificationRuleset, Object owner, Activity activityContext, ModificationQueueMode mode) {
             AxiomBlockAction action = (AxiomBlockAction) activityContext.action();
-            return applyBlockData(activityContext, mode, action.blockContainer(), action.newBlockEntityNbt());
+            return applyBlockData(modificationRuleset, activityContext, mode, action.blockContainer(), action.newBlockEntityNbt());
         }
     }
 
     private static final class AxiomBlockActionType extends ActionType {
-        private AxiomBlockActionType(String key, ActionResultType resultType, ModificationHandler modificationHandler) {
-            super(key, resultType, true);
+        private AxiomBlockActionType(
+            String key,
+            ActionResultType resultType,
+            String defaultPastTense,
+            ModificationHandler modificationHandler
+        ) {
+            super(key, resultType, true, true, null, false, defaultPastTense);
             this.modificationHandler = modificationHandler;
         }
 

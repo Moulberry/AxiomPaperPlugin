@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "com.moulberry.axiom"
-version = "5.0.4+26.1"
+version = "5.0.4+26.2"
 description = "Serverside component for Axiom on Paper"
 
 java {
@@ -39,16 +39,11 @@ repositories {
             includeGroup("org.prism_mc.prism")
         }
     }
-    maven("https://nexus.prism-mc.org/repository/maven-snapshots/") {
-        content {
-            includeGroup("org.prism_mc.prism")
-        }
-    }
     mavenCentral()
 }
 
 dependencies {
-    paperweight.paperDevBundle("26.1.1.build.29-alpha")
+    paperweight.paperDevBundle("26.2.build.40-alpha")
 
     // Zstd Compression Library
     implementation(libs.zstd.jni)
@@ -91,7 +86,7 @@ tasks {
                 "name" to project.name,
                 "version" to project.version,
                 "description" to project.description,
-                "apiVersion" to "26.1"
+                "apiVersion" to "26.2"
         )
         inputs.properties(props)
         filesMatching("plugin.yml") {

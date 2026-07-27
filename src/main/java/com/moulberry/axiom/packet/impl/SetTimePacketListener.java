@@ -2,13 +2,12 @@ package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomTimeChangeEvent;
-import com.moulberry.axiom.integration.prism.PrismAxiomIntegration;
+import com.moulberry.axiom.integration.prism.PrismIntegration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.gamerules.GameRules;
@@ -25,7 +24,7 @@ public class SetTimePacketListener implements PacketHandler {
     }
 
     @Override
-    public void onReceive(Player player, RegistryFriendlyByteBuf friendlyByteBuf) {
+    public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(player, AxiomPermission.WORLD_TIME)) {
             return;
         }
@@ -61,7 +60,7 @@ public class SetTimePacketListener implements PacketHandler {
         if (time != null) player.getWorld().setTime(time);
         if (freezeTime != null) level.getGameRules().set(GameRules.ADVANCE_TIME, !freezeTime, null);
 
-        PrismAxiomIntegration.logWorldTimeChange(player, player.getWorld(), oldTime, oldAdvanceTime,
+        PrismIntegration.logWorldTimeChange(player, player.getWorld(), oldTime, oldAdvanceTime,
             player.getWorld().getTime(), Boolean.TRUE.equals(player.getWorld().getGameRuleValue(org.bukkit.GameRules.ADVANCE_TIME)));
     }
 
