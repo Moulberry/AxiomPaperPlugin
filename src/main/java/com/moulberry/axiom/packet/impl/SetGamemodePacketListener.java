@@ -2,6 +2,7 @@ package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomGameModeChangeEvent;
+import com.moulberry.axiom.integration.prism.PrismIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import net.minecraft.network.FriendlyByteBuf;
@@ -27,7 +28,6 @@ public class SetGamemodePacketListener implements PacketHandler {
             case CREATIVE -> AxiomPermission.PLAYER_GAMEMODE_CREATIVE;
             case ADVENTURE -> AxiomPermission.PLAYER_GAMEMODE_ADVENTURE;
             case SPECTATOR -> AxiomPermission.PLAYER_GAMEMODE_SPECTATOR;
-            default -> AxiomPermission.PLAYER_GAMEMODE;
         };
 
         if (!this.plugin.canUseAxiom(player, permission)) {
@@ -35,12 +35,23 @@ public class SetGamemodePacketListener implements PacketHandler {
         }
 
         // Call event
-        AxiomGameModeChangeEvent gameModeChangeEvent = new AxiomGameModeChangeEvent(player, GameMode.getByValue(gameType.getId()));
+        AxiomGameModeChangeEvent gameModeChangeEvent = new AxiomGameModeChangeEvent(player, toBukkitGameMode(gameType));
         Bukkit.getPluginManager().callEvent(gameModeChangeEvent);
         if (gameModeChangeEvent.isCancelled()) return;
 
         // Change gamemode
+        GameMode oldMode = player.getGameMode();
         ((CraftPlayer)player).getHandle().setGameMode(gameType);
+        PrismIntegration.logPlayerGamemode(player, player, oldMode, player.getGameMode());
+    }
+
+    private static GameMode toBukkitGameMode(GameType gameType) {
+        return switch (gameType) {
+            case SURVIVAL -> GameMode.SURVIVAL;
+            case CREATIVE -> GameMode.CREATIVE;
+            case ADVENTURE -> GameMode.ADVENTURE;
+            case SPECTATOR -> GameMode.SPECTATOR;
+        };
     }
 
 }

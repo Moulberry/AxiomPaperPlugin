@@ -2,6 +2,7 @@ package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.VersionHelper;
+import com.moulberry.axiom.integration.prism.PrismIntegration;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
@@ -51,7 +52,9 @@ public class SetWorldPropertyListener implements PacketHandler {
 
         ServerWorldPropertyHolder<?> property = registry.getById(id);
         if (property != null && property.getType().getTypeId() == type) {
+            byte[] oldValue = property.serializeValue();
             property.update(player, player.getWorld(), data);
+            PrismIntegration.logWorldPropertyChange(player, player.getWorld(), id.toString(), oldValue, property.serializeValue());
         }
 
         sendAck(player, updateId);
@@ -59,10 +62,14 @@ public class SetWorldPropertyListener implements PacketHandler {
 
     private void sendAck(Player player, int updateId) {
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-        buf.writeVarInt(updateId);
+        try {
+            buf.writeVarInt(updateId);
 
-        byte[] bytes = ByteBufUtil.getBytes(buf);
-        VersionHelper.sendCustomPayload(player, "axiom:ack_world_properties", bytes);
+            byte[] bytes = ByteBufUtil.getBytes(buf);
+            VersionHelper.sendCustomPayload(player, "axiom:ack_world_properties", bytes);
+        } finally {
+            buf.release();
+        }
     }
 
 }

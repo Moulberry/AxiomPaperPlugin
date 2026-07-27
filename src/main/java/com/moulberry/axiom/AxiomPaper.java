@@ -9,6 +9,8 @@ import com.moulberry.axiom.event.AxiomCreateWorldPropertiesEvent;
 import com.moulberry.axiom.event.AxiomHandshakeEvent;
 import com.moulberry.axiom.event.AxiomModifyWorldEvent;
 import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
+import com.moulberry.axiom.integration.prism.PrismIntegration;
+import com.moulberry.axiom.integration.prism.PrismLoggingType;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.listener.LuckPermsListener;
 import com.moulberry.axiom.listener.NoPhysicalTriggerListener;
@@ -101,10 +103,12 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     private final Set<EntityType<?>> blacklistedEntities = new HashSet<>();
 
     private int defaultAllowedDispatchSendsPerSecond = 1024;
-    private LinkedHashMap<String, Integer> allowedDispatchSendOverrides = new LinkedHashMap<>();
+    private final LinkedHashMap<String, Integer> allowedDispatchSendOverrides = new LinkedHashMap<>();
+    private final EnumMap<PrismLoggingType, Boolean> prismLoggingSettings = new EnumMap<>(PrismLoggingType.class);
 
     private boolean registeredNoPhysicalTriggerListener = false;
     public boolean logCoreProtectChanges = true;
+    public boolean logPrismChanges = true;
 
     public Path blueprintFolder = null;
     public boolean allowAnnotations = false;
@@ -239,6 +243,23 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         this.maxChunkLoadDistance = this.configuration.getInt("max-chunk-load-distance");
 
         this.logCoreProtectChanges = this.configuration.getBoolean("log-core-protect-changes");
+        ConfigurationSection prismLoggingSection = this.configuration.getConfigurationSection("prism-logging");
+        ConfigurationSection prismLoggingRecordsSection = prismLoggingSection == null ? null : prismLoggingSection.getConfigurationSection("records");
+        this.logPrismChanges = prismLoggingSection == null || prismLoggingSection.getBoolean("enabled", true);
+        this.prismLoggingSettings.clear();
+        for (PrismLoggingType prismLoggingType : PrismLoggingType.values()) {
+            boolean enabled = prismLoggingType.enabledByDefault();
+            if (prismLoggingRecordsSection != null) {
+                if (prismLoggingType == PrismLoggingType.ANNOTATION_CHANGES
+                    && !prismLoggingRecordsSection.contains(prismLoggingType.configKey())
+                    && prismLoggingRecordsSection.contains("annotation-snapshots")) {
+                    enabled = prismLoggingRecordsSection.getBoolean("annotation-snapshots");
+                } else {
+                    enabled = prismLoggingRecordsSection.getBoolean(prismLoggingType.configKey(), enabled);
+                }
+            }
+            this.prismLoggingSettings.put(prismLoggingType, enabled);
+        }
 
         this.defaultAllowedDispatchSendsPerSecond = this.configuration.getInt("block-buffer-rate-limit");
         if (this.defaultAllowedDispatchSendsPerSecond <= 0) {
@@ -269,7 +290,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
                 AxiomMigrateCommand.register(commands.registrar());
             });
         } catch (Exception e) {
-            e.printStackTrace();
+            this.getLogger().log(java.util.logging.Level.WARNING, "Failed to register commands", e);
         }
 
         if (Bukkit.getPluginManager().isPluginEnabled("LuckPerms")) {
@@ -281,6 +302,14 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         if (CoreProtectIntegration.isEnabled()) {
             this.getLogger().info("CoreProtect integration enabled");
         }
+        if (PrismIntegration.initialize()) {
+            this.getLogger().info("Prism integration enabled");
+        }
+    }
+
+    @Override
+    public void onDisable() {
+        PrismIntegration.shutdown();
     }
 
     private void checkOutdatedConfig() {
@@ -331,7 +360,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         try {
             Files.copy(configPath, backupPath, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
-            e.printStackTrace();
+            this.getLogger().log(java.util.logging.Level.WARNING, "Failed to backup config.yml", e);
             commandSender.sendMessage(Component.text("Internal error: couldn't backup existing config").color(NamedTextColor.RED));
             return;
         }
@@ -352,7 +381,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             fileConfiguration.save(configPath.toFile());
         } catch (IOException e) {
             commandSender.sendMessage(Component.text("Internal error: failed to save migrated config.yml").color(NamedTextColor.RED));
-            e.printStackTrace();
+            this.getLogger().log(java.util.logging.Level.WARNING, "Failed to save migrated config.yml", e);
         }
 
         commandSender.sendMessage(Component.text("Successfully migrated config.yml").color(NamedTextColor.GREEN));
@@ -576,7 +605,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         return this.defaultAllowedDispatchSendsPerSecond;
     }
 
-    public boolean consumeDispatchSends(Player player, int sends, int clientAvailableDispatchSends) {
+    public boolean shouldRejectDispatchSends(Player player, int sends, int clientAvailableDispatchSends) {
         int allowedDispatchSendsPerSecond = this.getAllowedDispatchSendsPerSecond(player);
 
         int currentSends = this.availableDispatchSends.getOrDefault(player.getUniqueId(), allowedDispatchSendsPerSecond*20);
@@ -586,10 +615,9 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
         if (currentSends < -allowedDispatchSendsPerSecond*20) {
             player.kick(net.kyori.adventure.text.Component.text("You are sending updates too fast!"));
-            return false;
-        } else {
             return true;
         }
+        return false;
     }
 
     public boolean acceptHandshake(Player player, long handshakeId) {
@@ -833,9 +861,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     }
 
     public AxiomPermissionSet getPermissions(Player player) {
-        return this.playerPermissions.computeIfAbsent(player.getUniqueId(), uuid -> {
-            return this.calculatePermissions(player);
-        });
+        return this.playerPermissions.computeIfAbsent(player.getUniqueId(), ignored -> this.calculatePermissions(player));
     }
 
     public boolean hasPermission(Player player, AxiomPermission axiomPermission) {
@@ -881,6 +907,11 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     public boolean isNoPhysicalTrigger(UUID uuid) {
         return this.noPhysicalTriggerPlayers.contains(uuid);
+    }
+
+    public boolean shouldLogPrism(PrismLoggingType prismLoggingType) {
+        return this.logPrismChanges
+            && this.prismLoggingSettings.getOrDefault(prismLoggingType, prismLoggingType.enabledByDefault());
     }
 
     public void setNoPhysicalTrigger(UUID uuid, boolean noPhysicalTrigger) {

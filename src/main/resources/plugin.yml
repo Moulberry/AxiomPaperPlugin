@@ -5,7 +5,7 @@ description: $description
 authors:
   - Moulberry
 api-version: "$apiVersion"
-softdepend: ["CoreProtect", "ViaVersion", "WorldGuard", "PlotSquared"]
+softdepend: ["CoreProtect", "prism", "ViaVersion", "WorldGuard", "PlotSquared"]
 permissions:
   # Optional admin permissions
   axiomadmin.bypass_region_checks:

@@ -4,6 +4,7 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.buffer.BiomeBuffer;
 import com.moulberry.axiom.buffer.BlockBuffer;
 import com.moulberry.axiom.integration.Integration;
+import com.moulberry.axiom.integration.prism.PrismIntegration;
 import com.moulberry.axiom.operations.SetBlockBufferOperation;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
@@ -76,7 +77,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                     }
                 }
 
-                if (!this.plugin.consumeDispatchSends(player.getBukkitEntity(), buffer.getSectionCount(), clientAvailableDispatchSends)) {
+                if (this.plugin.shouldRejectDispatchSends(player.getBukkitEntity(), buffer.getSectionCount(), clientAvailableDispatchSends)) {
                     return;
                 }
 
@@ -104,7 +105,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                     this.plugin.getLogger().info("Player " + player.getUUID() + " modified " + biomeBuffer.getSectionCount() + " chunk sections (biomes)");
                 }
 
-                if (!this.plugin.consumeDispatchSends(player.getBukkitEntity(), biomeBuffer.getSectionCount(), clientAvailableDispatchSends)) {
+                if (this.plugin.shouldRejectDispatchSends(player.getBukkitEntity(), biomeBuffer.getSectionCount(), clientAvailableDispatchSends)) {
                     return;
                 }
 
@@ -129,7 +130,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
 
                 biomeBuffer.forEachEntry((x, y, z, biome) -> {
                     int cy = y >> 2;
-                    if (cy < minSection || cy > maxSection) {
+                    if (cy < minSection || cy >= maxSection) {
                         return;
                     }
 
@@ -144,7 +145,25 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                         if (!Integration.canPlaceBlock(player.getBukkitEntity(),
                             new Location(player.getBukkitEntity().getWorld(), (x<<2)+1, (y<<2)+1, (z<<2)+1))) return;
 
-                        container.set(x & 3, y & 3, z & 3, holder.get());
+                        Holder<Biome> previousHolder = container.get(x & 3, y & 3, z & 3);
+                        Holder<Biome> nextHolder = holder.get();
+                        if (previousHolder.is(nextHolder)) {
+                            return;
+                        }
+
+                        container.set(x & 3, y & 3, z & 3, nextHolder);
+                        String previousBiome = previousHolder.unwrapKey()
+                            .map(key -> key.identifier().toString())
+                            .orElseGet(previousHolder::getRegisteredName);
+                        PrismIntegration.logBiomeChange(
+                            player.getBukkitEntity(),
+                            world.getWorld(),
+                            x,
+                            y,
+                            z,
+                            previousBiome,
+                            biome.identifier().toString()
+                        );
                         changedChunks.add(chunk);
                     }
                 });

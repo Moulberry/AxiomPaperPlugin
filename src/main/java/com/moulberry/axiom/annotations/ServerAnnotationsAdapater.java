@@ -13,6 +13,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.logging.Level;
 
 public class ServerAnnotationsAdapater implements PersistentDataType<PersistentDataContainer, ServerAnnotations>  {
     public static final ServerAnnotationsAdapater INSTANCE = new ServerAnnotationsAdapater();
@@ -32,18 +33,17 @@ public class ServerAnnotationsAdapater implements PersistentDataType<PersistentD
         PersistentDataContainer container = context.newPersistentDataContainer();
 
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.buffer());
-
-        for (Map.Entry<UUID, AnnotationData> entry : serverAnnotations.annotations.entrySet()) {
-            try {
-                friendlyByteBuf.writerIndex(0);
+        try {
+            for (Map.Entry<UUID, AnnotationData> entry : serverAnnotations.annotations.entrySet()) {
+                friendlyByteBuf.clear();
                 entry.getValue().write(friendlyByteBuf);
 
                 byte[] bytes = ByteBufUtil.getBytes(friendlyByteBuf);
                 container.set(new NamespacedKey(AxiomPaper.PLUGIN, entry.getKey().toString()),
                     PersistentDataType.BYTE_ARRAY, bytes);
-            } catch (Exception e) {
-                e.printStackTrace();
             }
+        } finally {
+            friendlyByteBuf.release();
         }
 
         return container;
@@ -59,11 +59,28 @@ public class ServerAnnotationsAdapater implements PersistentDataType<PersistentD
                 UUID uuid = UUID.fromString(uuidString);
 
                 byte[] bytes = container.get(key, PersistentDataType.BYTE_ARRAY);
-                AnnotationData annotation = AnnotationData.read(new FriendlyByteBuf(Unpooled.wrappedBuffer(bytes)));
+                if (bytes == null) {
+                    throw new IllegalArgumentException("Annotation entry does not contain byte array data");
+                }
+
+                FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.wrappedBuffer(bytes));
+                AnnotationData annotation;
+                try {
+                    annotation = AnnotationData.read(friendlyByteBuf);
+                    if (annotation == null || friendlyByteBuf.isReadable()) {
+                        throw new IllegalArgumentException("Unsupported or trailing annotation data");
+                    }
+                } finally {
+                    friendlyByteBuf.release();
+                }
 
                 serverAnnotations.annotations.put(uuid, annotation);
             } catch (Exception e) {
-                e.printStackTrace();
+                AxiomPaper.PLUGIN.getLogger().log(
+                    Level.WARNING,
+                    "Failed to load annotation " + key.value(),
+                    e
+                );
             }
         }
 

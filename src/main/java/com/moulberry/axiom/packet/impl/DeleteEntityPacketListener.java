@@ -3,6 +3,7 @@ package com.moulberry.axiom.packet.impl;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomRemoveEntityEvent;
 import com.moulberry.axiom.integration.Integration;
+import com.moulberry.axiom.integration.prism.PrismIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import net.minecraft.network.FriendlyByteBuf;
@@ -55,6 +56,7 @@ public class DeleteEntityPacketListener implements PacketHandler {
             Bukkit.getPluginManager().callEvent(removeEntityEvent);
 
             if (!removeEntityEvent.isCancelled()) {
+                PrismIntegration.logEntityDelete(player, entity);
                 entity.remove(Entity.RemovalReason.DISCARDED);
             }
         }

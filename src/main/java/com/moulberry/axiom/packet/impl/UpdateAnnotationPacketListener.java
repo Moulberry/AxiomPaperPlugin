@@ -3,12 +3,14 @@ package com.moulberry.axiom.packet.impl;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.annotations.AnnotationUpdateAction;
 import com.moulberry.axiom.annotations.ServerAnnotations;
+import com.moulberry.axiom.integration.prism.PrismIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.server.level.ServerPlayer;
+import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
+import org.bukkit.World;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +23,7 @@ public class UpdateAnnotationPacketListener implements PacketHandler {
     }
 
     public void onReceive(Player player, FriendlyByteBuf friendlyByteBuf) {
-        if (!this.plugin.allowAnnotations || !this.plugin.canUseAxiom(player, AxiomPermission.ANNOTATION_CREATE)) {
+        if (!this.plugin.allowAnnotations || !this.plugin.canUseAxiom(player)) {
             friendlyByteBuf.writerIndex(friendlyByteBuf.readerIndex());
             return;
         }
@@ -30,24 +32,40 @@ public class UpdateAnnotationPacketListener implements PacketHandler {
             return;
         }
 
-        ServerPlayer serverPlayer = ((CraftPlayer)player).getHandle();
+        CraftPlayer craftPlayer = (CraftPlayer) player;
+        World world = player.getWorld();
 
         // Read actions
-        int length = friendlyByteBuf.readVarInt();
-        List<AnnotationUpdateAction> actions = new ArrayList<>(Math.min(256, length));
-        for (int i = 0; i < length; i++) {
-            AnnotationUpdateAction action = AnnotationUpdateAction.read(friendlyByteBuf);
-            if (action != null) {
-                actions.add(action);
-            }
+        List<AnnotationUpdateAction> actions = friendlyByteBuf.readCollection(
+            this.plugin.limitCollection(ArrayList::new),
+            AnnotationUpdateAction::read
+        );
+        if (actions.stream().anyMatch(java.util.Objects::isNull)) {
+            return;
+        }
+        boolean clearsAll = actions.stream().anyMatch(AnnotationUpdateAction.ClearAllAnnotations.class::isInstance);
+        if (clearsAll && !this.plugin.hasPermission(player, AxiomPermission.ANNOTATION_CLEARALL)) {
+            return;
+        }
+        if (actions.stream().anyMatch(action -> !(action instanceof AnnotationUpdateAction.ClearAllAnnotations))
+            && !this.plugin.hasPermission(player, AxiomPermission.ANNOTATION_CREATE)) {
+            return;
         }
 
         // Execute
-        serverPlayer.level().getServer().execute(() -> {
+        Bukkit.getScheduler().runTask(this.plugin, () -> {
             try {
-                ServerAnnotations.handleUpdates(serverPlayer.level().getWorld(), actions);
+                var oldSnapshot = ServerAnnotations.captureSnapshot(world);
+                ServerAnnotations.handleUpdates(world, actions);
+                var newSnapshot = ServerAnnotations.captureSnapshot(world);
+                PrismIntegration.logAnnotationChange(
+                    craftPlayer,
+                    world,
+                    ServerAnnotations.createDelta(newSnapshot, oldSnapshot),
+                    ServerAnnotations.createDelta(oldSnapshot, newSnapshot)
+                );
             } catch (Throwable t) {
-                serverPlayer.getBukkitEntity().kick(net.kyori.adventure.text.Component.text(
+                craftPlayer.kick(net.kyori.adventure.text.Component.text(
                         "An error occured while updating annotations: " + t.getMessage()));
             }
         });

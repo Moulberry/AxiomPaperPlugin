@@ -4,6 +4,7 @@ import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.event.AxiomSpawnEntityEvent;
 import com.moulberry.axiom.integration.Integration;
+import com.moulberry.axiom.integration.prism.PrismIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import com.moulberry.axiom.viaversion.UnknownVersionHelper;
@@ -90,7 +91,7 @@ public class SpawnEntityPacketListener implements PacketHandler {
                     CompoundTag saved = entityCopyFrom.saveAsPassenger(valueOutput) ? valueOutput.buildResult() : null;
                     if (saved != null) {
                         saved.remove("Dimension");
-                        tag = tag.merge(saved);
+                        tag.merge(saved);
                     }
                 }
             }
@@ -136,6 +137,8 @@ public class SpawnEntityPacketListener implements PacketHandler {
                             passenger.discard();
                         }
                         spawned.discard();
+                    } else {
+                        PrismIntegration.logEntitySpawn(player, spawned);
                     }
                 }
             }

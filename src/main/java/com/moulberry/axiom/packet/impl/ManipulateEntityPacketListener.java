@@ -5,6 +5,7 @@ import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.event.AxiomAfterManipulateEntityEvent;
 import com.moulberry.axiom.event.AxiomManipulateEntityEvent;
 import com.moulberry.axiom.integration.Integration;
+import com.moulberry.axiom.integration.prism.PrismIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import com.moulberry.axiom.viaversion.UnknownVersionHelper;
@@ -116,6 +117,9 @@ public class ManipulateEntityPacketListener implements PacketHandler {
                 continue;
             }
 
+            String oldSnapshot = PrismIntegration.captureEntityState(entity);
+            String oldPassengers = serializePassengers(entity);
+
             if (entry.merge != null && !entry.merge.isEmpty()) {
                 NbtSanitization.sanitizeEntity(entry.merge);
 
@@ -222,6 +226,13 @@ public class ManipulateEntityPacketListener implements PacketHandler {
 
             AxiomAfterManipulateEntityEvent afterManipulateEvent = new AxiomAfterManipulateEntityEvent(player, entity.getBukkitEntity());
             afterManipulateEvent.callEvent();
+
+            String newSnapshot = PrismIntegration.captureEntityState(entity);
+            String newPassengers = serializePassengers(entity);
+            if (oldSnapshot != null && newSnapshot != null) {
+                PrismIntegration.logEntityModification(player, entity, oldSnapshot, newSnapshot);
+            }
+            PrismIntegration.logEntityPassengers(player, entity, oldPassengers, newPassengers);
         }
     }
 
@@ -251,7 +262,11 @@ public class ManipulateEntityPacketListener implements PacketHandler {
                     }
                 }
             } else {
-                left.put(key, tag.copy());
+                if (tag != null) {
+                    left.put(key, tag.copy());
+                } else {
+                    left.remove(key);
+                }
             }
         }
         return left;
@@ -267,6 +282,13 @@ public class ManipulateEntityPacketListener implements PacketHandler {
 
     private static boolean isPlayer(Entity entity) {
         return entity instanceof net.minecraft.world.entity.player.Player;
+    }
+
+    private static String serializePassengers(Entity entity) {
+        return entity.getPassengers().stream()
+            .map(Entity::getUUID)
+            .map(UUID::toString)
+            .collect(java.util.stream.Collectors.joining(","));
     }
 
 }

@@ -2,9 +2,11 @@ package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomFlySpeedChangeEvent;
+import com.moulberry.axiom.integration.prism.PrismIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.util.Mth;
 import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
@@ -24,7 +26,7 @@ public class SetFlySpeedPacketListener implements PacketHandler {
 
         float flySpeed = friendlyByteBuf.readFloat();
 
-        flySpeed = Math.max(-1.0f, Math.min(1.0f, flySpeed));
+        flySpeed = Mth.clamp(flySpeed, -1.0f, 1.0f);
 
         // Call event
         AxiomFlySpeedChangeEvent flySpeedChangeEvent = new AxiomFlySpeedChangeEvent(player, flySpeed);
@@ -32,7 +34,9 @@ public class SetFlySpeedPacketListener implements PacketHandler {
         if (flySpeedChangeEvent.isCancelled()) return;
 
         // Change flying speed
+        float oldSpeed = ((CraftPlayer)player).getHandle().getAbilities().getFlyingSpeed();
         ((CraftPlayer)player).getHandle().getAbilities().setFlyingSpeed(flySpeed);
+        PrismIntegration.logPlayerFlySpeed(player, player, oldSpeed, flySpeed);
     }
 
 }
