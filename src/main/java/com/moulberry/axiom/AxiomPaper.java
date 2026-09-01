@@ -39,7 +39,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.IdMapper;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.network.*;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -121,7 +121,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     private boolean clearCachedPermissionsOnTick = true;
     private int checkAxiomEnableDisableTimer = 0;
 
-    private final Map<Identifier, PacketHandler> supportedServerboundPackets = new LinkedHashMap<>();
+    private final Map<ResourceLocation, PacketHandler> supportedServerboundPackets = new LinkedHashMap<>();
 
     @Override
     public void onEnable() {
@@ -188,7 +188,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerOutgoingPluginChannel(this, "axiom:register_custom_items");
 
         msg.registerIncomingPluginChannel(this, "axiom:tunnel", (s, player, bytes) -> AxiomPaper.this.handleTunnelBuffer(player, bytes));
-        this.supportedServerboundPackets.put(Identifier.fromNamespaceAndPath("axiom", "tunnel"), null);
+        this.supportedServerboundPackets.put(ResourceLocation.fromNamespaceAndPath("axiom", "tunnel"), null);
 
         registerPacketHandler("hello", new HelloPacketListener(this), msg);
         registerPacketHandler("set_gamemode", new SetGamemodePacketListener(this), msg);
@@ -526,7 +526,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     }
 
     private void handleTunnelPacket(Player player, FriendlyByteBuf byteBuf) {
-        Identifier identifier = byteBuf.readIdentifier();
+        ResourceLocation identifier = byteBuf.readResourceLocation();
 
         var handler = this.supportedServerboundPackets.get(identifier);
         if (handler == null) {
@@ -633,7 +633,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         buf.writeInt(this.configuration.getInt("maximum-tunnel-packet-size", 2097152)); // Maximum tunnel packet size
         buf.writeVarInt(0); // No blockWithCustomData
         buf.writeVarInt(0); // No ignoreRotationSet
-        buf.writeCollection(this.supportedServerboundPackets.keySet(), FriendlyByteBuf::writeIdentifier);
+        buf.writeCollection(this.supportedServerboundPackets.keySet(), FriendlyByteBuf::writeResourceLocation);
 
         byte[] enableBytes = ByteBufUtil.getBytes(buf);
         VersionHelper.sendCustomPayload(player, "axiom:enable", enableBytes);
@@ -816,7 +816,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     }
 
     private void registerPacketHandler(String name, PacketHandler handler, Messenger messenger) {
-        this.supportedServerboundPackets.put(Identifier.fromNamespaceAndPath("axiom", name), handler);
+        this.supportedServerboundPackets.put(ResourceLocation.fromNamespaceAndPath("axiom", name), handler);
         messenger.registerIncomingPluginChannel(this, "axiom:"+name, new WrapperPacketListener(handler));
     }
 
