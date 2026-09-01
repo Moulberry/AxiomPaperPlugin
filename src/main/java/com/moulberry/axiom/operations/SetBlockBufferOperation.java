@@ -230,7 +230,7 @@ public class SetBlockBufferOperation implements PendingOperation {
                                 chunkLightChanged |= LightEngine.hasDifferentLightProperties(old, blockState);
 
                                 // Remove block entity if block type changes
-                                if (!old.is(block) && old.hasBlockEntity() && !blockState.shouldChangedStateKeepBlockEntity(old)) {
+                                if (!old.is(block) && old.hasBlockEntity()) {
                                     chunk.removeBlockEntity(blockPos);
                                 }
 

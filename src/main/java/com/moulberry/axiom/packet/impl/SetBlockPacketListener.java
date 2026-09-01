@@ -349,7 +349,7 @@ public class SetBlockPacketListener implements PacketHandler {
             }
 
             // Remove block entity if block type changes
-            if (!old.is(block) && old.hasBlockEntity() && !blockState.shouldChangedStateKeepBlockEntity(old)) {
+            if (!old.is(block) && old.hasBlockEntity()) {
                 chunk.removeBlockEntity(blockPos);
             }
 

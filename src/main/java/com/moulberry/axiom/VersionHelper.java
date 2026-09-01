@@ -1,6 +1,7 @@
 package com.moulberry.axiom;
 
 import io.netty.buffer.Unpooled;
+import net.minecraft.SharedConstants;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.network.protocol.common.ClientboundCustomPayloadPacket;
@@ -102,6 +103,10 @@ public class VersionHelper {
         } else {
             return list;
         }
+    }
+
+    public static String getVersion() {
+        return SharedConstants.VERSION_STRING;
     }
 
 }
