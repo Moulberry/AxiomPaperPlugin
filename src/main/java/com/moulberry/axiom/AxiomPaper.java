@@ -67,6 +67,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.IntFunction;
 
@@ -84,7 +85,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     public final Map<UUID, Restrictions> playerRestrictions = new HashMap<>();
     public final Map<UUID, IdMapper<BlockState>> playerBlockRegistry = new HashMap<>();
     public final Map<UUID, Integer> playerProtocolVersion = new HashMap<>();
-    private final Map<UUID, AxiomPermissionSet> playerPermissions = new HashMap<>();
+    private final Map<UUID, AxiomPermissionSet> playerPermissions = new ConcurrentHashMap<>();
     private final Map<UUID, PlotSquaredIntegration.PlotBounds> lastPlotBoundsForPlayers = new HashMap<>();
     private final Set<UUID> noPhysicalTriggerPlayers = new HashSet<>();
     private final OperationQueue operationQueue = new OperationQueue();
