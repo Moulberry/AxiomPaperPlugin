@@ -362,7 +362,7 @@ public class SetBlockPacketListener implements PacketHandler {
                 BlockEntity blockEntity = chunk.getBlockEntity(blockPos, LevelChunk.EntityCreationType.CHECK);
 
                 // Remove old block entity if it isn't valid
-                if (blockEntity != null && !blockEntity.isValidBlockState(blockState)) {
+                if (blockEntity != null && !blockEntity.getType().isValid(blockState)) {
                     chunk.removeBlockEntity(blockPos);
                     blockEntity = null;
                 }

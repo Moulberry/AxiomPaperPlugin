@@ -56,7 +56,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.Configuration;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.craftbukkit.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_20_R1.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -194,7 +194,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         msg.registerOutgoingPluginChannel(this, "axiom:register_custom_items");
 
         msg.registerIncomingPluginChannel(this, "axiom:tunnel", (s, player, bytes) -> AxiomPaper.this.handleTunnelBuffer(player, bytes));
-        this.supportedServerboundPackets.put(ResourceLocation.fromNamespaceAndPath("axiom", "tunnel"), null);
+        this.supportedServerboundPackets.put(new ResourceLocation("axiom", "tunnel"), null);
 
         registerPacketHandler("hello", new HelloPacketListener(this), msg);
         registerPacketHandler("set_gamemode", new SetGamemodePacketListener(this), msg);
@@ -629,7 +629,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         }
 
         // Enable packet
-        RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), MinecraftServer.getServer().registryAccess());
+        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
         buf.writeBoolean(true);
         buf.writeByte(0); // ServerConfig version
         buf.writeVarInt(2); // Blueprint version
@@ -820,7 +820,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     }
 
     private void registerPacketHandler(String name, PacketHandler handler, Messenger messenger) {
-        this.supportedServerboundPackets.put(ResourceLocation.fromNamespaceAndPath("axiom", name), handler);
+        this.supportedServerboundPackets.put(new ResourceLocation("axiom", name), handler);
         messenger.registerIncomingPluginChannel(this, "axiom:"+name, new WrapperPacketListener(handler));
     }
 
