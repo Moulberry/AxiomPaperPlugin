@@ -27,7 +27,7 @@ public class TickBlocksPacketListener implements PacketHandler {
     public void onReceive(Player bukkitPlayer, FriendlyByteBuf friendlyByteBuf) {
         var player = ((CraftPlayer)bukkitPlayer).getHandle();
 
-        var level = player.level();
+        var level = player.serverLevel();
         if (level == null) {
             return;
         }
