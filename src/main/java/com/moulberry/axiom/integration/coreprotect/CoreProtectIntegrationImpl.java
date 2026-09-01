@@ -37,22 +37,30 @@ public class CoreProtectIntegrationImpl {
     }
 
     private static CoreProtectAPI getCoreProtect() {
+        if (!Bukkit.getPluginManager().isPluginEnabled("CoreProtect")) {
+            return null;
+        }
+
         Plugin plugin = Bukkit.getPluginManager().getPlugin("CoreProtect");
 
-        if (!(plugin instanceof CoreProtect)) {
+        try {
+            if (!(plugin instanceof CoreProtect)) {
+                return null;
+            }
+
+            CoreProtectAPI coreProtect = ((CoreProtect) plugin).getAPI();
+            if (!coreProtect.isEnabled()) {
+                return null;
+            }
+
+            if (coreProtect.APIVersion() < 10) {
+                return null;
+            }
+
+            return coreProtect;
+        } catch (NoClassDefFoundError ignored) {
             return null;
         }
-
-        CoreProtectAPI coreProtect = ((CoreProtect) plugin).getAPI();
-        if (!coreProtect.isEnabled()) {
-            return null;
-        }
-
-        if (coreProtect.APIVersion() < 10) {
-            return null;
-        }
-
-        return coreProtect;
     }
 
     private static CraftBlockState createCraftBlockState(World world, BlockPos pos, BlockState blockState) {
