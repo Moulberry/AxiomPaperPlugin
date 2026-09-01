@@ -98,7 +98,7 @@ public class TickBlocksPacketListener implements PacketHandler {
 
             FluidState fluidState = blockState.getFluidState();
             if (!fluidState.isEmpty()) {
-                fluidState.tick(level, blockPos, blockState);
+                fluidState.tick(level, blockPos);
             }
 
             if (blockState.getBlock() instanceof LiquidBlock) {
