@@ -50,6 +50,10 @@ permissions:
     children:
       axiom.annotation.create: true
       axiom.annotation.clear_all: true
+  axiom.build_dangerous.*:
+    description: Dangerous permissions related to placing blocks
+    children:
+      axiom.build_dangerous.tick: true
   axiom.debug:
     description: Allows use of the /axiompaperdebug command
 
