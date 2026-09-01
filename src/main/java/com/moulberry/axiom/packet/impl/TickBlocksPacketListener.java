@@ -106,7 +106,7 @@ public class TickBlocksPacketListener implements PacketHandler {
             } else {
                 BlockState blockStateNew = Block.updateFromNeighbourShapes(blockState, level, blockPos);
                 if (blockStateNew != blockState) {
-                    level.setBlock(blockPos, blockStateNew, Block.UPDATE_CLIENTS | Block.UPDATE_SKIP_ALL_SIDEEFFECTS);
+                    level.setBlock(blockPos, blockStateNew, Block.UPDATE_CLIENTS | Block.UPDATE_KNOWN_SHAPE | 1024); // 1024 is CraftBukkit NO_PLACE
                 }
             }
         };
