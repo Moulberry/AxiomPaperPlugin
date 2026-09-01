@@ -339,33 +339,6 @@ public class SetBlockPacketListener implements PacketHandler {
             oceanFloor.update(x, by, z, blockState);
             worldSurface.update(x, by, z, blockState);
 
-            if (blockState.hasBlockEntity()) {
-                BlockEntity blockEntity = chunk.getBlockEntity(blockPos, LevelChunk.EntityCreationType.CHECK);
-
-                if (blockEntity == null) {
-                    // There isn't a block entity here, create it!
-                    blockEntity = ((EntityBlock)block).newBlockEntity(blockPos, blockState);
-                    if (blockEntity != null) {
-                        chunk.addAndRegisterBlockEntity(blockEntity);
-                    }
-                } else if (blockEntity.getType().isValid(blockState)) {
-                    // Block entity is here and the type is correct
-                    // Just update the state and ticker and move on
-                    blockEntity.setBlockState(blockState);
-                    AxiomReflection.updateBlockEntityTicker(chunk, blockEntity);
-                } else {
-                    // Block entity type isn't correct, we need to recreate it
-                    chunk.removeBlockEntity(blockPos);
-
-                    blockEntity = ((EntityBlock)block).newBlockEntity(blockPos, blockState);
-                    if (blockEntity != null) {
-                        chunk.addAndRegisterBlockEntity(blockEntity);
-                    }
-                }
-            } else if (old.hasBlockEntity()) {
-                chunk.removeBlockEntity(blockPos);
-            }
-
             // Mark block changed
             level.getChunkSource().blockChanged(blockPos);
 
@@ -377,12 +350,39 @@ public class SetBlockPacketListener implements PacketHandler {
                 level.getChunkSource().getLightEngine().checkBlock(blockPos);
             }
 
+            // Remove block entity if block type changes
+            if (!old.is(block) && old.hasBlockEntity() && !blockState.shouldChangedStateKeepBlockEntity(old)) {
+                chunk.removeBlockEntity(blockPos);
+            }
+
             // Update Poi
             Optional<Holder<PoiType>> newPoi = PoiTypes.forState(blockState);
             Optional<Holder<PoiType>> oldPoi = PoiTypes.forState(old);
             if (!Objects.equals(oldPoi, newPoi)) {
                 if (oldPoi.isPresent()) level.getPoiManager().remove(blockPos);
                 if (newPoi.isPresent()) level.getPoiManager().add(blockPos, newPoi.get());
+            }
+
+            if (blockState.hasBlockEntity()) {
+                BlockEntity blockEntity = chunk.getBlockEntity(blockPos, LevelChunk.EntityCreationType.CHECK);
+
+                // Remove old block entity if it isn't valid
+                if (blockEntity != null && !blockEntity.isValidBlockState(blockState)) {
+                    chunk.removeBlockEntity(blockPos);
+                    blockEntity = null;
+                }
+
+                if (blockEntity == null) {
+                    // There isn't a block entity here, create it!
+                    blockEntity = ((EntityBlock)block).newBlockEntity(blockPos, blockState);
+                    if (blockEntity != null) {
+                        chunk.addAndRegisterBlockEntity(blockEntity);
+                    }
+                } else {
+                    // Block entity is here and the type is correct
+                    blockEntity.setBlockState(blockState);
+                    AxiomReflection.updateBlockEntityTicker(chunk, blockEntity);
+                }
             }
 
             if (CoreProtectIntegration.isEnabled()) {
