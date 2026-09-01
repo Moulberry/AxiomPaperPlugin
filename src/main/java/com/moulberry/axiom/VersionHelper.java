@@ -3,6 +3,7 @@ package com.moulberry.axiom;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundCustomPayloadPacket;
+import net.minecraft.SharedConstants;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.resources.ResourceLocation;
@@ -51,6 +52,10 @@ public class VersionHelper {
 
     public static ListTag getList(CompoundTag tag, String key, int type) {
         return tag.getList(key, type);
+    }
+
+    public static String getVersion() {
+        return SharedConstants.VERSION_STRING;
     }
 
 }
