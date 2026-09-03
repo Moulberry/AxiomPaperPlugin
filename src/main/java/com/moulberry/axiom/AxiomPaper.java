@@ -476,8 +476,6 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             return;
         }
 
-        System.out.println("Got tunnel buffer: " + bytes.length);
-
         byte bufferFlags = bytes[0];
 
         boolean isFirst = (bufferFlags & AxiomConstants.TUNNEL_BUFFER_FLAG_FIRST) != 0;
