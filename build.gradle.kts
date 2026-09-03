@@ -7,8 +7,10 @@ plugins {
     alias(libs.plugins.shadow)
 }
 
+var modVersion = "6.0.1"
+
 group = "com.moulberry.axiom"
-version = "6.0.0+26.2"
+version = "${modVersion}+26.2"
 description = "Serverside component for Axiom on Paper"
 
 java {
