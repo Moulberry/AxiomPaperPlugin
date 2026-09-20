@@ -65,7 +65,7 @@ public class ServerWorldPropertiesRegistry {
 
         for (Map.Entry<WorldPropertyCategory, List<ServerWorldPropertyHolder<?>>> entry : this.propertyList.entrySet()) {
             entry.getKey().write(buf);
-            buf.writeCollection(entry.getValue(), (buffer, p) -> p.write(buffer));
+            VersionHelper.writeCollection(buf, entry.getValue(), (buffer, p) -> p.write(buffer));
         }
 
         byte[] bytes = ByteBufUtil.getBytes(buf);

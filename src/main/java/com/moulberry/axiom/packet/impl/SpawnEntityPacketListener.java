@@ -1,5 +1,6 @@
 package com.moulberry.axiom.packet.impl;
 
+import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.event.AxiomSpawnEntityEvent;
@@ -57,7 +58,7 @@ public class SpawnEntityPacketListener implements PacketHandler {
             return;
         }
 
-        List<SpawnEntry> entries = friendlyByteBuf.readCollection(this.plugin.limitCollection(ArrayList::new),
+        List<SpawnEntry> entries = VersionHelper.readCollection(friendlyByteBuf, this.plugin.limitCollection(ArrayList::new),
             buf -> new SpawnEntry(buf.readUUID(), buf.readDouble(), buf.readDouble(),
                 buf.readDouble(), buf.readFloat(), buf.readFloat(),
                 buf.readNullable(buffer -> buffer.readUUID()), UnknownVersionHelper.readTagUnknown(buf, player)));

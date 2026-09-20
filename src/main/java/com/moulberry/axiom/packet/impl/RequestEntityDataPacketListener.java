@@ -46,7 +46,7 @@ public class RequestEntityDataPacketListener implements PacketHandler {
             return;
         }
 
-        List<UUID> request = friendlyByteBuf.readCollection(this.plugin.limitCollection(ArrayList::new), buf -> buf.readUUID());
+        List<UUID> request = VersionHelper.readCollection(friendlyByteBuf, this.plugin.limitCollection(ArrayList::new), buf -> buf.readUUID());
         ServerLevel serverLevel = player.level();
 
         final int maxPacketSize = 0x100000;
@@ -103,7 +103,7 @@ public class RequestEntityDataPacketListener implements PacketHandler {
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.buffer());
         friendlyByteBuf.writeLong(id);
         friendlyByteBuf.writeBoolean(finished);
-        friendlyByteBuf.writeMap(map, (buf, uuid) -> buf.writeUUID(uuid), (buf, nbt) -> buf.writeNbt(nbt));
+        VersionHelper.writeMap(friendlyByteBuf, map, (buf, uuid) -> buf.writeUUID(uuid), (buf, nbt) -> buf.writeNbt(nbt));
 
         byte[] bytes = ByteBufUtil.getBytes(friendlyByteBuf);
         VersionHelper.sendCustomPayload(player, RESPONSE_ID, bytes);

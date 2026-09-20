@@ -1,5 +1,6 @@
 package com.moulberry.axiom.packet.impl;
 
+import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.event.AxiomRemoveEntityEvent;
 import com.moulberry.axiom.integration.Integration;
@@ -33,7 +34,7 @@ public class DeleteEntityPacketListener implements PacketHandler {
             return;
         }
 
-        List<UUID> delete = friendlyByteBuf.readCollection(this.plugin.limitCollection(ArrayList::new), buf -> buf.readUUID());
+        List<UUID> delete = VersionHelper.readCollection(friendlyByteBuf, this.plugin.limitCollection(ArrayList::new), buf -> buf.readUUID());
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();
 

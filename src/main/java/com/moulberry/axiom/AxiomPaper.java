@@ -624,7 +624,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         buf.writeInt(this.configuration.getInt("maximum-tunnel-packet-size", 2097152)); // Maximum tunnel packet size
         buf.writeVarInt(0); // No blockWithCustomData
         buf.writeVarInt(0); // No ignoreRotationSet
-        buf.writeCollection(this.supportedServerboundPackets.keySet(), FriendlyByteBuf::writeIdentifier);
+        VersionHelper.writeCollection(buf, this.supportedServerboundPackets.keySet(), FriendlyByteBuf::writeIdentifier);
 
         byte[] enableBytes = ByteBufUtil.getBytes(buf);
         VersionHelper.sendCustomPayload(player, "axiom:enable", enableBytes);
@@ -812,7 +812,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     }
 
     public <T> IntFunction<T> limitCollection(IntFunction<T> applier) {
-        return FriendlyByteBuf.limitValue(applier, this.packetCollectionReadLimit);
+        return VersionHelper.limitValue(applier, this.packetCollectionReadLimit);
     }
 
     public NbtAccounter createNbtAccounter() {

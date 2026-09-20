@@ -72,8 +72,8 @@ public record ImplAxiomCustomBlock(Identifier id, String translationKey, List<Ax
 
         friendlyByteBuf.writeIdentifier(this.id);
         friendlyByteBuf.writeUtf(this.translationKey);
-        friendlyByteBuf.writeCollection(this.properties, ImplAxiomCustomBlock::writeProperty);
-        friendlyByteBuf.writeCollection(this.blocks, writeBlockState);
+        VersionHelper.writeCollection(friendlyByteBuf, this.properties, ImplAxiomCustomBlock::writeProperty);
+        VersionHelper.writeCollection(friendlyByteBuf, this.blocks, writeBlockState);
 
         if (this.itemStack != null && !protocolMismatch) {
             friendlyByteBuf.writeBoolean(true);
@@ -101,10 +101,10 @@ public record ImplAxiomCustomBlock(Identifier id, String translationKey, List<Ax
         }
 
         friendlyByteBuf.writeBoolean(this.automaticRotationAndMirroring);
-        friendlyByteBuf.writeMap(this.rotateYMappings, writeBlockState, writeBlockState);
-        friendlyByteBuf.writeMap(this.flipXMappings, writeBlockState, writeBlockState);
-        friendlyByteBuf.writeMap(this.flipYMappings, writeBlockState, writeBlockState);
-        friendlyByteBuf.writeMap(this.flipZMappings, writeBlockState, writeBlockState);
+        VersionHelper.writeMap(friendlyByteBuf, this.rotateYMappings, writeBlockState, writeBlockState);
+        VersionHelper.writeMap(friendlyByteBuf, this.flipXMappings, writeBlockState, writeBlockState);
+        VersionHelper.writeMap(friendlyByteBuf, this.flipYMappings, writeBlockState, writeBlockState);
+        VersionHelper.writeMap(friendlyByteBuf, this.flipZMappings, writeBlockState, writeBlockState);
 
         friendlyByteBuf.writeVarInt(0);
     }
@@ -160,7 +160,7 @@ public record ImplAxiomCustomBlock(Identifier id, String translationKey, List<Ax
                 } else if (inner instanceof EnumProperty enumProperty) {
                     friendlyByteBuf.writeByte(2);
                     friendlyByteBuf.writeUtf(inner.getName());
-                    friendlyByteBuf.writeCollection(enumProperty.getPossibleValues(), (buf, e) -> buf.writeUtf(((StringRepresentable)e).getSerializedName()));
+                    VersionHelper.writeCollection(friendlyByteBuf, enumProperty.getPossibleValues(), (buf, e) -> buf.writeUtf(((StringRepresentable)e).getSerializedName()));
                 } else {
                     throw new UnsupportedOperationException("Unknown property type: " + property.getClass());
                 }
@@ -168,7 +168,7 @@ public record ImplAxiomCustomBlock(Identifier id, String translationKey, List<Ax
             case ImplAxiomProperties.StringProperty stringProperty -> {
                 friendlyByteBuf.writeByte(2);
                 friendlyByteBuf.writeUtf(stringProperty.name());
-                friendlyByteBuf.writeCollection(stringProperty.values(), FriendlyByteBuf::writeUtf);
+                VersionHelper.writeCollection(friendlyByteBuf, stringProperty.values(), FriendlyByteBuf::writeUtf);
             }
         }
     }

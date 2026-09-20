@@ -1,5 +1,6 @@
 package com.moulberry.axiom.packet.impl;
 
+import com.moulberry.axiom.VersionHelper;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.moulberry.axiom.AxiomPaper;
@@ -83,13 +84,13 @@ public class SetBlockPacketListener implements PacketHandler {
         // Read packet
         IntFunction<Map<BlockPos, BlockState>> mapFunction = this.plugin.limitCollection(Maps::newLinkedHashMapWithExpectedSize);
         IdMapper<BlockState> registry = this.plugin.getBlockRegistry(bukkitPlayer.getUniqueId());
-        Map<BlockPos, BlockState> blocks = friendlyByteBuf.readMap(mapFunction,
+        Map<BlockPos, BlockState> blocks = VersionHelper.readMap(friendlyByteBuf, mapFunction,
                 buf -> buf.readBlockPos(), buf -> buf.readById(registry::byIdOrThrow));
         boolean updateNeighbors = friendlyByteBuf.readBoolean();
         Set<BlockPos> preventUpdatesAt = Set.of();
         if (updateNeighbors) {
             IntFunction<Set<BlockPos>> setFunction = this.plugin.limitCollection(Sets::newHashSetWithExpectedSize);
-            preventUpdatesAt = friendlyByteBuf.readCollection(setFunction, buf -> buf.readBlockPos());
+            preventUpdatesAt = VersionHelper.readCollection(friendlyByteBuf, setFunction, buf -> buf.readBlockPos());
         }
 
         if (this.plugin.logLargeBlockBufferChanges() && blocks.size() > 64) {
@@ -98,7 +99,7 @@ public class SetBlockPacketListener implements PacketHandler {
 
         int reason = friendlyByteBuf.readVarInt();
         boolean breaking = friendlyByteBuf.readBoolean();
-        BlockHitResult blockHit = friendlyByteBuf.readBlockHitResult();
+        BlockHitResult blockHit = VersionHelper.readBlockHitResult(friendlyByteBuf);
         InteractionHand hand = friendlyByteBuf.readEnum(InteractionHand.class);
         int sequenceId = friendlyByteBuf.readVarInt();
 

@@ -83,7 +83,7 @@ public class ImplAxiomHiddenEntities {
 
         if (!hiddenDisplays.isEmpty()) {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-            buf.writeCollection(hiddenDisplays.values(), (buffer, uuid) -> buffer.writeUUID(uuid));
+            VersionHelper.writeCollection(buf, hiddenDisplays.values(), (buffer, uuid) -> buffer.writeUUID(uuid));
             VersionHelper.sendCustomPayloadToAll(players, "axiom:ignore_display_entities", ByteBufUtil.getBytes(buf));
         }
     }

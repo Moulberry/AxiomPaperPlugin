@@ -1,5 +1,6 @@
 package com.moulberry.axiom.blueprint;
 
+import com.moulberry.axiom.VersionHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
@@ -27,7 +28,7 @@ public record BlueprintHeader(int version, String name, String author, List<Stri
         friendlyByteBuf.writeVarInt(CURRENT_VERSION);
         friendlyByteBuf.writeUtf(this.name);
         friendlyByteBuf.writeUtf(this.author);
-        friendlyByteBuf.writeCollection(this.tags, FriendlyByteBuf::writeUtf);
+        VersionHelper.writeCollection(friendlyByteBuf, this.tags, FriendlyByteBuf::writeUtf);
         friendlyByteBuf.writeInt(this.blockCount);
         friendlyByteBuf.writeBoolean(this.containsAir);
     }
@@ -36,7 +37,7 @@ public record BlueprintHeader(int version, String name, String author, List<Stri
         int version = friendlyByteBuf.readVarInt();
         String name = friendlyByteBuf.readUtf();
         String author = friendlyByteBuf.readUtf();
-        List<String> tags = friendlyByteBuf.readList(FriendlyByteBuf::readUtf);
+        List<String> tags = VersionHelper.readList(friendlyByteBuf, FriendlyByteBuf::readUtf);
         int blockCount = friendlyByteBuf.readInt();
         boolean containsAir = friendlyByteBuf.readBoolean();
         return new BlueprintHeader(version, name, author, tags, 0, 0, true, blockCount, containsAir);

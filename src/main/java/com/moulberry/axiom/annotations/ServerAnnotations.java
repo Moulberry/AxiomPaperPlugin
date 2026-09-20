@@ -36,7 +36,7 @@ public class ServerAnnotations {
 
     private static void sendAnnotationUpdates(List<AnnotationUpdateAction> actions, List<ServerPlayer> players) {
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.buffer());
-        friendlyByteBuf.writeCollection(actions, (buffer, action) -> action.write(buffer));
+        VersionHelper.writeCollection(friendlyByteBuf, actions, (buffer, action) -> action.write(buffer));
 
         byte[] bytes = ByteBufUtil.getBytes(friendlyByteBuf);
         for (ServerPlayer serverPlayer : players) {
