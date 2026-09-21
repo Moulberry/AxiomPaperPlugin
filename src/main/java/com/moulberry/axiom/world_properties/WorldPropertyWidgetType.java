@@ -1,6 +1,6 @@
 package com.moulberry.axiom.world_properties;
 
-import com.moulberry.axiom.VersionHelper;
+import com.moulberry.axiom.NetworkHelper;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.util.Unit;
 
@@ -82,7 +82,7 @@ public interface WorldPropertyWidgetType<T> {
         @Override
         public void write(FriendlyByteBuf friendlyByteBuf) {
             friendlyByteBuf.writeVarInt(5);
-            VersionHelper.writeCollection(friendlyByteBuf, this.otherButtons, FriendlyByteBuf::writeUtf);
+            NetworkHelper.writeCollection(friendlyByteBuf, this.otherButtons, FriendlyByteBuf::writeUtf);
         }
     }
 

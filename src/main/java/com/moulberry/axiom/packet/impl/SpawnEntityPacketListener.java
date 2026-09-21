@@ -3,6 +3,7 @@ package com.moulberry.axiom.packet.impl;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
+import com.moulberry.axiom.NetworkHelper;
 import com.moulberry.axiom.event.AxiomSpawnEntityEvent;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.packet.PacketHandler;
@@ -58,10 +59,10 @@ public class SpawnEntityPacketListener implements PacketHandler {
             return;
         }
 
-        List<SpawnEntry> entries = VersionHelper.readCollection(friendlyByteBuf, this.plugin.limitCollection(ArrayList::new),
+        List<SpawnEntry> entries = NetworkHelper.readList(friendlyByteBuf,
             buf -> new SpawnEntry(buf.readUUID(), buf.readDouble(), buf.readDouble(),
                 buf.readDouble(), buf.readFloat(), buf.readFloat(),
-                buf.readNullable(buffer -> buffer.readUUID()), UnknownVersionHelper.readTagUnknown(buf, player)));
+                buf.readNullable(buffer -> buffer.readUUID()), UnknownVersionHelper.readTagUnknown(buf, player)), this.plugin.getPacketCollectionReadLimit());
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();
 

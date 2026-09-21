@@ -3,6 +3,7 @@ package com.moulberry.axiom.packet.impl;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.NbtSanitization;
+import com.moulberry.axiom.NetworkHelper;
 import com.moulberry.axiom.event.AxiomAfterManipulateEntityEvent;
 import com.moulberry.axiom.event.AxiomManipulateEntityEvent;
 import com.moulberry.axiom.integration.Integration;
@@ -71,7 +72,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
             PassengerManipulation passengerManipulation = friendlyByteBuf.readEnum(PassengerManipulation.class);
             List<UUID> passengers = List.of();
             if (passengerManipulation == PassengerManipulation.ADD_LIST || passengerManipulation == PassengerManipulation.REMOVE_LIST) {
-                passengers = VersionHelper.readCollection(friendlyByteBuf, plugin.limitCollection(ArrayList::new), buffer -> buffer.readUUID());
+                passengers = NetworkHelper.readList(friendlyByteBuf, buffer -> buffer.readUUID(), plugin.getPacketCollectionReadLimit());
             }
 
             return new ManipulateEntry(uuid, relativeMovementSet, position, yaw, pitch, nbt,
@@ -91,8 +92,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
             return;
         }
 
-        List<ManipulateEntry> entries = VersionHelper.readCollection(friendlyByteBuf, this.plugin.limitCollection(ArrayList::new),
-                buf -> ManipulateEntry.read(buf, player, this.plugin));
+        List<ManipulateEntry> entries = NetworkHelper.readList(friendlyByteBuf, buf -> ManipulateEntry.read(buf, player, this.plugin), this.plugin.getPacketCollectionReadLimit());
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();
 

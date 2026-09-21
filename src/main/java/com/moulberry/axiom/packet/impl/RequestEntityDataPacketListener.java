@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.NetworkHelper;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.packet.PacketHandler;
@@ -46,7 +47,7 @@ public class RequestEntityDataPacketListener implements PacketHandler {
             return;
         }
 
-        List<UUID> request = VersionHelper.readCollection(friendlyByteBuf, this.plugin.limitCollection(ArrayList::new), buf -> buf.readUUID());
+        List<UUID> request = NetworkHelper.readList(friendlyByteBuf, buf -> buf.readUUID(), this.plugin.getPacketCollectionReadLimit());
         ServerLevel serverLevel = player.level();
 
         final int maxPacketSize = 0x100000;
@@ -103,7 +104,11 @@ public class RequestEntityDataPacketListener implements PacketHandler {
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.buffer());
         friendlyByteBuf.writeLong(id);
         friendlyByteBuf.writeBoolean(finished);
+<<<<<<< 26.3
         VersionHelper.writeMap(friendlyByteBuf, map, (buf, uuid) -> buf.writeUUID(uuid), (buf, nbt) -> buf.writeNbt(nbt));
+=======
+        NetworkHelper.writeMap(friendlyByteBuf, map, (buf, uuid) -> buf.writeUUID(uuid), (buf, nbt) -> buf.writeNbt(nbt));
+>>>>>>> master
 
         byte[] bytes = ByteBufUtil.getBytes(friendlyByteBuf);
         VersionHelper.sendCustomPayload(player, RESPONSE_ID, bytes);

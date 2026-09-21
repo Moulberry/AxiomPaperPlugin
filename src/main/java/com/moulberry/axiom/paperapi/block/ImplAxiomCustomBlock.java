@@ -1,5 +1,6 @@
 package com.moulberry.axiom.paperapi.block;
 
+import com.moulberry.axiom.NetworkHelper;
 import com.moulberry.axiom.VersionHelper;
 import net.kyori.adventure.key.Key;
 import net.minecraft.commands.arguments.blocks.BlockStateParser;
@@ -72,8 +73,8 @@ public record ImplAxiomCustomBlock(Identifier id, String translationKey, List<Ax
 
         friendlyByteBuf.writeIdentifier(this.id);
         friendlyByteBuf.writeUtf(this.translationKey);
-        VersionHelper.writeCollection(friendlyByteBuf, this.properties, ImplAxiomCustomBlock::writeProperty);
-        VersionHelper.writeCollection(friendlyByteBuf, this.blocks, writeBlockState);
+        NetworkHelper.writeCollection(friendlyByteBuf, this.properties, ImplAxiomCustomBlock::writeProperty);
+        NetworkHelper.writeCollection(friendlyByteBuf, this.blocks, writeBlockState);
 
         if (this.itemStack != null && !protocolMismatch) {
             friendlyByteBuf.writeBoolean(true);
@@ -101,10 +102,10 @@ public record ImplAxiomCustomBlock(Identifier id, String translationKey, List<Ax
         }
 
         friendlyByteBuf.writeBoolean(this.automaticRotationAndMirroring);
-        VersionHelper.writeMap(friendlyByteBuf, this.rotateYMappings, writeBlockState, writeBlockState);
-        VersionHelper.writeMap(friendlyByteBuf, this.flipXMappings, writeBlockState, writeBlockState);
-        VersionHelper.writeMap(friendlyByteBuf, this.flipYMappings, writeBlockState, writeBlockState);
-        VersionHelper.writeMap(friendlyByteBuf, this.flipZMappings, writeBlockState, writeBlockState);
+        NetworkHelper.writeMap(friendlyByteBuf, this.rotateYMappings, writeBlockState, writeBlockState);
+        NetworkHelper.writeMap(friendlyByteBuf, this.flipXMappings, writeBlockState, writeBlockState);
+        NetworkHelper.writeMap(friendlyByteBuf, this.flipYMappings, writeBlockState, writeBlockState);
+        NetworkHelper.writeMap(friendlyByteBuf, this.flipZMappings, writeBlockState, writeBlockState);
 
         friendlyByteBuf.writeVarInt(0);
     }
@@ -160,7 +161,7 @@ public record ImplAxiomCustomBlock(Identifier id, String translationKey, List<Ax
                 } else if (inner instanceof EnumProperty enumProperty) {
                     friendlyByteBuf.writeByte(2);
                     friendlyByteBuf.writeUtf(inner.getName());
-                    VersionHelper.writeCollection(friendlyByteBuf, enumProperty.getPossibleValues(), (buf, e) -> buf.writeUtf(((StringRepresentable)e).getSerializedName()));
+                    NetworkHelper.writeCollection(friendlyByteBuf, enumProperty.getPossibleValues(), (buf, e) -> buf.writeUtf(((StringRepresentable)e).getSerializedName()));
                 } else {
                     throw new UnsupportedOperationException("Unknown property type: " + property.getClass());
                 }
@@ -168,7 +169,7 @@ public record ImplAxiomCustomBlock(Identifier id, String translationKey, List<Ax
             case ImplAxiomProperties.StringProperty stringProperty -> {
                 friendlyByteBuf.writeByte(2);
                 friendlyByteBuf.writeUtf(stringProperty.name());
-                VersionHelper.writeCollection(friendlyByteBuf, stringProperty.values(), FriendlyByteBuf::writeUtf);
+                NetworkHelper.writeCollection(friendlyByteBuf, stringProperty.values(), FriendlyByteBuf::writeUtf);
             }
         }
     }

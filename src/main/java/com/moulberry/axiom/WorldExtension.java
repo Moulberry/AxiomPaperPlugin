@@ -73,8 +73,8 @@ public class WorldExtension {
             List<MarkerData> markerData = new ArrayList<>(this.previousMarkerData.values());
 
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-            VersionHelper.writeCollection(buf, markerData, MarkerData::write);
-            VersionHelper.writeCollection(buf, Set.<UUID>of(), (buffer, uuid) -> buffer.writeUUID(uuid));
+            NetworkHelper.writeCollection(buf, markerData, MarkerData::write);
+            NetworkHelper.writeCollection(buf, Set.<UUID>of(), (buffer, uuid) -> buffer.writeUUID(uuid));
 
             byte[] bytes = ByteBufUtil.getBytes(buf);
             VersionHelper.sendCustomPayload(player, "axiom:marker_data", bytes);
@@ -125,8 +125,8 @@ public class WorldExtension {
 
         if (!changedData.isEmpty() || !missingUuids.isEmpty()) {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-            VersionHelper.writeCollection(buf, changedData, MarkerData::write);
-            VersionHelper.writeCollection(buf, missingUuids, (buffer, uuid) -> buffer.writeUUID(uuid));
+            NetworkHelper.writeCollection(buf, changedData, MarkerData::write);
+            NetworkHelper.writeCollection(buf, missingUuids, (buffer, uuid) -> buffer.writeUUID(uuid));
             byte[] bytes = ByteBufUtil.getBytes(buf);
 
             List<ServerPlayer> players = new ArrayList<>();

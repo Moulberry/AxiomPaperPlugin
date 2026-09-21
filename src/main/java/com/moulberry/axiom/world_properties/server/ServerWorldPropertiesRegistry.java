@@ -1,5 +1,6 @@
 package com.moulberry.axiom.world_properties.server;
 
+import com.moulberry.axiom.NetworkHelper;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.world_properties.WorldPropertyCategory;
 import com.moulberry.axiom.world_properties.WorldPropertyWidgetType;
@@ -65,7 +66,7 @@ public class ServerWorldPropertiesRegistry {
 
         for (Map.Entry<WorldPropertyCategory, List<ServerWorldPropertyHolder<?>>> entry : this.propertyList.entrySet()) {
             entry.getKey().write(buf);
-            VersionHelper.writeCollection(buf, entry.getValue(), (buffer, p) -> p.write(buffer));
+            NetworkHelper.writeCollection(buf, entry.getValue(), (buffer, p) -> p.write(buffer));
         }
 
         byte[] bytes = ByteBufUtil.getBytes(buf);

@@ -40,7 +40,7 @@ repositories {
 }
 
 dependencies {
-    paperweight.paperDevBundle("26.3.build.26-alpha")
+    paperweight.paperDevBundle("26.3.build.28-alpha")
 
     // Zstd Compression Library
     implementation(libs.zstd.jni)

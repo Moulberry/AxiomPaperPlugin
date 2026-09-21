@@ -1,6 +1,7 @@
 package com.moulberry.axiom.paperapi.entity;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.NetworkHelper;
 import com.moulberry.axiom.VersionHelper;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -83,7 +84,7 @@ public class ImplAxiomHiddenEntities {
 
         if (!hiddenDisplays.isEmpty()) {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-            VersionHelper.writeCollection(buf, hiddenDisplays.values(), (buffer, uuid) -> buffer.writeUUID(uuid));
+            NetworkHelper.writeCollection(buf, hiddenDisplays.values(), (buffer, uuid) -> buffer.writeUUID(uuid));
             VersionHelper.sendCustomPayloadToAll(players, "axiom:ignore_display_entities", ByteBufUtil.getBytes(buf));
         }
     }

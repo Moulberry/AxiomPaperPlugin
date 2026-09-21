@@ -1,6 +1,7 @@
 package com.moulberry.axiom.annotations;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.NetworkHelper;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.annotations.data.AnnotationData;
 import com.moulberry.axiom.restrictions.AxiomPermission;
@@ -36,7 +37,7 @@ public class ServerAnnotations {
 
     private static void sendAnnotationUpdates(List<AnnotationUpdateAction> actions, List<ServerPlayer> players) {
         FriendlyByteBuf friendlyByteBuf = new FriendlyByteBuf(Unpooled.buffer());
-        VersionHelper.writeCollection(friendlyByteBuf, actions, (buffer, action) -> action.write(buffer));
+        NetworkHelper.writeCollection(friendlyByteBuf, actions, (buffer, action) -> action.write(buffer));
 
         byte[] bytes = ByteBufUtil.getBytes(friendlyByteBuf);
         for (ServerPlayer serverPlayer : players) {
