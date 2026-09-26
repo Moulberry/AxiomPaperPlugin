@@ -13,11 +13,11 @@ import java.util.function.Predicate;
 public class AxiomMigrateCommand {
 
     public static void register(Commands manager) {
-        Predicate<CommandSourceStack> operatorPredicate = sender -> {
-            if (sender instanceof Player player) {
+        Predicate<CommandSourceStack> operatorPredicate = source -> {
+            if (source.getSender() instanceof Player player) {
                 return player.isOp();
             } else {
-                return sender instanceof ConsoleCommandSender;
+                return source.getSender() instanceof ConsoleCommandSender;
             }
         };
 
