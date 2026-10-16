@@ -5,6 +5,8 @@ import com.moulberry.axiom.event.AxiomGameModeChangeEvent;
 import com.moulberry.axiom.packet.PacketHandler;
 import com.moulberry.axiom.restrictions.AxiomPermission;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.protocol.game.ClientboundGameEventPacket;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.GameType;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
@@ -31,16 +33,25 @@ public class SetGamemodePacketListener implements PacketHandler {
         };
 
         if (!this.plugin.canUseAxiom(player, permission)) {
+            syncGamemode(player);
             return;
         }
 
         // Call event
         AxiomGameModeChangeEvent gameModeChangeEvent = new AxiomGameModeChangeEvent(player, GameMode.getByValue(gameType.getId()));
         Bukkit.getPluginManager().callEvent(gameModeChangeEvent);
-        if (gameModeChangeEvent.isCancelled()) return;
+        if (gameModeChangeEvent.isCancelled()) {
+            syncGamemode(player);
+            return;
+        }
 
         // Change gamemode
         ((CraftPlayer)player).getHandle().setGameMode(gameType);
     }
 
+    private static void syncGamemode(Player player) {
+        ServerPlayer serverPlayer = ((CraftPlayer) player).getHandle();
+        GameType current = serverPlayer.gameMode.getGameModeForPlayer();
+        serverPlayer.connection.send(new ClientboundGameEventPacket(ClientboundGameEventPacket.CHANGE_GAME_MODE, current.getId()));
+    }
 }
