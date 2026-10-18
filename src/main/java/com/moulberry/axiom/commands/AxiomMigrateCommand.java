@@ -4,6 +4,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.moulberry.axiom.AxiomPaper;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
+import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -13,7 +14,8 @@ import java.util.function.Predicate;
 public class AxiomMigrateCommand {
 
     public static void register(Commands manager) {
-        Predicate<CommandSourceStack> operatorPredicate = sender -> {
+        Predicate<CommandSourceStack> operatorPredicate = source -> {
+            CommandSender sender = source.getSender();
             if (sender instanceof Player player) {
                 return player.isOp();
             } else {
