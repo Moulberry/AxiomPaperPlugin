@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.FoliaSupport;
 import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.event.AxiomAfterManipulateEntityEvent;
 import com.moulberry.axiom.event.AxiomManipulateEntityEvent;
@@ -25,6 +26,7 @@ import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.phys.Vec3;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.Nullable;
@@ -95,25 +97,35 @@ public class ManipulateEntityPacketListener implements PacketHandler {
 
         ServerLevel serverLevel = ((CraftWorld)player.getWorld()).getHandle();
 
+        World world = player.getWorld();
+
         for (ManipulateEntry entry : entries) {
             Entity entity = serverLevel.getEntity(entry.uuid);
-            if (entity == null || entity instanceof net.minecraft.world.entity.player.Player || entity.hasPassenger(ManipulateEntityPacketListener::isPlayer)) continue;
+            if (entity == null || entity instanceof net.minecraft.world.entity.player.Player) continue;
+
+            FoliaSupport.runForEntity(entity, () -> this.manipulateEntity(player, world, serverLevel, entry, entity));
+        }
+    }
+
+    private void manipulateEntity(Player player, World world, ServerLevel serverLevel, ManipulateEntry entry, Entity entity) {
+        {
+            if (entity.isRemoved() || entity.hasPassenger(ManipulateEntityPacketListener::isPlayer)) return;
 
             if (!this.plugin.canEntityBeManipulated(entity.getType())) {
-                continue;
+                return;
             }
 
             Vec3 position = entity.position();
             BlockPos containing = BlockPos.containing(position.x, position.y, position.z);
 
-            if (!Integration.canPlaceBlock(player, new Location(player.getWorld(),
+            if (!Integration.canPlaceBlock(player, new Location(world,
                     containing.getX(), containing.getY(), containing.getZ()))) {
-                continue;
+                return;
             }
 
             AxiomManipulateEntityEvent manipulateEvent = new AxiomManipulateEntityEvent(player, entity.getBukkitEntity());
             if (!manipulateEvent.callEvent()) {
-                continue;
+                return;
             }
 
             if (entry.merge != null && !entry.merge.isEmpty()) {
@@ -151,11 +163,13 @@ public class ManipulateEntityPacketListener implements PacketHandler {
 
                 containing = BlockPos.containing(newX, newY, newZ);
 
-                if (Integration.canPlaceBlock(player, new Location(player.getWorld(),
+                if (Integration.canPlaceBlock(player, new Location(world,
                         containing.getX(), containing.getY(), containing.getZ()))) {
                     if (entity.isPassenger()) {
                         entity.setYRot(newYaw);
                         entity.setXRot(newPitch);
+                    } else if (FoliaSupport.FOLIA && !FoliaSupport.isOwned(serverLevel, containing)) {
+                        entity.getBukkitEntity().teleportAsync(new Location(world, newX, newY, newZ, newYaw, newPitch));
                     } else {
                         entity.snapTo(newX, newY, newZ, newYaw, newPitch);
                     }
@@ -172,7 +186,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
                         for (UUID passengerUuid : entry.passengers) {
                             Entity passenger = serverLevel.getEntity(passengerUuid);
 
-                            if (passenger == null || passenger.isPassenger()) {
+                            if (passenger == null || !FoliaSupport.isOwned(passenger) || passenger.isPassenger()) {
                                 continue;
                             }
                             if (!canManipulatePassengers(passenger) || passenger.hasPassenger(ManipulateEntityPacketListener::cannotManipulatePassengers)) {
@@ -190,7 +204,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
                             position = passenger.position();
                             containing = BlockPos.containing(position.x, position.y, position.z);
 
-                            if (!Integration.canPlaceBlock(player, new Location(player.getWorld(),
+                            if (!Integration.canPlaceBlock(player, new Location(world,
                                 containing.getX(), containing.getY(), containing.getZ()))) {
                                 continue;
                             }
@@ -201,7 +215,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
                     case REMOVE_LIST -> {
                         for (UUID passengerUuid : entry.passengers) {
                             Entity passenger = serverLevel.getEntity(passengerUuid);
-                            if (passenger == null || passenger == entity) {
+                            if (passenger == null || passenger == entity || !FoliaSupport.isOwned(passenger)) {
                                 continue;
                             }
                             if (!canManipulatePassengers(passenger) || passenger.hasPassenger(ManipulateEntityPacketListener::cannotManipulatePassengers)) {

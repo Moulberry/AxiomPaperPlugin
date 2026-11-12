@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.FoliaSupport;
 import com.moulberry.axiom.annotations.AnnotationUpdateAction;
 import com.moulberry.axiom.annotations.ServerAnnotations;
 import com.moulberry.axiom.packet.PacketHandler;
@@ -43,7 +44,7 @@ public class UpdateAnnotationPacketListener implements PacketHandler {
         }
 
         // Execute
-        serverPlayer.level().getServer().execute(() -> {
+        FoliaSupport.runDeferred(serverPlayer.level().getServer(), () -> {
             try {
                 ServerAnnotations.handleUpdates(serverPlayer.level().getWorld(), actions);
             } catch (Throwable t) {

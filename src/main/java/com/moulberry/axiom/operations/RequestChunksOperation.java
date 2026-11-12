@@ -1,6 +1,7 @@
 package com.moulberry.axiom.operations;
 
 import com.moulberry.axiom.AxiomConstants;
+import com.moulberry.axiom.FoliaSupport;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.packet.impl.RequestChunkDataPacketListener;
@@ -40,12 +41,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class RequestChunksOperation implements PendingOperation {
 
     private static final int MAX_CHUNK_FUTURES = 256;
-    private boolean finished = false;
+    private volatile boolean finished = false;
 
     private final BlockPos.MutableBlockPos mutableBlockPos = new BlockPos.MutableBlockPos();
 
@@ -53,7 +54,9 @@ public class RequestChunksOperation implements PendingOperation {
     private final long id;
 
     private final LongArrayList getChunkFutures;
-    private  List<CompletableFuture<Chunk>> chunkFutures = new ArrayList<>();
+    private final LongSet noLoadChunks;
+    private final AtomicInteger chunksInFlight = new AtomicInteger();
+    private volatile Throwable error = null;
     private final Long2ObjectMap<LongList> sendBlockEntityForPendingChunks;
     private final Long2ObjectMap<IntList> sendSectionsForPendingChunks;
     private final boolean sendBlockEntitiesInChunks;
@@ -62,8 +65,9 @@ public class RequestChunksOperation implements PendingOperation {
     private final Long2ObjectOpenHashMap<CompressedBlockEntity> sendingBlockEntities;
     private final ByteArrayOutputStream baos;
 
-    public RequestChunksOperation(ServerPlayer serverPlayer, long id, LongSet chunkFutures, Long2ObjectMap<LongList> sendBlockEntityForPendingChunks, Long2ObjectMap<IntList> sendSectionsForPendingChunks, boolean sendBlockEntitiesInChunks, Long2ObjectOpenHashMap<PalettedContainer<BlockState>> sendingSections, Long2ObjectOpenHashMap<CompressedBlockEntity> sendingBlockEntities, ByteArrayOutputStream baos) {
+    public RequestChunksOperation(ServerPlayer serverPlayer, long id, LongSet chunkFutures, Long2ObjectMap<LongList> sendBlockEntityForPendingChunks, Long2ObjectMap<IntList> sendSectionsForPendingChunks, boolean sendBlockEntitiesInChunks, Long2ObjectOpenHashMap<PalettedContainer<BlockState>> sendingSections, Long2ObjectOpenHashMap<CompressedBlockEntity> sendingBlockEntities, ByteArrayOutputStream baos, LongSet noLoadChunks) {
         this.serverPlayer = serverPlayer;
+        this.noLoadChunks = noLoadChunks;
         this.id = id;
         this.sendBlockEntityForPendingChunks = sendBlockEntityForPendingChunks;
         this.sendSectionsForPendingChunks = sendSectionsForPendingChunks;
@@ -98,29 +102,78 @@ public class RequestChunksOperation implements PendingOperation {
             return;
         }
 
+        this.rethrowError();
+
         if (!this.getChunkFutures.isEmpty()) {
-            int count = this.chunkFutures.size();
             LongIterator newFutureIterator = this.getChunkFutures.longIterator();
-            while (count++ < MAX_CHUNK_FUTURES && newFutureIterator.hasNext()) {
+            while (this.chunksInFlight.get() < MAX_CHUNK_FUTURES && newFutureIterator.hasNext()) {
                 long chunkPos = newFutureIterator.nextLong();
                 newFutureIterator.remove();
 
                 int x = ChunkPos.getX(chunkPos);
                 int z = ChunkPos.getZ(chunkPos);
-                this.chunkFutures.add(level.getWorld().getChunkAtAsync(x, z));
+
+                this.chunksInFlight.incrementAndGet();
+
+                if (this.noLoadChunks.contains(chunkPos)) {
+                    FoliaSupport.runAtChunk(level, x, z, () -> {
+                        try {
+                            LevelChunk chunk = level.getChunkIfLoaded(x, z);
+                            if (chunk != null) {
+                                this.readChunk(chunk);
+                            }
+                        } catch (Throwable t) {
+                            this.error = t;
+                        } finally {
+                            this.chunksInFlight.decrementAndGet();
+                        }
+                    });
+                } else {
+                    level.getWorld().getChunkAtAsync(x, z).whenComplete((bukkitChunk, throwable) -> {
+                        if (throwable != null || bukkitChunk == null) {
+                            if (throwable != null) {
+                                this.error = throwable;
+                            }
+                            this.chunksInFlight.decrementAndGet();
+                            return;
+                        }
+
+                        FoliaSupport.runAtChunk(level, x, z, () -> {
+                            try {
+                                this.readChunk((LevelChunk) ((CraftChunk)bukkitChunk).getHandle(ChunkStatus.FULL));
+                            } catch (Throwable t) {
+                                this.error = t;
+                            } finally {
+                                this.chunksInFlight.decrementAndGet();
+                            }
+                        });
+                    });
+                }
             }
         }
 
-        Iterator<CompletableFuture<Chunk>> chunkFutureIterator = this.chunkFutures.iterator();
-        while (chunkFutureIterator.hasNext()) {
-            CompletableFuture<Chunk> future = chunkFutureIterator.next();
-            if (!future.isDone()) {
-                return;
-            }
+        if (!this.getChunkFutures.isEmpty() || this.chunksInFlight.get() > 0) {
+            return;
+        }
 
-            chunkFutureIterator.remove();
+        this.rethrowError();
 
-            LevelChunk chunk = (LevelChunk) ((CraftChunk)future.join()).getHandle(ChunkStatus.FULL);
+        synchronized (this) {
+            RequestChunkDataPacketListener.sendResponse(this.serverPlayer, this.id, this.sendingBlockEntities, this.sendingSections);
+        }
+        this.finished = true;
+    }
+
+    private void rethrowError() {
+        Throwable error = this.error;
+        if (error != null) {
+            this.error = null;
+            throw new RuntimeException(error.getMessage(), error);
+        }
+    }
+
+    private synchronized void readChunk(LevelChunk chunk) {
+        {
             long chunkPosLong = ChunkPos.asLong(chunk.locX, chunk.locZ);
             LongList blockEntitiesInChunk = this.sendBlockEntityForPendingChunks.get(chunkPosLong);
             if (blockEntitiesInChunk != null) {
@@ -152,7 +205,7 @@ public class RequestChunksOperation implements PendingOperation {
                     if (section.hasOnlyAir()) {
                         this.sendingSections.put(BlockPos.asLong(chunk.locX, sy, chunk.locZ), null);
                     } else {
-                        PalettedContainer<BlockState> container = section.getStates();
+                        PalettedContainer<BlockState> container = FoliaSupport.FOLIA ? section.getStates().copy() : section.getStates();
                         this.sendingSections.put(BlockPos.asLong(chunk.locX, sy, chunk.locZ), container);
                         hasNonAirSectionInChunk = true;
                     }
@@ -182,13 +235,6 @@ public class RequestChunksOperation implements PendingOperation {
                 }
             }
         }
-
-        if (!this.getChunkFutures.isEmpty()) {
-            return;
-        }
-
-        RequestChunkDataPacketListener.sendResponse(this.serverPlayer, this.id, this.sendingBlockEntities, this.sendingSections);
-        this.finished = true;
     }
 
 

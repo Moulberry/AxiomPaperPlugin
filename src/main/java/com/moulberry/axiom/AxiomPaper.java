@@ -27,8 +27,6 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.papermc.paper.event.player.PlayerFailMoveEvent;
 import io.papermc.paper.event.world.WorldGameRuleChangeEvent;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -77,21 +75,21 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     public static AxiomPaper PLUGIN; // tsk tsk tsk
 
-    private final Set<UUID> activeAxiomPlayers = new HashSet<>();
-    private final Set<UUID> sentDisableReasonPlayers = new HashSet<>();
-    private final Object2LongOpenHashMap<UUID> pendingHandshakeIds = new Object2LongOpenHashMap<>();
+    private final Set<UUID> activeAxiomPlayers = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> sentDisableReasonPlayers = ConcurrentHashMap.newKeySet();
+    private final Map<UUID, Long> pendingHandshakeIds = new ConcurrentHashMap<>();
 
-    private final Map<UUID, List<byte[]>> tunnelPendingBuffers = new HashMap<>();
-    private final Set<UUID> skipCurrentTunnelPacket = new HashSet<>();
+    private final Map<UUID, List<byte[]>> tunnelPendingBuffers = new ConcurrentHashMap<>();
+    private final Set<UUID> skipCurrentTunnelPacket = ConcurrentHashMap.newKeySet();
 
-    public final Map<UUID, Restrictions> playerRestrictions = new HashMap<>();
-    public final Map<UUID, IdMapper<BlockState>> playerBlockRegistry = new HashMap<>();
-    public final Map<UUID, Integer> playerProtocolVersion = new HashMap<>();
+    public final Map<UUID, Restrictions> playerRestrictions = new ConcurrentHashMap<>();
+    public final Map<UUID, IdMapper<BlockState>> playerBlockRegistry = new ConcurrentHashMap<>();
+    public final Map<UUID, Integer> playerProtocolVersion = new ConcurrentHashMap<>();
     private final Map<UUID, AxiomPermissionSet> playerPermissions = new ConcurrentHashMap<>();
-    private final Map<UUID, PlotSquaredIntegration.PlotBounds> lastPlotBoundsForPlayers = new HashMap<>();
-    private final Set<UUID> noPhysicalTriggerPlayers = new HashSet<>();
+    private final Map<UUID, PlotSquaredIntegration.PlotBounds> lastPlotBoundsForPlayers = new ConcurrentHashMap<>();
+    private final Set<UUID> noPhysicalTriggerPlayers = ConcurrentHashMap.newKeySet();
     private final OperationQueue operationQueue = new OperationQueue();
-    private final Object2IntOpenHashMap<UUID> availableDispatchSends = new Object2IntOpenHashMap<>();
+    private final Map<UUID, Integer> availableDispatchSends = new ConcurrentHashMap<>();
     public Configuration configuration;
 
     public IdMapper<BlockState> allowedBlockRegistry = null;
@@ -232,9 +230,16 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         } catch (IOException ignored) {}
         ServerHeightmaps.load(heightmapsPath);
 
-        Bukkit.getScheduler().scheduleSyncRepeatingTask(this, this::tick, 1, 1);
+        if (FoliaSupport.FOLIA) {
+            Bukkit.getGlobalRegionScheduler().runAtFixedRate(this, task -> this.tick(), 1, 1);
+        } else {
+            Bukkit.getScheduler().scheduleSyncRepeatingTask(this, this::tick, 1, 1);
+        }
 
         this.sendMarkers = this.configuration.getBoolean("send-markers");
+        if (FoliaSupport.FOLIA && this.sendMarkers) {
+            Bukkit.getPluginManager().registerEvents(new WorldExtension.FoliaMarkerTracker(), this);
+        }
         this.maxChunkRelightsPerTick = this.configuration.getInt("max-chunk-relights-per-tick");
         this.maxChunkSendsPerTick = this.configuration.getInt("max-chunk-sends-per-tick");
         this.maxChunkLoadDistance = this.configuration.getInt("max-chunk-load-distance");
@@ -390,64 +395,36 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         if (this.checkAxiomEnableDisableTimer >= 20) {
             this.checkAxiomEnableDisableTimer = 0;
 
-            Set<UUID> stillActiveAxiomPlayers = new HashSet<>();
             Set<UUID> allPlayers = new HashSet<>();
 
             for (Player player : Bukkit.getServer().getOnlinePlayers()) {
-                UUID uuid = player.getUniqueId();
                 allPlayers.add(player.getUniqueId());
-
-                if (this.activeAxiomPlayers.contains(uuid)) {
-                    if (!this.hasPermission(player, AxiomPermission.USE)) {
-                        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-                        buf.writeBoolean(false);
-                        VersionHelper.sendCustomPayload(player, "axiom:enable", ByteBufUtil.getBytes(buf));
-                    } else {
-                        stillActiveAxiomPlayers.add(uuid);
-                        tickPlayer(player, true);
-                    }
-                } else if (this.hasPermission(player, AxiomPermission.USE)) {
-                    if (!this.pendingHandshakeIds.containsKey(uuid)) {
-                        long id = ThreadLocalRandom.current().nextLong();
-                        if (id == 0) {
-                            id += 1;
-                        }
-
-                        FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-                        buf.writeLong(id);
-                        VersionHelper.sendCustomPayload(player, "axiom:hello", ByteBufUtil.getBytes(buf));
-
-                        this.pendingHandshakeIds.put(uuid, id);
-                        this.sentDisableReasonPlayers.remove(uuid);
-                    }
-                } else if (!sentDisableReasonPlayers.contains(uuid)) {
-                    String message = "You don't have permission to use Axiom. Give yourself /op or axiom.default (if using a permission plugin)";
-
-                    this.sendGoodbyeReason(player, message);
-
-                    pendingHandshakeIds.removeLong(uuid);
-                    sentDisableReasonPlayers.add(uuid);
-                }
+                FoliaSupport.runForEntity(player, () -> this.checkPlayer(player));
             }
 
             this.pendingHandshakeIds.keySet().retainAll(allPlayers);
             this.sentDisableReasonPlayers.retainAll(allPlayers);
 
-            this.tunnelPendingBuffers.keySet().retainAll(stillActiveAxiomPlayers);
-            this.skipCurrentTunnelPacket.retainAll(stillActiveAxiomPlayers);
+            this.tunnelPendingBuffers.keySet().retainAll(allPlayers);
+            this.skipCurrentTunnelPacket.retainAll(allPlayers);
 
-            this.activeAxiomPlayers.retainAll(stillActiveAxiomPlayers);
-            this.availableDispatchSends.keySet().retainAll(stillActiveAxiomPlayers);
-            this.playerRestrictions.keySet().retainAll(stillActiveAxiomPlayers);
-            this.playerBlockRegistry.keySet().retainAll(stillActiveAxiomPlayers);
-            this.playerProtocolVersion.keySet().retainAll(stillActiveAxiomPlayers);
-            this.lastPlotBoundsForPlayers.keySet().retainAll(stillActiveAxiomPlayers);
-            this.noPhysicalTriggerPlayers.retainAll(stillActiveAxiomPlayers);
+            this.activeAxiomPlayers.retainAll(allPlayers);
+            this.availableDispatchSends.keySet().retainAll(allPlayers);
+            this.playerRestrictions.keySet().retainAll(allPlayers);
+            this.playerBlockRegistry.keySet().retainAll(allPlayers);
+            this.playerProtocolVersion.keySet().retainAll(allPlayers);
+            this.lastPlotBoundsForPlayers.keySet().retainAll(allPlayers);
+            this.noPhysicalTriggerPlayers.retainAll(allPlayers);
+            this.lastRejectedEditReport.keySet().retainAll(allPlayers);
         } else {
             for (UUID uuid : this.activeAxiomPlayers) {
                 Player player = Bukkit.getPlayer(uuid);
                 if (player != null) {
-                    tickPlayer(player, false);
+                    FoliaSupport.runForEntity(player, () -> {
+                        if (this.activeAxiomPlayers.contains(uuid)) {
+                            tickPlayer(player, false);
+                        }
+                    });
                 }
             }
         }
@@ -459,6 +436,70 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         ImplServerCustomBlocks.tick();
         ImplServerCustomDisplays.tick();
         ImplAxiomHiddenEntities.tick();
+    }
+
+    private void checkPlayer(Player player) {
+        UUID uuid = player.getUniqueId();
+
+        if (this.activeAxiomPlayers.contains(uuid)) {
+            if (!this.hasPermission(player, AxiomPermission.USE)) {
+                FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+                buf.writeBoolean(false);
+                VersionHelper.sendCustomPayload(player, "axiom:enable", ByteBufUtil.getBytes(buf));
+
+                this.deactivatePlayer(uuid);
+            } else {
+                tickPlayer(player, true);
+            }
+        } else if (this.hasPermission(player, AxiomPermission.USE)) {
+            if (!this.pendingHandshakeIds.containsKey(uuid)) {
+                long id = ThreadLocalRandom.current().nextLong();
+                if (id == 0) {
+                    id += 1;
+                }
+
+                FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+                buf.writeLong(id);
+                VersionHelper.sendCustomPayload(player, "axiom:hello", ByteBufUtil.getBytes(buf));
+
+                this.pendingHandshakeIds.put(uuid, id);
+                this.sentDisableReasonPlayers.remove(uuid);
+            }
+        } else if (!sentDisableReasonPlayers.contains(uuid)) {
+            String message = "You don't have permission to use Axiom. Give yourself /op or axiom.default (if using a permission plugin)";
+
+            this.sendGoodbyeReason(player, message);
+
+            pendingHandshakeIds.remove(uuid);
+            sentDisableReasonPlayers.add(uuid);
+        }
+    }
+
+    private void deactivatePlayer(UUID uuid) {
+        this.tunnelPendingBuffers.remove(uuid);
+        this.skipCurrentTunnelPacket.remove(uuid);
+
+        this.activeAxiomPlayers.remove(uuid);
+        this.availableDispatchSends.remove(uuid);
+        this.playerRestrictions.remove(uuid);
+        this.playerBlockRegistry.remove(uuid);
+        this.playerProtocolVersion.remove(uuid);
+        this.lastPlotBoundsForPlayers.remove(uuid);
+        this.noPhysicalTriggerPlayers.remove(uuid);
+    }
+
+    private final Map<UUID, Long> lastRejectedEditReport = new ConcurrentHashMap<>();
+
+    public void reportRejectedEdit(Player player, String reason) {
+        long now = System.currentTimeMillis();
+        Long last = this.lastRejectedEditReport.get(player.getUniqueId());
+        if (last != null && now - last < 3000) {
+            return;
+        }
+        this.lastRejectedEditReport.put(player.getUniqueId(), now);
+
+        this.getLogger().info("Edit from " + player.getName() + " was not applied: " + reason);
+        player.sendMessage(Component.text("Axiom: edit not applied: " + reason).color(NamedTextColor.RED));
     }
 
     public void sendGoodbyeReason(Player player, String message) {
@@ -599,14 +640,13 @@ public class AxiomPaper extends JavaPlugin implements Listener {
     }
 
     public boolean acceptHandshake(Player player, long handshakeId) {
-        if (!this.pendingHandshakeIds.containsKey(player.getUniqueId())) {
+        Long expected = this.pendingHandshakeIds.get(player.getUniqueId());
+        if (expected == null) {
             return false;
         }
 
-        long expected = this.pendingHandshakeIds.getLong(player.getUniqueId());
-
         if (expected == handshakeId) {
-            this.pendingHandshakeIds.removeLong(player.getUniqueId());
+            this.pendingHandshakeIds.remove(player.getUniqueId());
             return true;
         } else {
             return false;
@@ -637,7 +677,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
         VersionHelper.sendCustomPayload(player, "axiom:enable", enableBytes);
 
         this.activeAxiomPlayers.add(player.getUniqueId());
-        this.pendingHandshakeIds.removeLong(player.getUniqueId());
+        this.pendingHandshakeIds.remove(player.getUniqueId());
 
         this.playerPermissions.remove(player.getUniqueId());
         this.playerRestrictions.remove(player.getUniqueId());
@@ -703,7 +743,7 @@ public class AxiomPaper extends JavaPlugin implements Listener {
             this.availableDispatchSends.put(player.getUniqueId(), allowedDispatchSendsPerSecond*20);
             sendUpdateAvailableDispatchSends(player, allowedDispatchSendsPerSecond, allowedDispatchSendsPerSecond);
         } else {
-            int previousAllowed20 = this.availableDispatchSends.getInt(player.getUniqueId());
+            int previousAllowed20 = this.availableDispatchSends.get(player.getUniqueId());
             int newAllowed20 = Math.min(allowedDispatchSendsPerSecond*20, previousAllowed20 + allowedDispatchSendsPerSecond);
             this.availableDispatchSends.put(player.getUniqueId(), newAllowed20);
 
@@ -891,9 +931,11 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     public void setNoPhysicalTrigger(UUID uuid, boolean noPhysicalTrigger) {
         if (noPhysicalTrigger) {
-            if (!this.registeredNoPhysicalTriggerListener) {
-                this.registeredNoPhysicalTriggerListener = true;
-                Bukkit.getPluginManager().registerEvents(new NoPhysicalTriggerListener(this), this);
+            synchronized (this) {
+                if (!this.registeredNoPhysicalTriggerListener) {
+                    this.registeredNoPhysicalTriggerListener = true;
+                    Bukkit.getPluginManager().registerEvents(new NoPhysicalTriggerListener(this), this);
+                }
             }
 
             this.noPhysicalTriggerPlayers.add(uuid);
@@ -916,11 +958,11 @@ public class AxiomPaper extends JavaPlugin implements Listener {
 
     private final WeakHashMap<World, ServerWorldPropertiesRegistry> worldProperties = new WeakHashMap<>();
 
-    public @Nullable ServerWorldPropertiesRegistry getWorldPropertiesIfPresent(World world) {
+    public synchronized @Nullable ServerWorldPropertiesRegistry getWorldPropertiesIfPresent(World world) {
         return worldProperties.get(world);
     }
 
-    public @Nullable ServerWorldPropertiesRegistry getOrCreateWorldProperties(World world) {
+    public synchronized @Nullable ServerWorldPropertiesRegistry getOrCreateWorldProperties(World world) {
         if (worldProperties.containsKey(world)) {
             return worldProperties.get(world);
         } else {

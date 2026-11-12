@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.FoliaSupport;
 import com.moulberry.axiom.event.AxiomTimeChangeEvent;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
@@ -52,9 +53,10 @@ public class SetTimePacketListener implements PacketHandler {
         Bukkit.getPluginManager().callEvent(timeChangeEvent);
         if (timeChangeEvent.isCancelled()) return;
 
-        // Change time
-        if (time != null) level.setDayTime(time);
-        if (freezeTime != null) level.getGameRules().set(GameRules.ADVANCE_TIME, !freezeTime, null);
+        FoliaSupport.runGlobal(() -> {
+            if (time != null) level.setDayTime(time);
+            if (freezeTime != null) level.getGameRules().set(GameRules.ADVANCE_TIME, !freezeTime, null);
+        });
     }
 
 }

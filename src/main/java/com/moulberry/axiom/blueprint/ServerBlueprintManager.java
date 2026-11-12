@@ -24,13 +24,13 @@ public class ServerBlueprintManager {
     public static void initialize(Path blueprintDirectory) {
         Map<String, RawBlueprint> map = new HashMap<>();
         loadRegistryFromFolder(map, blueprintDirectory, "/");
-        registry = new ServerBlueprintRegistry(map);
+        registry = new ServerBlueprintRegistry(new java.util.concurrent.ConcurrentHashMap<>(map));
     }
 
     private static final int MAX_SIZE = 1000000;
     private static final Identifier PACKET_BLUEPRINT_MANIFEST_IDENTIFIER = VersionHelper.createIdentifier("axiom:blueprint_manifest");
 
-    public static void sendManifest(List<ServerPlayer> serverPlayers) {
+    public static synchronized void sendManifest(List<ServerPlayer> serverPlayers) {
         if (registry != null) {
             List<ServerPlayer> sendTo = new ArrayList<>();
 

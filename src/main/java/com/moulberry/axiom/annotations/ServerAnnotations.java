@@ -44,7 +44,7 @@ public class ServerAnnotations {
         }
     }
 
-    public static void sendAll(World world, ServerPlayer player) {
+    public static synchronized void sendAll(World world, ServerPlayer player) {
         if (!AxiomPaper.PLUGIN.allowAnnotations) {
             return;
         }
@@ -68,7 +68,7 @@ public class ServerAnnotations {
         sendAnnotationUpdates(actions, List.of(player));
     }
 
-    public static void handleUpdates(World world, List<AnnotationUpdateAction> actions) {
+    public static synchronized void handleUpdates(World world, List<AnnotationUpdateAction> actions) {
         if (!AxiomPaper.PLUGIN.allowAnnotations) {
             return;
         }

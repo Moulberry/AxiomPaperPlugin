@@ -5,6 +5,7 @@ description: $description
 authors:
   - Moulberry
 api-version: "$apiVersion"
+folia-supported: true
 softdepend: ["CoreProtect", "ViaVersion", "WorldGuard", "PlotSquared"]
 permissions:
   # Optional admin permissions

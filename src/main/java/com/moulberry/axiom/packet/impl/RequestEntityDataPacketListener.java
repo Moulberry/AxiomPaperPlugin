@@ -1,6 +1,9 @@
 package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.FoliaSupport;
+import org.bukkit.World;
+import java.util.concurrent.atomic.AtomicInteger;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.packet.PacketHandler;
@@ -49,10 +52,15 @@ public class RequestEntityDataPacketListener implements PacketHandler {
         List<UUID> request = friendlyByteBuf.readCollection(this.plugin.limitCollection(ArrayList::new), buf -> buf.readUUID());
         ServerLevel serverLevel = player.level();
 
-        final int maxPacketSize = 0x100000;
-        int remainingBytes = maxPacketSize;
+        World world = bukkitPlayer.getWorld();
 
-        Map<UUID, CompoundTag> entityData = new HashMap<>();
+        Map<UUID, CompoundTag> collected = Collections.synchronizedMap(new LinkedHashMap<>());
+        AtomicInteger pending = new AtomicInteger(1);
+        Runnable finishOne = () -> {
+            if (pending.decrementAndGet() == 0) {
+                sendCollected(player, id, collected);
+            }
+        };
 
         Set<UUID> visitedEntities = new HashSet<>();
 
@@ -66,18 +74,43 @@ public class RequestEntityDataPacketListener implements PacketHandler {
                 continue;
             }
 
-            if (!this.plugin.canEntityBeManipulated(entity.getType())) {
-                continue;
-            }
+            pending.incrementAndGet();
+            FoliaSupport.runForEntity(entity, () -> {
+                try {
+                    if (entity.isRemoved() || !this.plugin.canEntityBeManipulated(entity.getType())) {
+                        return;
+                    }
 
-            if (!Integration.canPlaceBlock(bukkitPlayer, new Location(bukkitPlayer.getWorld(),
-                    entity.getBlockX(), entity.getBlockY(), entity.getBlockZ()))) {
-                continue;
-            }
+                    if (!Integration.canPlaceBlock(bukkitPlayer, new Location(world,
+                            entity.getBlockX(), entity.getBlockY(), entity.getBlockZ()))) {
+                        return;
+                    }
 
-            var valueOutput = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, entity.registryAccess());
-            var entityTag = entity.save(valueOutput) ? valueOutput.buildResult() : null;
-            if (entityTag != null) {
+                    var valueOutput = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, entity.registryAccess());
+                    var entityTag = entity.save(valueOutput) ? valueOutput.buildResult() : null;
+                    if (entityTag != null) {
+                        collected.put(uuid, entityTag);
+                    }
+                } finally {
+                    finishOne.run();
+                }
+            }, finishOne);
+        }
+
+        finishOne.run();
+    }
+
+    private static void sendCollected(ServerPlayer player, long id, Map<UUID, CompoundTag> collected) {
+        final int maxPacketSize = 0x100000;
+        int remainingBytes = maxPacketSize;
+
+        Map<UUID, CompoundTag> entityData = new HashMap<>();
+
+        synchronized (collected) {
+            for (Map.Entry<UUID, CompoundTag> entry : collected.entrySet()) {
+                UUID uuid = entry.getKey();
+                CompoundTag entityTag = entry.getValue();
+
                 int size = entityTag.sizeInBytes();
                 if (size >= maxPacketSize) {
                     sendResponse(player, id, false, Map.of(uuid, entityTag));

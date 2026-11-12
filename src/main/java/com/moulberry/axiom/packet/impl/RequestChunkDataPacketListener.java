@@ -2,6 +2,7 @@ package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomConstants;
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.FoliaSupport;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
 import com.moulberry.axiom.operations.RequestChunksOperation;
@@ -102,6 +103,7 @@ public class RequestChunkDataPacketListener implements PacketHandler {
         Long2ObjectOpenHashMap<CompressedBlockEntity> sendingBlockEntities = new Long2ObjectOpenHashMap<>();
 
         LongSet chunkFutures = new LongOpenHashSet();
+        LongSet noLoadChunks = new LongOpenHashSet();
         Long2ObjectMap<LongList> sendBlockEntityForPendingChunks = new Long2ObjectOpenHashMap<>();
         Long2ObjectMap<IntList> sendSectionsForPendingChunks = new Long2ObjectOpenHashMap<>();
 
@@ -123,6 +125,11 @@ public class RequestChunkDataPacketListener implements PacketHandler {
 
                 int distance = Math.abs(playerSectionX - chunkX) + Math.abs(playerSectionZ - chunkZ);
                 boolean canLoad = distance < maxChunkLoadDistance;
+
+                if (!canLoad && !FoliaSupport.isOwned(level, chunkX, chunkZ)) {
+                    noLoadChunks.add(ChunkPos.asLong(chunkX, chunkZ));
+                    canLoad = true;
+                }
 
                 if (!canLoad) {
                     LevelChunk chunk = level.getChunkIfLoaded(chunkX, chunkZ);
@@ -163,6 +170,11 @@ public class RequestChunkDataPacketListener implements PacketHandler {
                 int distance = Math.abs(playerSectionX - sx) + Math.abs(playerSectionZ - sz);
                 boolean canLoad = distance < maxChunkLoadDistance;
 
+                if (!canLoad && !FoliaSupport.isOwned(level, sx, sz)) {
+                    noLoadChunks.add(ChunkPos.asLong(sx, sz));
+                    canLoad = true;
+                }
+
                 if (!canLoad) {
                     LevelChunk chunk = level.getChunkIfLoaded(sx, sz);
                     if (chunk == null) continue;
@@ -174,7 +186,7 @@ public class RequestChunkDataPacketListener implements PacketHandler {
                     if (section.hasOnlyAir()) {
                         sendingSections.put(pos, null);
                     } else {
-                        PalettedContainer<BlockState> container = section.getStates();
+                        PalettedContainer<BlockState> container = FoliaSupport.FOLIA ? section.getStates().copy() : section.getStates();
                         sendingSections.put(pos, container);
 
                         if (sendBlockEntitiesInChunks) {
@@ -220,7 +232,7 @@ public class RequestChunkDataPacketListener implements PacketHandler {
             sendResponse(player, id, sendingBlockEntities, sendingSections);
         } else {
             this.plugin.addPendingOperation(level, new RequestChunksOperation(player, id, chunkFutures, sendBlockEntityForPendingChunks, sendSectionsForPendingChunks,
-                sendBlockEntitiesInChunks, sendingSections, sendingBlockEntities, baos));
+                sendBlockEntitiesInChunks, sendingSections, sendingBlockEntities, baos, noLoadChunks));
         }
     }
 

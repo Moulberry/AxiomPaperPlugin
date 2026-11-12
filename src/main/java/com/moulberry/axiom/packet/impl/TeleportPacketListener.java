@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.FoliaSupport;
 import com.moulberry.axiom.event.AxiomUnknownTeleportEvent;
 import com.moulberry.axiom.event.AxiomTeleportEvent;
 import com.moulberry.axiom.packet.PacketHandler;
@@ -61,8 +62,11 @@ public class TeleportPacketListener implements PacketHandler {
         Bukkit.getPluginManager().callEvent(teleportEvent);
         if (teleportEvent.isCancelled()) return;
 
-        // Do teleport
-        player.teleport(new Location(world, x, y, z, yRot, xRot));
+        if (FoliaSupport.FOLIA) {
+            player.teleportAsync(new Location(world, x, y, z, yRot, xRot));
+        } else {
+            player.teleport(new Location(world, x, y, z, yRot, xRot));
+        }
     }
 
 }
