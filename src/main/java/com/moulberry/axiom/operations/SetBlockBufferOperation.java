@@ -2,6 +2,7 @@ package com.moulberry.axiom.operations;
 
 import com.moulberry.axiom.AxiomPaper;
 import com.moulberry.axiom.AxiomReflection;
+import com.moulberry.axiom.FoliaSupport;
 import com.moulberry.axiom.WorldExtension;
 import com.moulberry.axiom.buffer.BlockBuffer;
 import com.moulberry.axiom.buffer.CompressedBlockEntity;
@@ -46,7 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class SetBlockBufferOperation implements PendingOperation {
 
@@ -57,9 +58,12 @@ public class SetBlockBufferOperation implements PendingOperation {
 
     private Long2ObjectOpenHashMap<List<Long2ObjectMap.Entry<PalettedContainer<BlockState>>>> sectionsForChunks = null;
     private LongArrayList getChunkFutures = null;
-    private List<CompletableFuture<LevelChunk>> chunkFutures = new ArrayList<>();
-    private boolean sendGameMasterBlockWarning = false;
-    private boolean finished = false;
+    private final AtomicInteger chunksInFlight = new AtomicInteger();
+    private volatile boolean sendGameMasterBlockWarning = false;
+    private final AtomicInteger deniedSections = new AtomicInteger();
+    private final AtomicInteger unloadedChunks = new AtomicInteger();
+    private volatile Throwable error = null;
+    private volatile boolean finished = false;
 
     public SetBlockBufferOperation(ServerPlayer player, BlockBuffer buffer, boolean allowNbt) {
         this.player = player;
@@ -79,10 +83,7 @@ public class SetBlockBufferOperation implements PendingOperation {
 
     @Override
     public void tick(ServerLevel level) {
-        BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
-        WorldExtension extension = WorldExtension.get(level);
-
-        BlockState emptyState = BlockBuffer.EMPTY_STATE;
+        this.rethrowError();
 
         if (this.sectionsForChunks == null) {
             this.sectionsForChunks = new Long2ObjectOpenHashMap<>();
@@ -106,7 +107,7 @@ public class SetBlockBufferOperation implements PendingOperation {
             int playerSectionZ = this.player.getBlockZ() >> 4;
 
             LongIterator newFutureIterator = this.getChunkFutures.longIterator();
-            while (this.chunkFutures.size() < MAX_CHUNK_FUTURES && newFutureIterator.hasNext()) {
+            while (this.chunksInFlight.get() < MAX_CHUNK_FUTURES && newFutureIterator.hasNext()) {
                 long chunkPos = newFutureIterator.nextLong();
                 newFutureIterator.remove();
 
@@ -116,28 +117,94 @@ public class SetBlockBufferOperation implements PendingOperation {
                 int distance = Math.abs(playerSectionX - x) + Math.abs(playerSectionZ - z);
                 boolean canLoad = distance < maxChunkLoadDistance;
 
+                List<Long2ObjectMap.Entry<PalettedContainer<BlockState>>> sections = this.sectionsForChunks.get(chunkPos);
+
+                this.chunksInFlight.incrementAndGet();
+
                 if (!canLoad) {
-                    LevelChunk chunk = level.getChunkIfLoaded(x, z);
-                    if (chunk != null) {
-                        this.chunkFutures.add(CompletableFuture.completedFuture(chunk));
-                    }
+                    FoliaSupport.runAtChunk(level, x, z, () -> {
+                        try {
+                            LevelChunk chunk = level.getChunkIfLoaded(x, z);
+                            if (chunk != null) {
+                                this.applyChunk(level, chunk, sections);
+                            } else {
+                                this.unloadedChunks.incrementAndGet();
+                            }
+                        } catch (Throwable t) {
+                            this.error = t;
+                        } finally {
+                            this.chunksInFlight.decrementAndGet();
+                        }
+                    });
                 } else {
-                    this.chunkFutures.add(level.getWorld().getChunkAtAsync(x, z).thenApply(chunk -> (LevelChunk) ((CraftChunk)chunk).getHandle(ChunkStatus.FULL)));
+                    level.getWorld().getChunkAtAsync(x, z).whenComplete((bukkitChunk, throwable) -> {
+                        if (throwable != null || bukkitChunk == null) {
+                            if (throwable != null) {
+                                this.error = throwable;
+                            } else {
+                                this.unloadedChunks.incrementAndGet();
+                            }
+                            this.chunksInFlight.decrementAndGet();
+                            return;
+                        }
+
+                        FoliaSupport.runAtChunk(level, x, z, () -> {
+                            try {
+                                LevelChunk chunk = (LevelChunk) ((CraftChunk)bukkitChunk).getHandle(ChunkStatus.FULL);
+                                this.applyChunk(level, chunk, sections);
+                            } catch (Throwable t) {
+                                this.error = t;
+                            } finally {
+                                this.chunksInFlight.decrementAndGet();
+                            }
+                        });
+                    });
                 }
             }
         }
 
-        Iterator<CompletableFuture<LevelChunk>> chunkFutureIterator = this.chunkFutures.iterator();
-        while (chunkFutureIterator.hasNext()) {
-            CompletableFuture<LevelChunk> future = chunkFutureIterator.next();
-            if (!future.isDone()) {
-                return;
+        if (!this.getChunkFutures.isEmpty() || this.chunksInFlight.get() > 0) {
+            return;
+        }
+
+        this.rethrowError();
+
+        int denied = this.deniedSections.get();
+        int unloaded = this.unloadedChunks.get();
+        if (denied > 0 || unloaded > 0) {
+            StringBuilder reason = new StringBuilder();
+            if (denied > 0) {
+                reason.append(denied).append(" chunk section(s) blocked by a protection plugin (WorldGuard/PlotSquared)");
             }
+            if (unloaded > 0) {
+                if (denied > 0) reason.append(", ");
+                reason.append(unloaded).append(" chunk(s) not loaded and too far away to load");
+            }
+            AxiomPaper.PLUGIN.reportRejectedEdit(this.player.getBukkitEntity(), reason.toString());
+        }
 
-            chunkFutureIterator.remove();
+        if (this.sendGameMasterBlockWarning) {
+            this.player.sendSystemMessage(Component.literal("Unable to set data for Game Master block since you don't have op").withStyle(ChatFormatting.RED));
+        }
 
-            LevelChunk chunk = future.join();
+        this.finished = true;
+    }
 
+    private void rethrowError() {
+        Throwable error = this.error;
+        if (error != null) {
+            this.error = null;
+            throw new RuntimeException(error.getMessage(), error);
+        }
+    }
+
+    private void applyChunk(ServerLevel level, LevelChunk chunk, List<Long2ObjectMap.Entry<PalettedContainer<BlockState>>> sections) {
+        BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
+        WorldExtension extension = WorldExtension.get(level);
+
+        BlockState emptyState = BlockBuffer.EMPTY_STATE;
+
+        {
             Heightmap worldSurface = null;
             Heightmap oceanFloor = null;
             Heightmap motionBlocking = null;
@@ -155,8 +222,6 @@ public class SetBlockBufferOperation implements PendingOperation {
             boolean chunkChanged = false;
             boolean chunkLightChanged = false;
 
-            long chunkPosLong = ChunkPos.asLong(chunk.locX, chunk.locZ);
-            List<Long2ObjectMap.Entry<PalettedContainer<BlockState>>> sections = this.sectionsForChunks.get(chunkPosLong);
             for (Long2ObjectMap.Entry<PalettedContainer<BlockState>> entry : sections) {
                 int cx = BlockPos.getX(entry.getLongKey());
                 int cy = BlockPos.getY(entry.getLongKey());
@@ -169,6 +234,7 @@ public class SetBlockBufferOperation implements PendingOperation {
 
                 SectionPermissionChecker checker = Integration.checkSection(player.getBukkitEntity(), level.getWorld(), cx, cy, cz);
                 if (checker != null && checker.noneAllowed()) {
+                    this.deniedSections.incrementAndGet();
                     continue;
                 }
 
@@ -308,15 +374,5 @@ public class SetBlockBufferOperation implements PendingOperation {
                 extension.lightChunk(chunk.locX, chunk.locZ);
             }
         }
-
-        if (!this.getChunkFutures.isEmpty()) {
-            return;
-        }
-
-        if (this.sendGameMasterBlockWarning) {
-            this.player.sendSystemMessage(Component.literal("Unable to set data for Game Master block since you don't have op").withStyle(ChatFormatting.RED));
-        }
-
-        this.finished = true;
     }
 }

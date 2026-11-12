@@ -12,6 +12,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
+import org.bukkit.craftbukkit.CraftWorld;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.craftbukkit.util.CraftNamespacedKey;
 import org.bukkit.entity.Player;
@@ -43,7 +44,7 @@ public class ServerWorldPropertyHolder<T> {
         return property;
     }
 
-    public void update(Player player, World world, byte[] data) {
+    public synchronized void update(Player player, World world, byte[] data) {
         T newValue = this.property.widget.dataType().deserialize(data);
 
         PropertyUpdateResult result = this.property.handleUpdateProperty(player, world, newValue);
@@ -59,11 +60,11 @@ public class ServerWorldPropertyHolder<T> {
         }
     }
 
-    public void setValueWithoutSyncing(T value) {
+    public synchronized void setValueWithoutSyncing(T value) {
         this.value = value;
     }
 
-    public void setValue(World world, T value) {
+    public synchronized void setValue(World world, T value) {
         boolean sync = this.unsyncedValue || !Objects.equals(value, this.value);
         this.value = value;
         if (sync) {
@@ -71,7 +72,7 @@ public class ServerWorldPropertyHolder<T> {
         }
     }
 
-    public void sync(World world) {
+    public synchronized void sync(World world) {
         FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
 
         buf.writeIdentifier(this.getId());
@@ -81,9 +82,9 @@ public class ServerWorldPropertyHolder<T> {
         byte[] message = ByteBufUtil.getBytes(buf);
 
         List<ServerPlayer> players = new ArrayList<>();
-        for (Player player : world.getPlayers()) {
-            if (AxiomPaper.PLUGIN.canUseAxiom(player)) {
-                players.add(((CraftPlayer)player).getHandle());
+        for (ServerPlayer player : ((CraftWorld)world).getHandle().players()) {
+            if (AxiomPaper.PLUGIN.canUseAxiom(player.getBukkitEntity())) {
+                players.add(player);
             }
         }
         VersionHelper.sendCustomPayloadToAll(players, "axiom:set_world_property", message);
@@ -91,7 +92,7 @@ public class ServerWorldPropertyHolder<T> {
         this.unsyncedValue = false;
     }
 
-    public void write(FriendlyByteBuf friendlyByteBuf) {
+    public synchronized void write(FriendlyByteBuf friendlyByteBuf) {
         friendlyByteBuf.writeIdentifier(this.getId());
         friendlyByteBuf.writeUtf(this.property.name);
         friendlyByteBuf.writeBoolean(this.property.localizeName);

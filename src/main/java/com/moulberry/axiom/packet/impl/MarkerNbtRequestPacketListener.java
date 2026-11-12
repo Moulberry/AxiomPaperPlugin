@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.FoliaSupport;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.marker.MarkerData;
 import com.moulberry.axiom.packet.PacketHandler;
@@ -41,14 +42,16 @@ public class MarkerNbtRequestPacketListener implements PacketHandler {
 
         Entity entity = serverLevel.getEntity(uuid);
         if (entity instanceof Marker marker) {
-            CompoundTag data = MarkerData.getData(marker);
+            FoliaSupport.runForEntity(marker.getBukkitEntity(), () -> {
+                CompoundTag data = MarkerData.getData(marker);
 
-            FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
-            buf.writeUUID(uuid);
-            buf.writeNbt(data);
+                FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+                buf.writeUUID(uuid);
+                buf.writeNbt(data);
 
-            byte[] bytes = ByteBufUtil.getBytes(buf);
-            VersionHelper.sendCustomPayload(player, "axiom:marker_nbt_response", bytes);
+                byte[] bytes = ByteBufUtil.getBytes(buf);
+                VersionHelper.sendCustomPayload(player, "axiom:marker_nbt_response", bytes);
+            });
         }
     }
 

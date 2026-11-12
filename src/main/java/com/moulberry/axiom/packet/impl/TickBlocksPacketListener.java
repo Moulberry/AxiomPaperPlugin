@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.FoliaSupport;
 import com.moulberry.axiom.buffer.PositionSet;
 import com.moulberry.axiom.buffer.TriIntConsumer;
 import com.moulberry.axiom.packet.PacketHandler;
@@ -88,7 +89,20 @@ public class TickBlocksPacketListener implements PacketHandler {
         long start = System.currentTimeMillis();
 
         BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
+        long[] lastChunk = {Long.MIN_VALUE};
+        boolean[] lastChunkOwned = {true};
         TriIntConsumer consumer = (x, y, z) -> {
+            if (FoliaSupport.FOLIA) {
+                long chunkKey = (((long) (x >> 4)) << 32) | ((z >> 4) & 0xFFFFFFFFL);
+                if (chunkKey != lastChunk[0]) {
+                    lastChunk[0] = chunkKey;
+                    lastChunkOwned[0] = FoliaSupport.isOwned(level, x >> 4, z >> 4);
+                }
+                if (!lastChunkOwned[0]) {
+                    return;
+                }
+            }
+
             blockPos.set(x, y, z);
 
             BlockState blockState = level.getBlockState(blockPos);

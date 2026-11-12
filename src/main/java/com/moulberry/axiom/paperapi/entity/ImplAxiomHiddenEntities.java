@@ -21,7 +21,7 @@ import java.util.WeakHashMap;
 
 public class ImplAxiomHiddenEntities {
 
-    private static final Set<Marker> hiddenMarkers = Collections.newSetFromMap(new WeakHashMap<>());
+    private static final Set<Marker> hiddenMarkers = Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
     private static final Map<Object, UUID> hiddenDisplays = new WeakHashMap<>();
     private static final Set<UUID> lastSentHiddenDisplays = new HashSet<>();
 
@@ -36,21 +36,21 @@ public class ImplAxiomHiddenEntities {
         hiddenMarkers.add(marker);
     }
 
-    public static void hideDisplayGizmo(Display display) {
+    public static synchronized void hideDisplayGizmo(Display display) {
         hiddenDisplays.put(display, display.getUniqueId());
         if (hasSentIgnoredDisplaysToAPlayer && !lastSentHiddenDisplays.contains(display.getUniqueId())) {
             resendIgnoredDisplays = true;
         }
     }
 
-    public static void hideCustomDisplayGizmo(Object object, UUID uuid) {
+    public static synchronized void hideCustomDisplayGizmo(Object object, UUID uuid) {
         hiddenDisplays.put(object, uuid);
         if (hasSentIgnoredDisplaysToAPlayer && !lastSentHiddenDisplays.contains(uuid)) {
             resendIgnoredDisplays = true;
         }
     }
 
-    public static void tick() {
+    public static synchronized void tick() {
         if (resendIgnoredDisplays) {
             resendIgnoredDisplays = false;
 
@@ -74,7 +74,7 @@ public class ImplAxiomHiddenEntities {
         }
     }
 
-    public static void sendAll(List<ServerPlayer> players) {
+    public static synchronized void sendAll(List<ServerPlayer> players) {
         if (players.isEmpty()) {
             return;
         }

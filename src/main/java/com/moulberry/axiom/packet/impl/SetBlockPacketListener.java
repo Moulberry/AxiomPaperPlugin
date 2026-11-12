@@ -3,6 +3,7 @@ package com.moulberry.axiom.packet.impl;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.FoliaSupport;
 import com.moulberry.axiom.AxiomReflection;
 import com.moulberry.axiom.integration.Integration;
 import com.moulberry.axiom.integration.coreprotect.CoreProtectIntegration;
@@ -73,10 +74,12 @@ public class SetBlockPacketListener implements PacketHandler {
     @Override
     public void onReceive(Player bukkitPlayer, FriendlyByteBuf friendlyByteBuf) {
         if (!this.plugin.canUseAxiom(bukkitPlayer, AxiomPermission.BUILD_PLACE)) {
+            this.plugin.reportRejectedEdit(bukkitPlayer, "missing permission axiom.build.place, or Axiom is not active for you");
             return;
         }
 
         if (!this.plugin.canModifyWorld(bukkitPlayer, bukkitPlayer.getWorld())) {
+            this.plugin.reportRejectedEdit(bukkitPlayer, "this world cannot be modified (world whitelist/blacklist in the config, or another plugin cancelled it)");
             return;
         }
 
@@ -109,10 +112,23 @@ public class SetBlockPacketListener implements PacketHandler {
             player.connection.ackBlockChangesUpTo(sequenceId);
         }
 
+        if (FoliaSupport.FOLIA) {
+            ServerLevel ownedLevel = player.level();
+            int before = blocks.size();
+            blocks.keySet().removeIf(blockPos -> !FoliaSupport.isOwned(ownedLevel, blockPos));
+            if (blocks.size() != before) {
+                this.plugin.reportRejectedEdit(bukkitPlayer, (before - blocks.size()) + " block(s) are in another Folia region than you, single-block placement only works near you");
+            }
+            if (blocks.isEmpty()) {
+                return;
+            }
+        }
+
         BlockPlaceContext blockPlaceContext = new BlockPlaceContext(player, hand, player.getItemInHand(hand), blockHit);
 
         if ((reason & REASON_REPLACEMODE) == 0 && (reason & REASON_ANGEL) == 0) {
             if (!fireBukkitEvents(bukkitPlayer, blockHit, breaking, blocks, player, world, hand)) {
+                this.plugin.reportRejectedEdit(bukkitPlayer, "another plugin cancelled the block place/interact event (protection or claims plugin)");
                 return;
             }
         }

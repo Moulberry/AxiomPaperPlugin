@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.FoliaSupport;
 import com.moulberry.axiom.NbtSanitization;
 import com.moulberry.axiom.event.AxiomSpawnEntityEvent;
 import com.moulberry.axiom.integration.Integration;
@@ -76,25 +77,39 @@ public class SpawnEntityPacketListener implements PacketHandler {
                 continue;
             }
 
-            if (serverLevel.getEntity(entry.newUuid) != null) continue;
+            CompoundTag baseTag = entry.tag == null ? new CompoundTag() : entry.tag;
 
-            CompoundTag tag = entry.tag == null ? new CompoundTag() : entry.tag;
+            NbtSanitization.sanitizeEntity(baseTag);
 
-            NbtSanitization.sanitizeEntity(tag);
+            int chunkX = blockPos.getX() >> 4;
+            int chunkZ = blockPos.getZ() >> 4;
 
-            if (entry.copyFrom != null) {
-                Entity entityCopyFrom = serverLevel.getEntity(entry.copyFrom);
-                if (entityCopyFrom != null) {
+            Entity entityCopyFrom = entry.copyFrom != null ? serverLevel.getEntity(entry.copyFrom) : null;
+            if (entityCopyFrom != null) {
+                FoliaSupport.runForEntity(entityCopyFrom.getBukkitEntity(), () -> {
+                    CompoundTag tag = baseTag;
+
                     var valueOutput = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, entityCopyFrom.registryAccess());
                     CompoundTag saved = entityCopyFrom.saveAsPassenger(valueOutput) ? valueOutput.buildResult() : null;
                     if (saved != null) {
                         saved.remove("Dimension");
                         tag = tag.merge(saved);
                     }
-                }
-            }
 
-            if (!tag.contains("id")) continue;
+                    CompoundTag finalTag = tag;
+                    FoliaSupport.runAtChunk(serverLevel, chunkX, chunkZ, () -> this.spawnEntity(player, serverLevel, entry, position, finalTag));
+                });
+            } else {
+                FoliaSupport.runAtChunk(serverLevel, chunkX, chunkZ, () -> this.spawnEntity(player, serverLevel, entry, position, baseTag));
+            }
+        }
+    }
+
+    private void spawnEntity(Player player, ServerLevel serverLevel, SpawnEntry entry, Vec3 position, CompoundTag tag) {
+        {
+            if (serverLevel.getEntity(entry.newUuid) != null) return;
+
+            if (!tag.contains("id")) return;
 
             AtomicBoolean useNewUuid = new AtomicBoolean(true);
 

@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.FoliaSupport;
 import com.moulberry.axiom.WorldExtension;
 import com.moulberry.axiom.buffer.BiomeBuffer;
 import com.moulberry.axiom.buffer.BlockBuffer;
@@ -90,7 +91,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
     }
 
     private void applyBlockBuffer(ServerPlayer player, MinecraftServer server, BlockBuffer buffer, ResourceKey<Level> worldKey, int clientAvailableDispatchSends) {
-        server.execute(() -> {
+        FoliaSupport.runDeferred(server, () -> {
             try {
                 if (this.plugin.logLargeBlockBufferChanges()) {
                     this.plugin.getLogger().info("Player " + player.getUUID() + " modified " + buffer.getSectionCount() + " chunk sections (blocks)");
@@ -105,11 +106,17 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                 }
 
                 if (!this.plugin.canUseAxiom(player.getBukkitEntity(), AxiomPermission.BUILD_SECTION)) {
+                    this.plugin.reportRejectedEdit(player.getBukkitEntity(), "missing permission axiom.build.section, or Axiom is not active for you");
                     return;
                 }
 
                 ServerLevel world = player.level();
-                if (!world.dimension().equals(worldKey) || !this.plugin.canModifyWorld(player.getBukkitEntity(), world.getWorld())) {
+                if (!world.dimension().equals(worldKey)) {
+                    this.plugin.reportRejectedEdit(player.getBukkitEntity(), "the edit was for another world than the one you are in");
+                    return;
+                }
+                if (!this.plugin.canModifyWorld(player.getBukkitEntity(), world.getWorld())) {
+                    this.plugin.reportRejectedEdit(player.getBukkitEntity(), "this world cannot be modified (world whitelist/blacklist in the config, or another plugin cancelled it)");
                     return;
                 }
 
@@ -122,7 +129,7 @@ public class SetBlockBufferPacketListener implements PacketHandler {
     }
 
     private void applyBiomeBuffer(ServerPlayer player, MinecraftServer server, BiomeBuffer biomeBuffer, ResourceKey<Level> worldKey, int clientAvailableDispatchSends) {
-        server.execute(() -> {
+        FoliaSupport.runDeferred(server, () -> {
             try {
                 if (this.plugin.logLargeBlockBufferChanges()) {
                     this.plugin.getLogger().info("Player " + player.getUUID() + " modified " + biomeBuffer.getSectionCount() + " chunk sections (biomes)");
@@ -133,15 +140,19 @@ public class SetBlockBufferPacketListener implements PacketHandler {
                 }
 
                 if (!this.plugin.canUseAxiom(player.getBukkitEntity(), AxiomPermission.BUILD_SECTION)) {
+                    this.plugin.reportRejectedEdit(player.getBukkitEntity(), "missing permission axiom.build.section, or Axiom is not active for you");
                     return;
                 }
 
                 ServerLevel world = player.level();
-                if (!world.dimension().equals(worldKey) || !this.plugin.canModifyWorld(player.getBukkitEntity(), world.getWorld())) {
+                if (!world.dimension().equals(worldKey)) {
+                    this.plugin.reportRejectedEdit(player.getBukkitEntity(), "the edit was for another world than the one you are in");
                     return;
                 }
-
-                Set<LevelChunk> changedChunks = new HashSet<>();
+                if (!this.plugin.canModifyWorld(player.getBukkitEntity(), world.getWorld())) {
+                    this.plugin.reportRejectedEdit(player.getBukkitEntity(), "this world cannot be modified (world whitelist/blacklist in the config, or another plugin cancelled it)");
+                    return;
+                }
 
                 int minSection = world.getMinSectionY();
                 int maxSection = world.getMaxSectionY();
@@ -151,6 +162,8 @@ public class SetBlockBufferPacketListener implements PacketHandler {
 
                 Registry<Biome> registry = registryOptional.get();
 
+                Map<Long, List<BiomeChange>> changesByChunk = new HashMap<>();
+
                 biomeBuffer.forEachEntry((x, y, z, biome) -> {
                     int cy = y >> 2;
                     if (cy < minSection || cy > maxSection) {
@@ -159,34 +172,66 @@ public class SetBlockBufferPacketListener implements PacketHandler {
 
                     var holder = registry.get(biome);
                     if (holder.isPresent()) {
-                        LevelChunk chunk = (LevelChunk) world.getChunk(x >> 2, z >> 2, ChunkStatus.FULL, false);
-                        if (chunk == null) return;
-
-                        var section = chunk.getSection(cy - minSection);
-                        PalettedContainer<Holder<Biome>> container = (PalettedContainer<Holder<Biome>>) section.getBiomes();
-
-                        if (!Integration.canPlaceBlock(player.getBukkitEntity(),
-                            new Location(player.getBukkitEntity().getWorld(), (x<<2)+1, (y<<2)+1, (z<<2)+1))) return;
-
-                        container.set(x & 3, y & 3, z & 3, holder.get());
-                        changedChunks.add(chunk);
+                        long chunkPos = ChunkPos.asLong(x >> 2, z >> 2);
+                        changesByChunk.computeIfAbsent(chunkPos, k -> new ArrayList<>()).add(new BiomeChange(x, y, z, holder.get()));
                     }
                 });
 
-                var chunkMap = world.getChunkSource().chunkMap;
-                HashMap<ServerPlayer, List<LevelChunk>> map = new HashMap<>();
-                for (LevelChunk chunk : changedChunks) {
-                    chunk.markUnsaved();
-                    ChunkPos chunkPos = chunk.getPos();
-                    for (ServerPlayer serverPlayer2 : chunkMap.getPlayers(chunkPos, false)) {
-                        map.computeIfAbsent(serverPlayer2, serverPlayer -> new ArrayList<>()).add(chunk);
-                    }
+                for (Map.Entry<Long, List<BiomeChange>> entry : changesByChunk.entrySet()) {
+                    int chunkX = ChunkPos.getX(entry.getKey());
+                    int chunkZ = ChunkPos.getZ(entry.getKey());
+                    List<BiomeChange> changes = entry.getValue();
+
+                    FoliaSupport.runAtChunk(world, chunkX, chunkZ, () -> {
+                        try {
+                            applyBiomeChanges(player, world, chunkX, chunkZ, minSection, changes);
+                        } catch (Throwable t) {
+                            player.getBukkitEntity().kick(net.kyori.adventure.text.Component.text("An error occured while processing biome change: " + t.getMessage()));
+                        }
+                    });
                 }
-                map.forEach((serverPlayer, list) -> serverPlayer.connection.send(ClientboundChunksBiomesPacket.forChunks(list)));
             } catch (Throwable t) {
                 player.getBukkitEntity().kick(net.kyori.adventure.text.Component.text("An error occured while processing biome change: " + t.getMessage()));
             }
         });
+    }
+
+    private record BiomeChange(int x, int y, int z, Holder<Biome> biome) {
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void applyBiomeChanges(ServerPlayer player, ServerLevel world, int chunkX, int chunkZ, int minSection, List<BiomeChange> changes) {
+        LevelChunk chunk = (LevelChunk) world.getChunk(chunkX, chunkZ, ChunkStatus.FULL, false);
+        if (chunk == null) return;
+
+        boolean changed = false;
+
+        for (BiomeChange change : changes) {
+            int x = change.x();
+            int y = change.y();
+            int z = change.z();
+
+            var section = chunk.getSection((y >> 2) - minSection);
+            PalettedContainer<Holder<Biome>> container = (PalettedContainer<Holder<Biome>>) section.getBiomes();
+
+            if (!Integration.canPlaceBlock(player.getBukkitEntity(),
+                new Location(world.getWorld(), (x<<2)+1, (y<<2)+1, (z<<2)+1))) continue;
+
+            container.set(x & 3, y & 3, z & 3, change.biome());
+            changed = true;
+        }
+
+        if (changed) {
+            chunk.markUnsaved();
+
+            List<ServerPlayer> players = world.getChunkSource().chunkMap.getPlayers(chunk.getPos(), false);
+            if (!players.isEmpty()) {
+                var packet = ClientboundChunksBiomesPacket.forChunks(List.of(chunk));
+                for (ServerPlayer serverPlayer : players) {
+                    serverPlayer.connection.send(packet);
+                }
+            }
+        }
     }
 
 }

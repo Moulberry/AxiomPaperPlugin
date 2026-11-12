@@ -1,5 +1,7 @@
 package com.moulberry.axiom;
 
+import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent;
+import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent;
 import com.moulberry.axiom.annotations.ServerAnnotations;
 import com.moulberry.axiom.marker.MarkerData;
 import com.moulberry.axiom.paperapi.entity.ImplAxiomHiddenEntities;
@@ -12,7 +14,6 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundLevelChunkWithLightPacket;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -22,14 +23,19 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.CraftWorld;
+import org.bukkit.craftbukkit.entity.CraftMarker;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class WorldExtension {
 
-    private static final Map<ResourceKey<Level>, WorldExtension> extensions = new HashMap<>();
+    private static final Map<ResourceKey<Level>, WorldExtension> extensions = new ConcurrentHashMap<>();
 
     public static WorldExtension get(ServerLevel serverLevel) {
         WorldExtension extension = extensions.computeIfAbsent(serverLevel.dimension(), k -> new WorldExtension());
@@ -54,18 +60,41 @@ public class WorldExtension {
         }
     }
 
-    private ServerLevel level;
+    public static class FoliaMarkerTracker implements Listener {
+        @EventHandler
+        public void onEntityAdd(EntityAddToWorldEvent event) {
+            if (event.getEntity() instanceof CraftMarker marker) {
+                get(((CraftWorld) event.getWorld()).getHandle()).trackedMarkers.add(marker);
+            }
+        }
+
+        @EventHandler
+        public void onEntityRemove(EntityRemoveFromWorldEvent event) {
+            if (event.getEntity() instanceof CraftMarker marker) {
+                get(((CraftWorld) event.getWorld()).getHandle()).trackedMarkers.remove(marker);
+            }
+        }
+    }
+
+    private volatile ServerLevel level;
 
     private final LongSet pendingChunksToSend = new LongOpenHashSet();
     private final LongSet pendingChunksToLight = new LongOpenHashSet();
-    private final Map<UUID, MarkerData> previousMarkerData = new HashMap<>();
+    private final Map<UUID, MarkerData> previousMarkerData = new ConcurrentHashMap<>();
+
+    private final Set<CraftMarker> trackedMarkers = ConcurrentHashMap.newKeySet();
+    private final Queue<MarkerData> changedMarkerQueue = new ConcurrentLinkedQueue<>();
 
     public void sendChunk(int cx, int cz) {
-        this.pendingChunksToSend.add(ChunkPos.asLong(cx, cz));
+        synchronized (this.pendingChunksToSend) {
+            this.pendingChunksToSend.add(ChunkPos.asLong(cx, cz));
+        }
     }
 
     public void lightChunk(int cx, int cz) {
-        this.pendingChunksToLight.add(ChunkPos.asLong(cx, cz));
+        synchronized (this.pendingChunksToLight) {
+            this.pendingChunksToLight.add(ChunkPos.asLong(cx, cz));
+        }
     }
 
     public void onPlayerJoin(Player player) {
@@ -91,7 +120,11 @@ public class WorldExtension {
 
     public void tick(boolean sendMarkers, int maxChunkRelightsPerTick, int maxChunkSendsPerTick) {
         if (sendMarkers) {
-            this.tickMarkers();
+            if (FoliaSupport.FOLIA) {
+                this.tickMarkersFolia();
+            } else {
+                this.tickMarkers();
+            }
         }
         this.tickChunkRelight(maxChunkRelightsPerTick, maxChunkSendsPerTick);
     }
@@ -123,6 +156,52 @@ public class WorldExtension {
         missingUuids.removeAll(allMarkers);
         this.previousMarkerData.keySet().removeAll(missingUuids);
 
+        this.sendMarkerChanges(changedData, missingUuids);
+    }
+
+    private void tickMarkersFolia() {
+        List<MarkerData> changedData = new ArrayList<>();
+        MarkerData queued;
+        while ((queued = this.changedMarkerQueue.poll()) != null) {
+            changedData.add(queued);
+        }
+
+        Set<UUID> allMarkers = new HashSet<>();
+
+        for (CraftMarker bukkitMarker : this.trackedMarkers) {
+            if (ImplAxiomHiddenEntities.isMarkerHidden(bukkitMarker)) {
+                continue;
+            }
+
+            UUID uuid = bukkitMarker.getUniqueId();
+            allMarkers.add(uuid);
+
+            boolean scheduled = bukkitMarker.getScheduler().execute(AxiomPaper.PLUGIN, () -> {
+                if (!this.trackedMarkers.contains(bukkitMarker)) {
+                    return;
+                }
+
+                MarkerData currentData = MarkerData.createFrom(bukkitMarker.getHandle());
+
+                MarkerData previousData = this.previousMarkerData.put(uuid, currentData);
+                if (!Objects.equals(currentData, previousData)) {
+                    this.changedMarkerQueue.add(currentData);
+                }
+            }, () -> this.trackedMarkers.remove(bukkitMarker), 1L);
+
+            if (!scheduled) {
+                this.trackedMarkers.remove(bukkitMarker);
+            }
+        }
+
+        Set<UUID> missingUuids = new HashSet<>(this.previousMarkerData.keySet());
+        missingUuids.removeAll(allMarkers);
+        this.previousMarkerData.keySet().removeAll(missingUuids);
+
+        this.sendMarkerChanges(changedData, missingUuids);
+    }
+
+    private void sendMarkerChanges(List<MarkerData> changedData, Set<UUID> missingUuids) {
         if (!changedData.isEmpty() || !missingUuids.isEmpty()) {
             FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
             buf.writeCollection(changedData, MarkerData::write);
@@ -141,65 +220,69 @@ public class WorldExtension {
         }
     }
 
+    private static long[] drain(LongSet set, int max) {
+        synchronized (set) {
+            if (set.isEmpty()) {
+                return new long[0];
+            }
+
+            if (max <= 0 || set.size() <= max) {
+                long[] all = set.toLongArray();
+                set.clear();
+                return all;
+            }
+
+            long[] some = new long[max];
+            LongIterator iterator = set.longIterator();
+            for (int i = 0; i < max; i++) {
+                some[i] = iterator.nextLong();
+                iterator.remove();
+            }
+            return some;
+        }
+    }
+
     private void tickChunkRelight(int maxChunkRelightsPerTick, int maxChunkSendsPerTick) {
-        ChunkMap chunkMap = this.level.getChunkSource().chunkMap;
+        ServerLevel level = this.level;
 
-        boolean sendAll = maxChunkSendsPerTick <= 0;
-
-        // Send chunks
-        LongIterator longIterator = this.pendingChunksToSend.longIterator();
-        while (longIterator.hasNext()) {
-            ChunkPos chunkPos = new ChunkPos(longIterator.nextLong());
-
-            LevelChunk chunk = this.level.getChunkIfLoaded(chunkPos.x, chunkPos.z);
-            if (chunk == null) {
-                continue;
-            }
-
-            List<ServerPlayer> players = chunkMap.getPlayers(chunkPos, false);
-            if (players.isEmpty()) {
-                continue;
-            }
-
-            var packet = new ClientboundLevelChunkWithLightPacket(chunk, this.level.getLightEngine(), null, null, false);
-            for (ServerPlayer player : players) {
-                player.connection.send(packet);
-            }
-
-            if (!sendAll) {
-                longIterator.remove();
-
-                maxChunkSendsPerTick -= 1;
-                if (maxChunkSendsPerTick <= 0) {
-                    break;
+        for (long chunkPosLong : drain(this.pendingChunksToSend, maxChunkSendsPerTick)) {
+            int chunkX = ChunkPos.getX(chunkPosLong);
+            int chunkZ = ChunkPos.getZ(chunkPosLong);
+            FoliaSupport.runAtChunk(level, chunkX, chunkZ, () -> {
+                try {
+                    sendChunkNow(level, chunkX, chunkZ);
+                } catch (Throwable t) {
+                    AxiomPaper.PLUGIN.getSLF4JLogger().warn("Failed to resend chunk {},{} after an edit", chunkX, chunkZ, t);
                 }
-            }
-        }
-        if (sendAll) {
-            this.pendingChunksToSend.clear();
+            });
         }
 
-        // Relight chunks
-        Set<ChunkPos> chunkSet = new HashSet<>();
-        longIterator = this.pendingChunksToLight.longIterator();
-        if (maxChunkRelightsPerTick <= 0) {
-            while (longIterator.hasNext()) {
-                chunkSet.add(new ChunkPos(longIterator.nextLong()));
+        long[] toLight = drain(this.pendingChunksToLight, maxChunkRelightsPerTick);
+        if (toLight.length > 0) {
+            Set<ChunkPos> chunkSet = new HashSet<>();
+            for (long chunkPosLong : toLight) {
+                chunkSet.add(new ChunkPos(chunkPosLong));
             }
-            this.pendingChunksToLight.clear();
-        } else {
-            while (longIterator.hasNext()) {
-                chunkSet.add(new ChunkPos(longIterator.nextLong()));
-                longIterator.remove();
 
-                maxChunkRelightsPerTick -= 1;
-                if (maxChunkRelightsPerTick <= 0) {
-                    break;
-                }
-            }
+            level.getChunkSource().getLightEngine().starlight$serverRelightChunks(chunkSet, pos -> {}, count -> {});
+        }
+    }
+
+    private static void sendChunkNow(ServerLevel level, int chunkX, int chunkZ) {
+        LevelChunk chunk = level.getChunkIfLoaded(chunkX, chunkZ);
+        if (chunk == null) {
+            return;
         }
 
-        this.level.getChunkSource().getLightEngine().starlight$serverRelightChunks(chunkSet, pos -> {}, count -> {});
+        List<ServerPlayer> players = level.getChunkSource().chunkMap.getPlayers(new ChunkPos(chunkX, chunkZ), false);
+        if (players.isEmpty()) {
+            return;
+        }
+
+        var packet = new ClientboundLevelChunkWithLightPacket(chunk, level.getLightEngine(), null, null, false);
+        for (ServerPlayer player : players) {
+            player.connection.send(packet);
+        }
     }
 
 }

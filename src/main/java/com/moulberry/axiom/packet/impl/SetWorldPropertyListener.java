@@ -1,6 +1,7 @@
 package com.moulberry.axiom.packet.impl;
 
 import com.moulberry.axiom.AxiomPaper;
+import com.moulberry.axiom.FoliaSupport;
 import com.moulberry.axiom.VersionHelper;
 import com.moulberry.axiom.integration.plotsquared.PlotSquaredIntegration;
 import com.moulberry.axiom.packet.PacketHandler;
@@ -11,6 +12,7 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.Identifier;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 
 public class SetWorldPropertyListener implements PacketHandler {
@@ -51,7 +53,15 @@ public class SetWorldPropertyListener implements PacketHandler {
 
         ServerWorldPropertyHolder<?> property = registry.getById(id);
         if (property != null && property.getType().getTypeId() == type) {
-            property.update(player, player.getWorld(), data);
+            World world = player.getWorld();
+            FoliaSupport.runGlobal(() -> {
+                try {
+                    property.update(player, world, data);
+                } finally {
+                    sendAck(player, updateId);
+                }
+            });
+            return;
         }
 
         sendAck(player, updateId);
