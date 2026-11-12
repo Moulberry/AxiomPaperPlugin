@@ -86,7 +86,7 @@ public class SpawnEntityPacketListener implements PacketHandler {
 
             Entity entityCopyFrom = entry.copyFrom != null ? serverLevel.getEntity(entry.copyFrom) : null;
             if (entityCopyFrom != null) {
-                FoliaSupport.runForEntity(entityCopyFrom, () -> {
+                FoliaSupport.runForEntity(entityCopyFrom.getBukkitEntity(), () -> {
                     CompoundTag tag = baseTag;
 
                     var valueOutput = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, entityCopyFrom.registryAccess());

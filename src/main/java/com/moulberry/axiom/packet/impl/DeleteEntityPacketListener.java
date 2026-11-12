@@ -45,7 +45,7 @@ public class DeleteEntityPacketListener implements PacketHandler {
             Entity entity = serverLevel.getEntity(uuid);
             if (entity == null || entity instanceof net.minecraft.world.entity.player.Player) continue;
 
-            FoliaSupport.runForEntity(entity, () -> this.deleteEntity(player, world, entity));
+            FoliaSupport.runForEntity(entity.getBukkitEntity(), () -> this.deleteEntity(player, world, entity));
         }
     }
 

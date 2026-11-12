@@ -103,7 +103,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
             Entity entity = serverLevel.getEntity(entry.uuid);
             if (entity == null || entity instanceof net.minecraft.world.entity.player.Player) continue;
 
-            FoliaSupport.runForEntity(entity, () -> this.manipulateEntity(player, world, serverLevel, entry, entity));
+            FoliaSupport.runForEntity(entity.getBukkitEntity(), () -> this.manipulateEntity(player, world, serverLevel, entry, entity));
         }
     }
 
@@ -186,7 +186,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
                         for (UUID passengerUuid : entry.passengers) {
                             Entity passenger = serverLevel.getEntity(passengerUuid);
 
-                            if (passenger == null || !FoliaSupport.isOwned(passenger) || passenger.isPassenger()) {
+                            if (passenger == null || !FoliaSupport.isOwned(passenger.getBukkitEntity()) || passenger.isPassenger()) {
                                 continue;
                             }
                             if (!canManipulatePassengers(passenger) || passenger.hasPassenger(ManipulateEntityPacketListener::cannotManipulatePassengers)) {
@@ -215,7 +215,7 @@ public class ManipulateEntityPacketListener implements PacketHandler {
                     case REMOVE_LIST -> {
                         for (UUID passengerUuid : entry.passengers) {
                             Entity passenger = serverLevel.getEntity(passengerUuid);
-                            if (passenger == null || passenger == entity || !FoliaSupport.isOwned(passenger)) {
+                            if (passenger == null || passenger == entity || !FoliaSupport.isOwned(passenger.getBukkitEntity())) {
                                 continue;
                             }
                             if (!canManipulatePassengers(passenger) || passenger.hasPassenger(ManipulateEntityPacketListener::cannotManipulatePassengers)) {

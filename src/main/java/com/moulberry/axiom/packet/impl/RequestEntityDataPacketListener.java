@@ -75,7 +75,7 @@ public class RequestEntityDataPacketListener implements PacketHandler {
             }
 
             pending.incrementAndGet();
-            FoliaSupport.runForEntity(entity, () -> {
+            FoliaSupport.runForEntity(entity.getBukkitEntity(), () -> {
                 try {
                     if (entity.isRemoved() || !this.plugin.canEntityBeManipulated(entity.getType())) {
                         return;

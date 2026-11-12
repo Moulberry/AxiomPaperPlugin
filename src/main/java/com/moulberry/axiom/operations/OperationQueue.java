@@ -1,9 +1,11 @@
 package com.moulberry.axiom.operations;
 
 import com.moulberry.axiom.FoliaSupport;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import org.bukkit.World;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -67,8 +69,7 @@ public class OperationQueue {
                         }
                     } catch (Throwable t) {
                         ServerPlayer executor = operation.executor();
-                        var message = net.kyori.adventure.text.Component.text("An error occurred while processing operation: " + t.getMessage());
-                        FoliaSupport.runForEntity(executor, () -> executor.getBukkitEntity().kick(message));
+                        executor.getBukkitEntity().kick(net.kyori.adventure.text.Component.text("An error occurred while processing operation: " + t.getMessage()));
                         operationIterator.remove();
                     }
                 }

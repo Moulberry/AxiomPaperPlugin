@@ -16,6 +16,7 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ServerBlueprintManager {
 
@@ -24,7 +25,7 @@ public class ServerBlueprintManager {
     public static void initialize(Path blueprintDirectory) {
         Map<String, RawBlueprint> map = new HashMap<>();
         loadRegistryFromFolder(map, blueprintDirectory, "/");
-        registry = new ServerBlueprintRegistry(new java.util.concurrent.ConcurrentHashMap<>(map));
+        registry = new ServerBlueprintRegistry(new ConcurrentHashMap<>(map));
     }
 
     private static final int MAX_SIZE = 1000000;

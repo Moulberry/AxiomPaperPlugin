@@ -42,7 +42,7 @@ public class MarkerNbtRequestPacketListener implements PacketHandler {
 
         Entity entity = serverLevel.getEntity(uuid);
         if (entity instanceof Marker marker) {
-            FoliaSupport.runForEntity(marker, () -> {
+            FoliaSupport.runForEntity(marker.getBukkitEntity(), () -> {
                 CompoundTag data = MarkerData.getData(marker);
 
                 FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());

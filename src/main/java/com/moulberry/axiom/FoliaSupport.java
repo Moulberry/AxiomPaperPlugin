@@ -4,6 +4,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Entity;
 import org.jetbrains.annotations.Nullable;
 
 public final class FoliaSupport {
@@ -30,8 +31,8 @@ public final class FoliaSupport {
         return isOwned(level, blockPos.getX() >> 4, blockPos.getZ() >> 4);
     }
 
-    public static boolean isOwned(net.minecraft.world.entity.Entity entity) {
-        return !FOLIA || Bukkit.isOwnedByCurrentRegion(entity.getBukkitEntity());
+    public static boolean isOwned(Entity entity) {
+        return !FOLIA || Bukkit.isOwnedByCurrentRegion(entity);
     }
 
     public static void runAtChunk(ServerLevel level, int chunkX, int chunkZ, Runnable task) {
@@ -42,7 +43,7 @@ public final class FoliaSupport {
         }
     }
 
-    public static void runForEntity(org.bukkit.entity.Entity entity, Runnable task, @Nullable Runnable retired) {
+    public static void runForEntity(Entity entity, Runnable task, @Nullable Runnable retired) {
         if (!FOLIA || Bukkit.isOwnedByCurrentRegion(entity)) {
             task.run();
         } else if (!entity.getScheduler().execute(AxiomPaper.PLUGIN, task, retired, 1L)) {
@@ -52,16 +53,8 @@ public final class FoliaSupport {
         }
     }
 
-    public static void runForEntity(org.bukkit.entity.Entity entity, Runnable task) {
+    public static void runForEntity(Entity entity, Runnable task) {
         runForEntity(entity, task, null);
-    }
-
-    public static void runForEntity(net.minecraft.world.entity.Entity entity, Runnable task, @Nullable Runnable retired) {
-        runForEntity(entity.getBukkitEntity(), task, retired);
-    }
-
-    public static void runForEntity(net.minecraft.world.entity.Entity entity, Runnable task) {
-        runForEntity(entity.getBukkitEntity(), task, null);
     }
 
     public static void runGlobal(Runnable task) {

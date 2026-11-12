@@ -23,7 +23,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.chunk.LevelChunk;
 import org.bukkit.World;
 import org.bukkit.craftbukkit.CraftWorld;
-import org.bukkit.craftbukkit.entity.CraftEntity;
+import org.bukkit.craftbukkit.entity.CraftMarker;
 import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -63,14 +63,14 @@ public class WorldExtension {
     public static class FoliaMarkerTracker implements Listener {
         @EventHandler
         public void onEntityAdd(EntityAddToWorldEvent event) {
-            if (event.getEntity() instanceof org.bukkit.entity.Marker marker) {
+            if (event.getEntity() instanceof CraftMarker marker) {
                 get(((CraftWorld) event.getWorld()).getHandle()).trackedMarkers.add(marker);
             }
         }
 
         @EventHandler
         public void onEntityRemove(EntityRemoveFromWorldEvent event) {
-            if (event.getEntity() instanceof org.bukkit.entity.Marker marker) {
+            if (event.getEntity() instanceof CraftMarker marker) {
                 get(((CraftWorld) event.getWorld()).getHandle()).trackedMarkers.remove(marker);
             }
         }
@@ -82,7 +82,7 @@ public class WorldExtension {
     private final LongSet pendingChunksToLight = new LongOpenHashSet();
     private final Map<UUID, MarkerData> previousMarkerData = new ConcurrentHashMap<>();
 
-    private final Set<org.bukkit.entity.Marker> trackedMarkers = ConcurrentHashMap.newKeySet();
+    private final Set<CraftMarker> trackedMarkers = ConcurrentHashMap.newKeySet();
     private final Queue<MarkerData> changedMarkerQueue = new ConcurrentLinkedQueue<>();
 
     public void sendChunk(int cx, int cz) {
@@ -168,7 +168,7 @@ public class WorldExtension {
 
         Set<UUID> allMarkers = new HashSet<>();
 
-        for (org.bukkit.entity.Marker bukkitMarker : this.trackedMarkers) {
+        for (CraftMarker bukkitMarker : this.trackedMarkers) {
             if (ImplAxiomHiddenEntities.isMarkerHidden(bukkitMarker)) {
                 continue;
             }
@@ -181,8 +181,7 @@ public class WorldExtension {
                     return;
                 }
 
-                Marker marker = (Marker) ((CraftEntity) bukkitMarker).getHandle();
-                MarkerData currentData = MarkerData.createFrom(marker);
+                MarkerData currentData = MarkerData.createFrom(bukkitMarker.getHandle());
 
                 MarkerData previousData = this.previousMarkerData.put(uuid, currentData);
                 if (!Objects.equals(currentData, previousData)) {
@@ -253,7 +252,7 @@ public class WorldExtension {
                 try {
                     sendChunkNow(level, chunkX, chunkZ);
                 } catch (Throwable t) {
-                    AxiomPaper.PLUGIN.getLogger().log(java.util.logging.Level.WARNING, "Failed to resend chunk " + chunkX + "," + chunkZ + " after an edit", t);
+                    AxiomPaper.PLUGIN.getSLF4JLogger().warn("Failed to resend chunk {},{} after an edit", chunkX, chunkZ, t);
                 }
             });
         }
